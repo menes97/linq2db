@@ -1521,6 +1521,11 @@ namespace LinqToDB.Mapping
 		/// </summary>
 		/// <param name="type">Type to check.</param>
 		/// <returns><see langword="true"/>, if type mapped to scalar database type.</returns>
+		internal IEnumerable<Type> GetRegisteredScalarTypes()
+		{
+			return Schemas.SelectMany(static info => info.GetRegisteredScalarTypes());
+		}
+
 		public bool IsScalarType(Type type)
 		{
 			type = type.UnwrapNullableType();

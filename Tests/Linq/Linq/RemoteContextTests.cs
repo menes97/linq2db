@@ -604,7 +604,7 @@ namespace Tests.Linq
 			{
 				ClientsCreated++;
 
-				return new CountingClient(this, new BackendLinqService(_backendOptions) { AllowUpdates = true });
+				return new CountingClient(this, new BackendLinqService(_backendOptions) { AllowUpdates = true, TrustedClient = true });
 			}
 
 			// LinqService's own CreateDataContext builds a DataConnection from a *configuration name*; this

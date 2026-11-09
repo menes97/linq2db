@@ -34,7 +34,12 @@ namespace LinqToDB.Internal.Remote
 
 		public static LinqServiceQuery Deserialize(MappingSchema serializationSchema, MappingSchema contextSchema, DataOptions options, string str)
 		{
-			return new QueryDeserializer(serializationSchema, contextSchema, options).Deserialize(str);
+			return new QueryDeserializer(serializationSchema, contextSchema, options, null).Deserialize(str);
+		}
+
+		public static LinqServiceQuery Deserialize(MappingSchema serializationSchema, MappingSchema contextSchema, DataOptions options, string str, RemoteQueryPolicy? policy)
+		{
+			return new QueryDeserializer(serializationSchema, contextSchema, options, policy).Deserialize(str);
 		}
 
 		public static string Serialize(MappingSchema serializationSchema, LinqServiceResult result)
@@ -271,11 +276,14 @@ namespace LinqToDB.Internal.Remote
 
 			public DataOptions Options => _options;
 
-			protected DeserializerBase(MappingSchema serializationMappingSchema, MappingSchema contextMappingSchema, DataOptions options)
+			protected readonly RemoteQueryPolicy? Policy;
+
+			protected DeserializerBase(MappingSchema serializationMappingSchema, MappingSchema contextMappingSchema, DataOptions options, RemoteQueryPolicy? policy = null)
 			{
 				_serializationSchema = serializationMappingSchema;
 				_contextSchema       = contextMappingSchema;
 				_options             = options;
+				Policy               = policy;
 			}
 
 			protected char Peek()
@@ -301,12 +309,15 @@ namespace LinqToDB.Internal.Remote
 
 			protected DbDataType ReadDbDataType()
 			{
-				var systemType = ReadType()!;
+				var systemType = ReadType(RemoteTypeRole.DataType)!;
 				var dataType   = (DataType)ReadInt();
 				var dbType     = ReadString();
 				var length     = ReadNullableInt();
 				var precision  = ReadNullableInt();
 				var scale      = ReadNullableInt();
+
+				if (Policy != null)
+					RemoteQueryValidator.CheckDbType(Policy, dbType);
 
 				return new DbDataType(systemType, dataType, dbType, length, precision, scale);
 			}
@@ -458,7 +469,28 @@ namespace LinqToDB.Internal.Remote
 				}
 			}
 
-			protected Type? ReadType()
+			protected Type? ReadType(RemoteTypeRole role)
+			{
+				var entry = ReadTypeEntry();
+
+				return Policy == null ? (Type?)entry : Policy.CheckUse(entry, role);
+			}
+
+			object? ResolveTypeEntry(string? name)
+			{
+				return Policy == null ? ResolveType(name) : Policy.ResolveEntry(name);
+			}
+
+			object? GetArrayTypeEntry(object? element)
+			{
+				return Policy == null ? GetArrayType((Type)element!) : Policy.ArrayEntry(element, GetArrayType);
+			}
+
+			protected object? ResolveStandaloneType(string? name) => ResolveTypeEntry(name);
+
+			protected object? ReadStandaloneArrayType() => GetArrayTypeEntry(ReadTypeEntry());
+
+			object? ReadTypeEntry()
 			{
 				var idx = ReadInt();
 
@@ -473,8 +505,8 @@ namespace LinqToDB.Internal.Remote
 
 					type = typecode switch
 					{
-						TypeIndex      => ResolveType(ReadString())!,
-						TypeArrayIndex => GetArrayType(Read<Type>()!),
+						TypeIndex      => ResolveTypeEntry(ReadString())!,
+						TypeArrayIndex => GetArrayTypeEntry(ReadTypeEntry())!,
 						_              => throw new SerializationException(
 string.Create(CultureInfo.InvariantCulture, $"TypeIndex or TypeArrayIndex ({TypeIndex} or {TypeArrayIndex}) expected, but was {typecode}")),
 					};
@@ -487,7 +519,7 @@ string.Create(CultureInfo.InvariantCulture, $"TypeIndex or TypeArrayIndex ({Type
 						throw new SerializationException(string.Create(CultureInfo.InvariantCulture, $"Wrong type reading, expected index is {idx} but was {idx2}"));
 				}
 
-				return (Type?) type;
+				return type;
 			}
 
 			protected T[]? ReadArray<T>()
@@ -561,7 +593,7 @@ string.Create(CultureInfo.InvariantCulture, $"TypeIndex or TypeArrayIndex ({Type
 
 					for (var i = 0; i < count.Value; i++)
 					{
-						var elementType = deserializer.ReadType();
+						var elementType = deserializer.ReadType(RemoteTypeRole.Value);
 						arr[i] = (T) deserializer.ReadValue(elementType)!;
 					}
 
@@ -2032,8 +2064,8 @@ string.Create(CultureInfo.InvariantCulture, $"TypeIndex or TypeArrayIndex ({Type
 			readonly Dictionary<int,SelectQuery> _queries = new ();
 			readonly List<Action>                _actions = new ();
 
-			public QueryDeserializer(MappingSchema serializationMappingSchema, MappingSchema contextSchema, DataOptions options)
-				: base(serializationMappingSchema, contextSchema, options)
+			public QueryDeserializer(MappingSchema serializationMappingSchema, MappingSchema contextSchema, DataOptions options, RemoteQueryPolicy? policy)
+				: base(serializationMappingSchema, contextSchema, options, policy)
 			{
 			}
 
@@ -2098,10 +2130,23 @@ string.Create(CultureInfo.InvariantCulture, $"TypeIndex or TypeArrayIndex ({Type
 
 				// Deserialize statement.
 				//
-				while (Parse()) {}
+				try
+				{
+					while (Parse()) {}
 
-				foreach (var action in _actions)
-					action();
+					foreach (var action in _actions)
+						action();
+
+					if (Policy != null)
+						RemoteQueryValidator.Validate(Policy, ObjectIndices.Values, _statement, queryHints);
+				}
+				catch (Exception ex) when (Policy is { HasRejections: true })
+				{
+					Policy.ThrowIfRejected(ex);
+					throw;
+				}
+
+				Policy?.ThrowIfRejected();
 
 				return new LinqServiceQuery { Statement = _statement, QueryHints = queryHints, DataOptions = options };
 			}
@@ -2119,8 +2164,8 @@ string.Create(CultureInfo.InvariantCulture, $"TypeIndex or TypeArrayIndex ({Type
 
 				switch ((QueryElementType)type)
 				{
-					case (QueryElementType)TypeIndex      : obj = ResolveType(ReadString());                break;
-					case (QueryElementType)TypeArrayIndex : obj = GetArrayType(ReadType()!);              break;
+					case (QueryElementType)TypeIndex      : obj = ResolveStandaloneType(ReadString());      break;
+					case (QueryElementType)TypeArrayIndex : obj = ReadStandaloneArrayType();                break;
 
 					case QueryElementType.SqlField :
 						{
@@ -2223,7 +2268,7 @@ string.Create(CultureInfo.InvariantCulture, $"TypeIndex or TypeArrayIndex ({Type
 							var isQueryParameter = ReadBool();
 							var dbDataType       = ReadDbDataType();
 
-							var value            = ReadValue(ReadType()!);
+							var value            = ReadValue(ReadType(RemoteTypeRole.Value)!);
 
 							obj = new SqlParameter(dbDataType, name, value)
 							{
@@ -2270,7 +2315,7 @@ string.Create(CultureInfo.InvariantCulture, $"TypeIndex or TypeArrayIndex ({Type
 
 					case QueryElementType.SqlBinaryExpression :
 						{
-							var systemType = ReadType()!;
+							var systemType = ReadType(RemoteTypeRole.DataType)!;
 							var expr1      = Read<ISqlExpression>()!;
 							var operation  = ReadString()!;
 							var expr2      = Read<ISqlExpression>()!;
@@ -2283,7 +2328,7 @@ string.Create(CultureInfo.InvariantCulture, $"TypeIndex or TypeArrayIndex ({Type
 
 					case QueryElementType.SqlUnaryExpression:
 					{
-						var systemType = ReadType()!;
+						var systemType = ReadType(RemoteTypeRole.DataType)!;
 						var expr       = Read<ISqlExpression>()!;
 						var operation  = (SqlUnaryOperation)ReadInt()!;
 						var precedence = ReadInt();
@@ -2296,7 +2341,7 @@ string.Create(CultureInfo.InvariantCulture, $"TypeIndex or TypeArrayIndex ({Type
 					case QueryElementType.SqlValue :
 						{
 							var dbDataType    = ReadDbDataType();
-							var value         = ReadValue(ReadType()!);
+							var value         = ReadValue(ReadType(RemoteTypeRole.Value)!);
 
 							obj = new SqlValue(dbDataType, value);
 
@@ -2306,7 +2351,7 @@ string.Create(CultureInfo.InvariantCulture, $"TypeIndex or TypeArrayIndex ({Type
 					case QueryElementType.SqlDefaultValueExpression :
 						{
 							var dbDataType    = ReadDbDataType();
-							var value         = ReadValue(ReadType()!);
+							var value         = ReadValue(ReadType(RemoteTypeRole.Value)!);
 
 							obj = new SqlDefaultValueExpression(dbDataType, value);
 
@@ -2328,7 +2373,7 @@ string.Create(CultureInfo.InvariantCulture, $"TypeIndex or TypeArrayIndex ({Type
 							var expression         = ReadString();
 							var alias              = ReadString()!;
 							var tableName          = ReadObjectName();
-							var objectType         = ReadType()!;
+							var objectType         = ReadType(RemoteTypeRole.Object)!;
 							var tableID            = ReadString();
 							var sequenceAttributes = null as SequenceNameAttribute[];
 
@@ -2406,7 +2451,7 @@ string.Create(CultureInfo.InvariantCulture, $"TypeIndex or TypeArrayIndex ({Type
 						{
 							var sourceID   = ReadInt();
 							var alias      = ReadString()!;
-							var objectType = ReadType()!;
+							var objectType = ReadType(RemoteTypeRole.Object)!;
 							var isScalar   = ReadBool();
 
 							var all    = Read<SqlField>()!;
@@ -2734,7 +2779,7 @@ string.Create(CultureInfo.InvariantCulture, $"TypeIndex or TypeArrayIndex ({Type
 						{
 							var name        = ReadString()!;
 							var body        = Read<SelectQuery>();
-							var objectType  = ReadType()!;
+							var objectType  = ReadType(RemoteTypeRole.Object)!;
 							var fields      = ReadArray<SqlCteField>()!;
 							var isRecursive = ReadBool();
 
@@ -2744,7 +2789,7 @@ string.Create(CultureInfo.InvariantCulture, $"TypeIndex or TypeArrayIndex ({Type
 							for (var i = 0; i < annotationCount; i++)
 							{
 								var annName  = ReadString()!;
-								var annType  = ReadType();
+								var annType  = ReadType(RemoteTypeRole.Value);
 								var annValue = annType == null ? null : ReadValue(annType);
 								c.Annotations.SetAnnotation(annName, annValue);
 							}
@@ -3093,7 +3138,7 @@ string.Create(CultureInfo.InvariantCulture, $"TypeIndex or TypeArrayIndex ({Type
 						{
 							var configuration = ReadString();
 							var scope         = (Sql.QueryExtensionScope)ReadInt();
-							var builderType   = ReadType();
+							var builderType   = ReadType(RemoteTypeRole.Builder);
 							var arguments     = new Dictionary<string,ISqlExpression>(StringComparer.Ordinal);
 
 							var cnt = ReadInt();

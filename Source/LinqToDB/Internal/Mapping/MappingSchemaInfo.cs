@@ -182,6 +182,11 @@ namespace LinqToDB.Internal.Mapping
 			return Option<bool>.None;
 		}
 
+		public IEnumerable<Type> GetRegisteredScalarTypes()
+		{
+			return _scalarTypes?.Where(static p => p.Value).Select(static p => p.Key) ?? [];
+		}
+
 		public void SetScalarType(Type type, bool isScalarType = true)
 		{
 			if (_scalarTypes == null)

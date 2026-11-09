@@ -47,7 +47,7 @@ namespace Tests.Wasm
 			await sqlite.InsertAsync(new WasmPerson { Id = 1, Name = "John", BirthDate = new DateTime(2001, 1, 1) }).ConfigureAwait(false);
 			await sqlite.InsertAsync(new WasmPerson { Id = 2, Name = "Jane", BirthDate = new DateTime(2002, 2, 2) }).ConfigureAwait(false);
 
-			var service = new MatrixLinqService();
+			var service = new MatrixLinqService { TrustedClient = true };
 			var builder = WebApplication.CreateSlimBuilder();
 
 			builder.Logging.ClearProviders();

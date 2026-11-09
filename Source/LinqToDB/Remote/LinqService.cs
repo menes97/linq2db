@@ -4,6 +4,7 @@ using System.Data.Common;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -32,6 +33,63 @@ namespace LinqToDB.Remote
 
 		public bool    AllowUpdates    { get; set; }
 		public string? RemoteClientTag { get; set; }
+
+		/// <summary>
+		/// Gets or sets a value indicating whether clients of this service are trusted to send any SQL.
+		/// Default is <see langword="false"/>: requests are limited to allowed types, connection configurations and SQL text.
+		/// This is independent of <see cref="AllowUpdates"/>.
+		/// </summary>
+		/// <remarks>
+		/// The policy limits what SQL a client can run. It is not authorization: a permitted query can read any mapped table,
+		/// so authenticate and authorize requests in the transport and use a database login with only the rights clients need.
+		/// </remarks>
+		public bool TrustedClient { get; set; }
+
+		/// <summary>
+		/// Gets connection configurations an untrusted client may select. When empty, only the default configuration
+		/// (<see langword="null"/>) is accepted. When not empty, only listed values are accepted, including <see langword="null"/>.
+		/// Not applied when <see cref="TrustedClient"/> is <see langword="true"/>.
+		/// </summary>
+		public ICollection<string?> AllowedConfigurations { get; } = new HashSet<string?>(StringComparer.Ordinal);
+
+		/// <summary>
+		/// Gets assemblies an untrusted client may name for entity, enum and extension builder types.
+		/// Not applied when <see cref="TrustedClient"/> is <see langword="true"/>.
+		/// </summary>
+		public ICollection<Assembly> MappingAssemblies { get; } = new HashSet<Assembly>();
+
+		/// <summary>
+		/// Gets host-maintained SQL text accepted from untrusted clients.
+		/// Not applied when <see cref="TrustedClient"/> is <see langword="true"/>.
+		/// </summary>
+		public SqlTextCatalog SqlText { get; } = new();
+
+		void CheckConfiguration(string? configuration)
+		{
+			if (TrustedClient)
+				return;
+
+			var isAllowed = AllowedConfigurations.Count == 0
+				? configuration == null
+				: AllowedConfigurations.Contains(configuration);
+
+			if (!isAllowed)
+			{
+				var rejection = new RemoteRejection(
+					RemoteRejectionReason.ConfigurationNotAllowed,
+					null,
+					configuration ?? "<default>",
+					"Configuration",
+					"Add the configuration to LinqService.AllowedConfigurations if clients may use it.");
+
+				throw new RemoteRequestRejectedException([rejection], false, null, configuration);
+			}
+		}
+
+		RemoteQueryPolicy? CreatePolicy(DataConnection db, string? configuration)
+		{
+			return TrustedClient ? null : RemoteQueryPolicy.Create(db, MappingAssemblies, configuration, SqlText);
+		}
 
 		public MappingSchema? MappingSchema
 		{
@@ -84,6 +142,8 @@ namespace LinqToDB.Remote
 		[SuppressMessage("AsyncUsage", "AsyncFixer04:Fire-and-forget async call inside an using block", Justification = "False positive")]
 		public virtual Task<LinqServiceInfo> GetInfoAsync(string? configuration, CancellationToken cancellationToken = default)
 		{
+			CheckConfiguration(configuration);
+
 			using var ctx = CreateDataContext(configuration);
 
 			var serviceProvider = ((IInfrastructure<IServiceProvider>)ctx.DataProvider).Instance;
@@ -108,10 +168,12 @@ namespace LinqToDB.Remote
 		{
 			try
 			{
+				CheckConfiguration(configuration);
+
 				var db = CreateDataContext(configuration);
 				await using var _1 = db.ConfigureAwait(false);
 
-				var query = LinqServiceSerializer.Deserialize(SerializationMappingSchema, db.MappingSchema, db.Options, queryData);
+				var query = LinqServiceSerializer.Deserialize(SerializationMappingSchema, db.MappingSchema, db.Options, queryData, CreatePolicy(db, configuration));
 
 				ValidateQuery(query);
 
@@ -140,10 +202,12 @@ namespace LinqToDB.Remote
 		{
 			try
 			{
+				CheckConfiguration(configuration);
+
 				var db = CreateDataContext(configuration);
 				await using var _1 = db.ConfigureAwait(false);
 
-				var query = LinqServiceSerializer.Deserialize(SerializationMappingSchema, db.MappingSchema, db.Options, queryData);
+				var query = LinqServiceSerializer.Deserialize(SerializationMappingSchema, db.MappingSchema, db.Options, queryData, CreatePolicy(db, configuration));
 
 				ValidateQuery(query);
 
@@ -203,10 +267,12 @@ namespace LinqToDB.Remote
 		{
 			try
 			{
+				CheckConfiguration(configuration);
+
 				var db = CreateDataContext(configuration);
 				await using var _1 = db.ConfigureAwait(false);
 
-				var query = LinqServiceSerializer.Deserialize(SerializationMappingSchema, db.MappingSchema, db.Options, queryData);
+				var query = LinqServiceSerializer.Deserialize(SerializationMappingSchema, db.MappingSchema, db.Options, queryData, CreatePolicy(db, configuration));
 
 				ValidateQuery(query);
 
@@ -238,11 +304,13 @@ namespace LinqToDB.Remote
 		{
 			try
 			{
+				CheckConfiguration(configuration);
+
 				var db = CreateDataContext(configuration);
 				await using var _1 = db.ConfigureAwait(false);
 
 				var data    = LinqServiceSerializer.DeserializeStringArray(SerializationMappingSchema, db.MappingSchema, db.Options, queryData);
-				var queries = data.Select(r => LinqServiceSerializer.Deserialize(SerializationMappingSchema, db.MappingSchema, db.Options, r)).ToArray();
+				var queries = data.Select(r => LinqServiceSerializer.Deserialize(SerializationMappingSchema, db.MappingSchema, db.Options, r, CreatePolicy(db, configuration))).ToArray();
 
 				foreach (var query in queries)
 					ValidateQuery(query);
