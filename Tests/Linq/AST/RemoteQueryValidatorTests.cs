@@ -193,6 +193,35 @@ namespace Tests.AST
 		}
 
 		[Test]
+		public void PlaceholderIndexTooLargeToCountIsRejected()
+		{
+			using var db = CreateConnection();
+
+			var catalog = new SqlTextCatalog();
+
+			catalog.Add(SqlTextKind.Expression, "IN_CATALOG({0})");
+
+			var rejection = RejectedSingle(db, SelectOf(new SqlExpression(new DbDataType(typeof(int)),"IN_CATALOG({1000000})", One)), catalog);
+
+			rejection.Reason.ShouldBe(RemoteRejectionReason.PlaceholderOutOfRange);
+		}
+
+		[Test]
+		public void NonAsciiDigitIsNotAPlaceholder()
+		{
+			using var db = CreateConnection();
+
+			var catalog = new SqlTextCatalog();
+
+			catalog.Add(SqlTextKind.Expression, "IN_CATALOG({0})");
+
+			// ARABIC-INDIC DIGIT ZERO: char.IsDigit accepts it, String.Format does not
+			var rejection = RejectedSingle(db, SelectOf(new SqlExpression(new DbDataType(typeof(int)),"IN_CATALOG({٠})", One)), catalog);
+
+			rejection.Reason.ShouldBe(RemoteRejectionReason.TextNotInCatalog);
+		}
+
+		[Test]
 		public void TextApprovedForOtherKindIsRejected()
 		{
 			using var db = CreateConnection();

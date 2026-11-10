@@ -1,6 +1,8 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Data.Common;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq;
@@ -88,7 +90,45 @@ namespace LinqToDB.Remote
 
 		RemoteQueryPolicy? CreatePolicy(DataConnection db, string? configuration)
 		{
-			return TrustedClient ? null : RemoteQueryPolicy.Create(db, MappingAssemblies, configuration, SqlText);
+			if (TrustedClient)
+				return null;
+
+			var policy = RemoteQueryPolicy.Create(db, MappingAssemblies, configuration, SqlText);
+
+			ReportStaleRemovals(configuration, policy);
+
+			return policy;
+		}
+
+		readonly ConcurrentDictionary<(string? Configuration, int Version), bool> _staleRemovalsReported = new();
+
+		// once per configuration and catalog version: a removal that matches nothing is usually a typo that leaves the text allowed
+		void ReportStaleRemovals(string? configuration, RemoteQueryPolicy policy)
+		{
+			if (!_staleRemovalsReported.TryAdd((configuration, SqlText.Version), true))
+				return;
+
+			foreach (var (kind, text) in SqlText.GetStaleRemovals(policy.TextSources))
+			{
+				DataConnection.WriteTraceLine(
+					string.Create(CultureInfo.InvariantCulture, $"LinqService.SqlText removal matches no entry for configuration '{configuration ?? "<default>"}': {kind} '{text}'."),
+					nameof(LinqService),
+					TraceLevel.Warning);
+			}
+		}
+
+		/// <summary>
+		/// Lists the effective SQL text catalog for untrusted clients of <paramref name="configuration"/>: library, provider and
+		/// <see cref="MappingAssemblies"/> entries with their removal state, host additions, and host removals that match nothing.
+		/// </summary>
+		/// <param name="configuration">Connection configuration to list the catalog for.</param>
+		/// <returns>Entries ordered by kind and text. Pass them to <see cref="SqlTextCatalog.Export(System.IO.TextWriter, IEnumerable{SqlTextEntry})"/> to save the full set.</returns>
+		/// <remarks>Opens a data context for <paramref name="configuration"/> through <see cref="CreateDataContext"/>, without checking <see cref="AllowedConfigurations"/>.</remarks>
+		public IReadOnlyList<SqlTextEntry> DumpSqlText(string? configuration = null)
+		{
+			using var db = CreateDataContext(configuration);
+
+			return SqlText.Dump(RemoteQueryPolicy.GetTextSources(db, MappingAssemblies));
 		}
 
 		public MappingSchema? MappingSchema

@@ -40,11 +40,11 @@ namespace LinqToDB.Internal.Remote
 
 		bool _isTruncated;
 
-		readonly SqlTextCatalog                          _catalog;
-		readonly HashSet<(SqlTextKind Kind, string Text)> _sources;
-		readonly Assembly                                _driverAssembly;
+		readonly SqlTextCatalog                                                        _catalog;
+		readonly IReadOnlyDictionary<(SqlTextKind Kind, string Text), SqlTextOrigin> _sources;
+		readonly Assembly                                                              _driverAssembly;
 
-		RemoteQueryPolicy(MappingSchema schema, IEnumerable<Assembly> nameAssemblies, IEnumerable<Assembly> entityAssemblies, IEnumerable<Assembly> builderAssemblies, string? provider, string? configuration, SqlTextCatalog catalog, HashSet<(SqlTextKind Kind, string Text)> sources, Assembly driverAssembly)
+		RemoteQueryPolicy(MappingSchema schema, IEnumerable<Assembly> nameAssemblies, IEnumerable<Assembly> entityAssemblies, IEnumerable<Assembly> builderAssemblies, string? provider, string? configuration, SqlTextCatalog catalog, IReadOnlyDictionary<(SqlTextKind Kind, string Text), SqlTextOrigin> sources, Assembly driverAssembly)
 		{
 			_driverAssembly    = driverAssembly;
 			_catalog           = catalog;
@@ -88,17 +88,40 @@ namespace LinqToDB.Internal.Remote
 
 			var builderAssemblies = new List<Assembly>(mapping) { typeof(DataConnection).Assembly, providerAssembly };
 
-			var family  = GetProviderFamily(connection.DataProvider.GetType());
-			var sources = new HashSet<(SqlTextKind Kind, string Text)>(SqlTextCatalog.GetAssemblySources(typeof(DataConnection).Assembly, family));
+			return new RemoteQueryPolicy(connection.MappingSchema, nameAssemblies, mapping, builderAssemblies, connection.DataProvider.Name, configuration, catalog ?? new SqlTextCatalog(), GetTextSources(connection, mapping), connection.DataProvider.DataReaderType.Assembly);
+		}
+
+		/// <summary>
+		/// Gets the library, provider and mapping assembly entries of the catalog for requests served by <paramref name="connection"/>.
+		/// The first source to contribute a text is recorded as its origin.
+		/// </summary>
+		internal static IReadOnlyDictionary<(SqlTextKind Kind, string Text), SqlTextOrigin> GetTextSources(DataConnection connection, IEnumerable<Assembly> mappingAssemblies)
+		{
+			var providerAssembly = connection.DataProvider.GetType().Assembly;
+			var sources          = new Dictionary<(SqlTextKind Kind, string Text), SqlTextOrigin>();
+
+			Merge(typeof(DataConnection).Assembly, GetProviderFamily(connection.DataProvider.GetType()));
 
 			if (providerAssembly != typeof(DataConnection).Assembly)
-				sources.UnionWith(SqlTextCatalog.GetAssemblySources(providerAssembly, null));
+				Merge(providerAssembly, null);
 
-			foreach (var assembly in mapping)
-				sources.UnionWith(SqlTextCatalog.GetAssemblySources(assembly, null));
+			foreach (var assembly in mappingAssemblies)
+				Merge(assembly, null);
 
-			return new RemoteQueryPolicy(connection.MappingSchema, nameAssemblies, mapping, builderAssemblies, connection.DataProvider.Name, configuration, catalog ?? new SqlTextCatalog(), sources, connection.DataProvider.DataReaderType.Assembly);
+			return sources;
+
+			void Merge(Assembly assembly, string? family)
+			{
+				var source = assembly.GetName().Name ?? assembly.FullName ?? "";
+
+				foreach (var pair in SqlTextCatalog.GetAssemblySources(assembly, family))
+					if (!sources.ContainsKey(pair.Key))
+						sources.Add(pair.Key, new SqlTextOrigin(source, pair.Value));
+			}
 		}
+
+		/// <summary>Gets the library, provider and mapping assembly entries this policy accepts.</summary>
+		internal IReadOnlyDictionary<(SqlTextKind Kind, string Text), SqlTextOrigin> TextSources => _sources;
 
 		const string ProviderNamespacePrefix = "LinqToDB.Internal.DataProvider.";
 
