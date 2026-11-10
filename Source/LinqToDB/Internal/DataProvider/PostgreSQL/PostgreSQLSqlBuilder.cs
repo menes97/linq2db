@@ -239,7 +239,9 @@ namespace LinqToDB.Internal.DataProvider.PostgreSQL
 					sb.Value.Append(')');
 
 					// it could have type, but we don't care about it
+					#pragma warning disable LINQ2DB0007 // built by the SQL builder on the server, after validation
 					return new SqlFragment(sb.Value.ToString());
+					#pragma warning restore LINQ2DB0007
 				}
 			}
 

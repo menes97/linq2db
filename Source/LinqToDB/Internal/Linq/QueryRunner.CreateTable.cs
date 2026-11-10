@@ -37,8 +37,10 @@ namespace LinqToDB.Internal.Linq
 
 				if (createOptions.TableOptions.IsSet()) sqlTable.TableOptions = createOptions.TableOptions;
 
+				#pragma warning disable LINQ2DB0007 // user-supplied text: rejected for untrusted clients unless the host adds it
 				createTable.StatementHeader = createOptions.StatementHeader;
 				createTable.StatementFooter = createOptions.StatementFooter;
+				#pragma warning restore LINQ2DB0007
 				createTable.DefaultNullable = createOptions.DefaultNullable;
 
 				var query = new Query<int>(dataContext)
@@ -83,8 +85,10 @@ namespace LinqToDB.Internal.Linq
 
 					if (createOptions.TableOptions.IsSet()) sqlTable.TableOptions = createOptions.TableOptions;
 
+					#pragma warning disable LINQ2DB0007 // user-supplied text: rejected for untrusted clients unless the host adds it
 					createTable.StatementHeader = createOptions.StatementHeader;
 					createTable.StatementFooter = createOptions.StatementFooter;
+					#pragma warning restore LINQ2DB0007
 					createTable.DefaultNullable = createOptions.DefaultNullable;
 
 					var query = new Query<int>(dataContext)

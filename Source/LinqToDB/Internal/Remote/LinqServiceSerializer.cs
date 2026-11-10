@@ -2254,7 +2254,9 @@ string.Create(CultureInfo.InvariantCulture, $"TypeIndex or TypeArrayIndex ({Type
 							var parameters    = ReadArray<ISqlExpression>()!;
 							var doNotOptimize = ReadBool();
 
+						#pragma warning disable LINQ2DB0007 // wire text, checked by RemoteQueryValidator after deserialization
 						obj = new SqlFunction(dbDataType, name, flags, nullability, canBeNull, parameters)
+						#pragma warning restore LINQ2DB0007
 							{
 								DoNotOptimize = doNotOptimize,
 							};
@@ -2288,7 +2290,9 @@ string.Create(CultureInfo.InvariantCulture, $"TypeIndex or TypeArrayIndex ({Type
 							var canBeNull   = ReadNullableBool();
 							var parameters  = ReadArray<ISqlExpression>()!;
 
+							#pragma warning disable LINQ2DB0007 // wire text, checked by RemoteQueryValidator after deserialization
 							obj = new SqlExpression(dbDataType, expr, precedence, flags, nullability, canBeNull, parameters);
+							#pragma warning restore LINQ2DB0007
 
 							break;
 						}
@@ -2321,7 +2325,9 @@ string.Create(CultureInfo.InvariantCulture, $"TypeIndex or TypeArrayIndex ({Type
 							var expr2      = Read<ISqlExpression>()!;
 							var precedence = ReadInt();
 
+							#pragma warning disable LINQ2DB0007 // wire text, checked by RemoteQueryValidator after deserialization
 							obj = new SqlBinaryExpression(systemType, expr1, operation, expr2, precedence);
+							#pragma warning restore LINQ2DB0007
 
 							break;
 						}
@@ -2401,7 +2407,9 @@ string.Create(CultureInfo.InvariantCulture, $"TypeIndex or TypeArrayIndex ({Type
 							var extensions = ReadList<SqlQueryExtension>();
 
 							obj = new SqlTable(
+								#pragma warning disable LINQ2DB0007 // wire text, checked by RemoteQueryValidator after deserialization
 								sourceID, expression, alias, tableName, objectType, sequenceAttributes, flds,
+								#pragma warning restore LINQ2DB0007
 								sqlTableType, tableArgs, tableOptions, tableID)
 							{
 								SqlQueryExtensions = extensions,
@@ -2526,7 +2534,9 @@ string.Create(CultureInfo.InvariantCulture, $"TypeIndex or TypeArrayIndex ({Type
 							var expr2  = Read<ISqlExpression>()!;
 							var escape = Read<ISqlExpression>();
 							var fun    = ReadString();
+#pragma warning disable LINQ2DB0007 // wire text, checked by RemoteQueryValidator after deserialization
 							obj = new SqlPredicate.Like(expr1, isNot, expr2, escape, fun);
+#pragma warning restore LINQ2DB0007
 
 							break;
 						}
@@ -2916,8 +2926,10 @@ string.Create(CultureInfo.InvariantCulture, $"TypeIndex or TypeArrayIndex ({Type
 
 							obj = _statement = new SqlCreateTableStatement(table)
 							{
+								#pragma warning disable LINQ2DB0007 // wire text, checked by RemoteQueryValidator after deserialization
 								StatementHeader    = statementHeader,
 								StatementFooter    = statementFooter,
+								#pragma warning restore LINQ2DB0007
 								DefaultNullable    = defaultNullable,
 								Tag                = tag,
 								SqlQueryExtensions = extensions,
@@ -2981,7 +2993,9 @@ string.Create(CultureInfo.InvariantCulture, $"TypeIndex or TypeArrayIndex ({Type
 						var precedence = ReadInt();
 						var parameters = ReadArray<ISqlExpression>()!;
 
+						#pragma warning disable LINQ2DB0007 // wire text, checked by RemoteQueryValidator after deserialization
 						obj = new SqlFragment(expr, precedence, parameters);
+						#pragma warning restore LINQ2DB0007
 
 						break;
 					}
@@ -3316,7 +3330,9 @@ string.Create(CultureInfo.InvariantCulture, $"TypeIndex or TypeArrayIndex ({Type
 						var isWindowFunction            = ReadBool();
 						var argumentDomain              = (SqlArgumentDomain)ReadInt();
 
+						#pragma warning disable LINQ2DB0007 // wire text, checked by RemoteQueryValidator after deserialization
 						obj = new SqlExtendedFunction(functionType, name, arguments, argumentsNullability, withinGroup : withinGroup, partitionBy : partitionBy, orderBy : orderBy,
+						#pragma warning restore LINQ2DB0007
 							frameClause : frame, filter: filter, isAggregate : isAggregate, canBeNull: canBeNull, canBeNullInAggregationQuery: canBeNullInAggregationQuery, canBeAffectedByOrderBy: canBeAffectedByOrderBy,
 							keepClause: keepClause, nullTreatment: nullTreatment, fromPosition: fromPosition, isWindowFunction: isWindowFunction,
 							argumentDomain: argumentDomain);

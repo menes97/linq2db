@@ -49,11 +49,7 @@ namespace LinqToDB.DataProvider.SapHana
 
 			var arg = new ISqlExpression[1];
 
-			arg[0] = new SqlFragment(
-				string.Join(", ",
-					Enumerable.Range(0, sqlValues.Count)
-						.Select(static x => string.Create(CultureInfo.InvariantCulture, $"{{{x}}}"))),
-				sqlValues.ToArray());
+			arg[0] = sqlValues.Count == 0 ? new SqlFragment("") : SqlFragmentList.Join(sqlValues);
 
 			table.SqlTableType   = SqlTableType.Expression;
 			table.Expression     = "{0}('PLACEHOLDER' = ({2})) {1}";

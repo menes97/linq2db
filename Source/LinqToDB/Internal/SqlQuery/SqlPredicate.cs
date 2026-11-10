@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Linq;
 
 using LinqToDB.Internal.SqlQuery.Visitors;
+using LinqToDB.Remote;
 
 namespace LinqToDB.Internal.SqlQuery
 {
@@ -552,7 +553,7 @@ namespace LinqToDB.Internal.SqlQuery
 		//
 		public sealed class Like : BaseNotExpr
 		{
-			public Like(ISqlExpression exp1, bool isNot, ISqlExpression exp2, ISqlExpression? escape, string? functionName = null)
+			public Like(ISqlExpression exp1, bool isNot, ISqlExpression exp2, ISqlExpression? escape, [SqlText(SqlTextKind.Function)] string? functionName = null)
 				: base(exp1, isNot, LinqToDB.SqlQuery.Precedence.Comparison)
 			{
 				Expr2     = exp2;
@@ -562,6 +563,7 @@ namespace LinqToDB.Internal.SqlQuery
 
 			public ISqlExpression  Expr2        { get; internal set; }
 			public ISqlExpression? Escape       { get; internal set; }
+			[SqlText(SqlTextKind.Function)]
 			public string?         FunctionName { get; internal set; }
 
 			public override int GetElementHashCode()

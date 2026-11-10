@@ -873,7 +873,9 @@ namespace LinqToDB
 				if (error != null)
 					return error;
 
+				#pragma warning disable LINQ2DB0007 // attribute text: library declarations are catalogued by the generator, user declarations by the host
 				var sqlExpression = new SqlExpression(mappingSchema.GetDbDataType(systemType), expr, precedence, flags,
+				#pragma warning restore LINQ2DB0007
 					ToParametersNullabilityType(isNullable), canBeNull, newParams.ToArray());
 
 				// Placeholder path will be set later

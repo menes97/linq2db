@@ -815,7 +815,9 @@ namespace LinqToDB.Internal.SqlProvider
 						var changed = ctx.WriteableValue || !string.Equals(newExpr, expr.Expr, StringComparison.Ordinal);
 
 						if (changed)
+							#pragma warning disable LINQ2DB0007 // renumbers placeholders of existing text; its catalogued form is unchanged
 							newExpression = new SqlExpression(expr.Type, newExpr, expr.Precedence, expr.Flags, expr.NullabilityType, null, newExpressions.ToArray());
+							#pragma warning restore LINQ2DB0007
 
 						return newExpression;
 					}
@@ -2385,17 +2387,14 @@ namespace LinqToDB.Internal.SqlProvider
 					if (orderByItems == null || orderByItems.Count == 0)
 						orderByItems = context.supportsEmptyOrderBy ? [] : [new SqlOrderByItem(new SqlFragment("(SELECT NULL)"), false, false)];
 
-					var orderBy = string.Join(", ",
-						orderByItems.Select(static (oi, i) => oi.IsDescending ? string.Create(CultureInfo.InvariantCulture, $"{{{i}}} DESC") : string.Create(CultureInfo.InvariantCulture, $"{{{i}}}")));
-
-					var parameters = orderByItems.Select(static oi => oi.Expression).ToArray();
+					var parameters = orderByItems.Select(static oi => SqlFragmentList.OrderItem(oi.Expression, oi.IsDescending)).ToArray();
 
 					// careful here - don't clear it before orderByItems used
 					query.OrderBy.Items.Clear();
 
 					var rowNumberExpression = parameters.Length == 0
 						? new SqlExpression(context.mappingSchema.GetDbDataType(typeof(long)), "ROW_NUMBER() OVER ()", Precedence.Primary, SqlFlags.IsWindowFunction, ParametersNullabilityType.NotNullable)
-						: new SqlExpression(context.mappingSchema.GetDbDataType(typeof(long)), $"ROW_NUMBER() OVER (ORDER BY {orderBy})", Precedence.Primary, SqlFlags.IsWindowFunction, ParametersNullabilityType.NotNullable, parameters);
+						: new SqlExpression(context.mappingSchema.GetDbDataType(typeof(long)), "ROW_NUMBER() OVER (ORDER BY {0})", Precedence.Primary, SqlFlags.IsWindowFunction, ParametersNullabilityType.NotNullable, SqlFragmentList.Join(parameters));
 
 					var rowNumberColumn = query.Select.AddNewColumn(rowNumberExpression);
 					rowNumberColumn.Alias = "RN";

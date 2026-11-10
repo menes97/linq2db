@@ -192,7 +192,9 @@ namespace LinqToDB.Internal.DataProvider.DuckDB
 					MappingSchema.ConvertToSqlValue(sb.Value, null, DataOptions, BuildObjectName(new (), sequenceName, ConvertType.SequenceName, true, TableOptions.NotSet).ToString());
 					sb.Value.Append(')');
 
+					#pragma warning disable LINQ2DB0007 // built by the SQL builder on the server, after validation
 					return new SqlFragment(sb.Value.ToString());
+					#pragma warning restore LINQ2DB0007
 				}
 			}
 

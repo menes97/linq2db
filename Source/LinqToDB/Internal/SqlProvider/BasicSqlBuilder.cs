@@ -2009,7 +2009,9 @@ namespace LinqToDB.Internal.SqlProvider
 					if (rawSqlTable.Parameters.Any(e => e.ElementType == QueryElementType.SqlAliasPlaceholder))
 					{
 						buildAlias = false;
+						#pragma warning disable LINQ2DB0007 // built by the SQL builder on the server, after validation
 						var aliasExpr = new SqlFragment(ConvertInline(alias!, ConvertType.NameToQueryTableAlias));
+						#pragma warning restore LINQ2DB0007
 						parameters = rawSqlTable.Parameters.Select(e =>
 								e.ElementType == QueryElementType.SqlAliasPlaceholder ? aliasExpr : e)
 							.ToArray();
@@ -2545,7 +2547,9 @@ namespace LinqToDB.Internal.SqlProvider
 					var idx = selectQuery.Select.Columns.FindIndex(c => c.Expression.Equals(item.Expression));
 					if (idx >= 0)
 					{
+						#pragma warning disable LINQ2DB0007 // built by the SQL builder on the server, after validation
 						orderExpression = new SqlFragment((idx + 1).ToString(CultureInfo.InvariantCulture));
+						#pragma warning restore LINQ2DB0007
 					}
 				}
 

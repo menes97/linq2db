@@ -3059,7 +3059,9 @@ namespace LinqToDB.Internal.Linq.Builder
 					}
 
 					var result = formatAsExpression
+						#pragma warning disable LINQ2DB0007 // user-supplied text: rejected for untrusted clients unless the host adds it
 						? new SqlExpression(MappingSchema.GetDbDataType(node.Type), format, Precedence.Primary, arguments)
+						#pragma warning restore LINQ2DB0007
 						: QueryHelper.ConvertFormatToConcatenation(format, arguments);
 
 					translated = CreatePlaceholder(result, node);

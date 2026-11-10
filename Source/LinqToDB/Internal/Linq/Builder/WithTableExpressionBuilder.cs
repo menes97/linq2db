@@ -23,8 +23,10 @@ namespace LinqToDB.Internal.Linq.Builder
 
 			switch (methodCall.Method.Name)
 			{
+				#pragma warning disable LINQ2DB0007 // user-supplied text: rejected for untrusted clients unless the host adds it
 				case nameof(LinqExtensions.With)                : table.SqlTable.Expression = $"{{0}} {{1}} WITH ({value})"; break;
 				case nameof(LinqExtensions.WithTableExpression) : table.SqlTable.Expression = value;                         break;
+				#pragma warning restore LINQ2DB0007
 			}
 
 			return BuildSequenceResult.FromContext(sequence);

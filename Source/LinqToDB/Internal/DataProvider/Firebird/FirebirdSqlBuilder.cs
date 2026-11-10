@@ -128,7 +128,9 @@ namespace LinqToDB.Internal.DataProvider.Firebird
 		public override ISqlExpression? GetIdentityExpression(SqlTable table)
 		{
 			if (!table.SequenceAttributes.IsNullOrEmpty())
+				#pragma warning disable LINQ2DB0007 // built by the SQL builder on the server, after validation
 				return new SqlFragment("GEN_ID(" + ConvertInline(table.SequenceAttributes[0].SequenceName, ConvertType.SequenceName) + ", 1)");
+				#pragma warning restore LINQ2DB0007
 
 			return base.GetIdentityExpression(table);
 		}

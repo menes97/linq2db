@@ -158,7 +158,9 @@ namespace LinqToDB.DataProvider.SqlServer
 			public void Build(Sql.ISqlExtensionBuilder builder)
 			{
 				var dataType = builder.GetObjectValue("data_type");
+				#pragma warning disable LINQ2DB0007 // user-supplied text: rejected for untrusted clients unless the host adds it
 				builder.AddFragment("data_type", dataType is SqlType ? string.Format(CultureInfo.InvariantCulture, "{0}", dataType) : ((Func<SqlType>)dataType)().ToString());
+				#pragma warning restore LINQ2DB0007
 			}
 		}
 
@@ -2292,7 +2294,9 @@ namespace LinqToDB.DataProvider.SqlServer
 		{
 			public void Build(Sql.ISqlExtensionBuilder builder)
 			{
+				#pragma warning disable LINQ2DB0007 // user-supplied text: rejected for untrusted clients unless the host adds it
 				builder.AddFragment("sequence_name", builder.GetValue<string>("sequence_name"));
+				#pragma warning restore LINQ2DB0007
 			}
 		}
 
@@ -3271,7 +3275,9 @@ namespace LinqToDB.DataProvider.SqlServer
 			public void Build(Sql.ISqlExtensionBuilder builder)
 			{
 				var collationName = builder.GetValue<string>("collation_name");
+				#pragma warning disable LINQ2DB0007 // user-supplied text: rejected for untrusted clients unless the host adds it
 				builder.AddFragment("collation_name", collationName);
+				#pragma warning restore LINQ2DB0007
 			}
 		}
 
@@ -4552,7 +4558,7 @@ namespace LinqToDB.DataProvider.SqlServer
 					var prop = props[i];
 
 					ps[i] = prop.ParameterType == typeof(T)
-						? new SqlExpression(builder.Mapping.GetDbDataType(prop.ParameterType), '\'' + builder.GetValue<T>(prop.Name!)?.ToString() + '\'', Precedence.Primary)
+						? new SqlValue(new DbDataType(typeof(string), DataType.VarChar), builder.GetValue<T>(prop.Name!)?.ToString() ?? string.Empty)
 						: builder.GetExpression(prop.Name!)!;
 				}
 

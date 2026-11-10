@@ -635,7 +635,9 @@ namespace LinqToDB.Internal.DataProvider.Ydb
 					var col      = selectQuery.Select.Columns.Find(c => c.Expression.Equals(item.Expression));
 					var colAlias = col != null ? AliasesContext.GetColumnAlias(col) : null;
 					if (colAlias != null)
+						#pragma warning disable LINQ2DB0007 // built by the SQL builder on the server, after validation
 						orderExpression = new SqlFragment(colAlias);
+						#pragma warning restore LINQ2DB0007
 				}
 
 				BuildExpressionForOrderBy(orderExpression);

@@ -43,7 +43,9 @@ namespace LinqToDB
 				if (!ValidateCollation(collation))
 					throw new InvalidOperationException($"Invalid collation: {collation}");
 
+				#pragma warning disable LINQ2DB0007 // user-supplied text: rejected for untrusted clients unless the host adds it
 				builder.ResultExpression = new SqlExpression(builder.Mapping.GetDbDataType(typeof(string)), $"{{0}} COLLATE {collation}",
+				#pragma warning restore LINQ2DB0007
 					Precedence.Primary, ParametersNullabilityType.IfAnyParameterNullable, expr);
 			}
 
@@ -65,7 +67,9 @@ namespace LinqToDB
 				var expr      = builder.GetExpression("expr")!;
 				var collation = builder.GetValue<string>("collation").Replace("\"", "\"\"", StringComparison.Ordinal);
 
+				#pragma warning disable LINQ2DB0007 // user-supplied text: rejected for untrusted clients unless the host adds it
 				builder.ResultExpression = new SqlExpression(builder.Mapping.GetDbDataType(typeof(string)), $"{{0}} COLLATE \"{collation}\"",
+				#pragma warning restore LINQ2DB0007
 					Precedence.Primary, ParametersNullabilityType.IfAnyParameterNullable,
 					expr);
 			}

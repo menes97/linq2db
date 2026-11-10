@@ -65,7 +65,9 @@ namespace LinqToDB.Internal.DataProvider.Oracle
 				if (attr != null)
 				{
 					return new SqlFragment(
+						#pragma warning disable LINQ2DB0007 // built by the SQL builder on the server, after validation
 						(attr.Schema != null ? ConvertInline(attr.Schema, ConvertType.NameToSchema) + "." : null) +
+						#pragma warning restore LINQ2DB0007
 						ConvertInline(attr.SequenceName, ConvertType.SequenceName) +
 						".nextval"
 					);

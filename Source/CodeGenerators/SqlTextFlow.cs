@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Operations;
 
@@ -229,40 +230,164 @@ namespace CodeGenerators
 			return operation is IThrowOperation or IConversionOperation { Operand: IThrowOperation };
 		}
 
-		static bool TryResolveSymbol(ISymbol symbol, SemanticModel model, List<string> values, int depth)
+		static bool TryResolveSymbol(ISymbol symbol, SemanticModel model, List<string> output, int depth)
 		{
 			var reference = symbol.DeclaringSyntaxReferences.FirstOrDefault();
 
-			if (reference?.GetSyntax() is not VariableDeclaratorSyntax declarator || reference.SyntaxTree != model.SyntaxTree)
+			if (reference == null || reference.SyntaxTree != model.SyntaxTree)
 				return false;
 
+			var values   = new List<string>();
 			var resolved = false;
+			var syntax   = reference.GetSyntax();
 
-			if (declarator.Initializer != null)
+			switch (syntax)
 			{
-				if (!TryResolve(model.GetOperation(declarator.Initializer.Value), model, values, depth + 1))
-					return false;
+				case VariableDeclaratorSyntax { Initializer: { } initializer }:
+					if (!TryResolve(model.GetOperation(initializer.Value), model, values, depth + 1))
+						return false;
 
-				resolved = true;
+					resolved = true;
+					break;
+
+				case VariableDeclaratorSyntax:
+					break;
+
+				// var (a, b) = ...
+				case SingleVariableDesignationSyntax { Parent: ParenthesizedVariableDesignationSyntax tuple } designation
+					when tuple.Parent is DeclarationExpressionSyntax { Parent: AssignmentExpressionSyntax assignment } declaration && assignment.Left == declaration:
+					if (!TryResolveTupleElement(model.GetOperation(assignment.Right), tuple.Variables.IndexOf(designation), model, values, depth + 1))
+						return false;
+
+					resolved = true;
+					break;
+
+				// dictionary.TryGetValue(key, out var a)
+				case SingleVariableDesignationSyntax { Parent: DeclarationExpressionSyntax { Parent: ArgumentSyntax { Parent: ArgumentListSyntax { Parent: InvocationExpressionSyntax invocation } } } }:
+					if (!TryResolveDictionaryValues(model.GetOperation(invocation), model, values, depth + 1))
+						return false;
+
+					resolved = true;
+					break;
+
+				default:
+					return false;
 			}
 
 			if (symbol is ILocalSymbol)
 			{
-				var body = declarator.Ancestors().FirstOrDefault(static a => a is BlockSyntax or ArrowExpressionClauseSyntax);
+				var body = syntax.Ancestors().FirstOrDefault(static a => a is BlockSyntax or ArrowExpressionClauseSyntax);
 
 				foreach (var assignment in body?.DescendantNodes().OfType<AssignmentExpressionSyntax>() ?? [])
 				{
 					if (!SymbolEqualityComparer.Default.Equals(model.GetSymbolInfo(assignment.Left).Symbol, symbol))
 						continue;
 
-					if (!TryResolve(model.GetOperation(assignment.Right), model, values, depth + 1))
+					var right = new List<string>();
+
+					if (!TryResolve(model.GetOperation(assignment.Right), model, right, depth + 1))
 						return false;
+
+					switch (assignment.Kind())
+					{
+						case SyntaxKind.SimpleAssignmentExpression:
+						case SyntaxKind.CoalesceAssignmentExpression:
+							values.AddRange(right);
+							break;
+
+						// Appends cross every value seen so far, in source order: a superset of the texts the code builds,
+						// all made of the same literals. A loop would append without bound.
+						case SyntaxKind.AddAssignmentExpression when resolved && !assignment.Ancestors().TakeWhile(a => a != body).Any(IsLoop):
+						{
+							var appended = values.SelectMany(left => right.Select(r => left + r)).ToList();
+
+							if (appended.Count > MaxValues)
+								return false;
+
+							values.Clear();
+							values.AddRange(appended);
+							break;
+						}
+
+						default:
+							return false;
+					}
 
 					resolved = true;
 				}
 			}
 
+			if (resolved)
+				output.AddRange(values);
+
 			return resolved;
+		}
+
+		static bool IsLoop(SyntaxNode node)
+		{
+			return node is ForStatementSyntax or ForEachStatementSyntax or WhileStatementSyntax or DoStatementSyntax;
+		}
+
+		static bool TryResolveTupleElement(IOperation? operation, int index, SemanticModel model, List<string> values, int depth)
+		{
+			if (operation == null || index < 0 || depth > MaxDepth)
+				return false;
+
+			return operation switch
+			{
+				ITupleOperation tuple                     => index < tuple.Elements.Length && TryResolve(tuple.Elements[index], model, values, depth + 1),
+				ISwitchExpressionOperation switchExpr     => switchExpr.Arms.All(arm => IsThrow(arm.Value) || TryResolveTupleElement(arm.Value, index, model, values, depth + 1)),
+				IConditionalOperation conditional         => TryResolveTupleElement(conditional.WhenTrue, index, model, values, depth + 1) && TryResolveTupleElement(conditional.WhenFalse, index, model, values, depth + 1),
+				IConversionOperation conversion           => TryResolveTupleElement(conversion.Operand, index, model, values, depth + 1),
+				IParenthesizedOperation parenthesized     => TryResolveTupleElement(parenthesized.Operand, index, model, values, depth + 1),
+				_                                         => false,
+			};
+		}
+
+		/// <summary>
+		/// Resolves the value written by <c>TryGetValue(key, out var value)</c> on a read-only <c>IReadOnlyDictionary</c>
+		/// field: every value of the field's collection initializer.
+		/// </summary>
+		static bool TryResolveDictionaryValues(IOperation? operation, SemanticModel model, List<string> values, int depth)
+		{
+			if (operation is not IInvocationOperation { TargetMethod.Name: "TryGetValue", Instance: { } instance })
+				return false;
+
+			while (instance is IConversionOperation conversion)
+				instance = conversion.Operand;
+
+			if (instance is not IFieldReferenceOperation { Field: { IsReadOnly: true } field }
+				|| field.Type is not INamedTypeSymbol { OriginalDefinition: { } fieldType }
+				|| fieldType.ToDisplayString() != "System.Collections.Generic.IReadOnlyDictionary<TKey, TValue>")
+				return false;
+
+			if (field.DeclaringSyntaxReferences.FirstOrDefault() is not { } reference
+				|| reference.SyntaxTree != model.SyntaxTree
+				|| reference.GetSyntax() is not VariableDeclaratorSyntax { Initializer: { } initializer })
+				return false;
+
+			var creation = model.GetOperation(initializer.Value);
+
+			while (creation is IConversionOperation conversion)
+				creation = conversion.Operand;
+
+			if (creation is not IObjectCreationOperation { Initializer: { } collection } || collection.Initializers.IsEmpty)
+				return false;
+
+			foreach (var element in collection.Initializers)
+			{
+				var value = element switch
+				{
+					IInvocationOperation { Arguments.Length: 2 } add           => add.Arguments[1].Value,
+					ISimpleAssignmentOperation { Target: IPropertyReferenceOperation { Property.IsIndexer: true } } set => set.Value,
+					_                                                         => null,
+				};
+
+				if (value == null || !TryResolve(value, model, values, depth + 1))
+					return false;
+			}
+
+			return true;
 		}
 
 		static bool TryResolveConcat(IReadOnlyList<IOperation> parts, SemanticModel model, List<string> values, int depth)

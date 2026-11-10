@@ -79,7 +79,9 @@ namespace LinqToDB
 				if (string.IsNullOrEmpty(name))
 					throw new LinqToDBException($"Cannot retrieve property name for expression '{expression}'.");
 
+				#pragma warning disable LINQ2DB0007 // attribute text: library declarations are catalogued by the generator, user declarations by the host
 				var sqlExpr = new SqlExpression(dataContext.MappingSchema.GetDbDataType(expression.Type), name!, SqlQuery.Precedence.Primary,
+				#pragma warning restore LINQ2DB0007
 					ToParametersNullabilityType(IsNullable), СonfiguredCanBeNull);
 
 				return ExpressionBuilder.CreatePlaceholder(query, sqlExpr, expression);

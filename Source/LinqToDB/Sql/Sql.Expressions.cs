@@ -33,14 +33,11 @@ namespace LinqToDB
 				for (var i = 0; i < columns.Length; i++)
 					columnExpressions[i] = qualified
 						? new SqlField(columns[i])
+						#pragma warning disable LINQ2DB0007 // mapping-derived name as raw text: rejected for untrusted clients unless the host adds it
 						: new SqlExpression(columns[i].GetDbDataType(true), columns[i].ColumnName, Precedence.Primary);
+						#pragma warning restore LINQ2DB0007
 
-				if (columns.Length == 1)
-					builder.ResultExpression = columnExpressions[0];
-				else
-					builder.ResultExpression = new SqlFragment(
-						string.Join(", ", Enumerable.Range(0, columns.Length).Select(i => string.Create(CultureInfo.InvariantCulture, $"{{{i}}}"))),
-						columnExpressions);
+				builder.ResultExpression = SqlFragmentList.Join(columnExpressions);
 			}
 		}
 
@@ -58,7 +55,9 @@ namespace LinqToDB
 				{
 					builder.ResultExpression = qualified
 						? new SqlExpression(builder.Mapping.GetDbDataType(typeof(string)), "{0}", Precedence.Primary, new SqlField(column))
+						#pragma warning disable LINQ2DB0007 // mapping-derived name as raw text: rejected for untrusted clients unless the host adds it
 						: new SqlExpression(builder.Mapping.GetDbDataType(typeof(string)), column.ColumnName, Precedence.Primary);
+						#pragma warning restore LINQ2DB0007
 				}
 				else
 				{
@@ -88,7 +87,9 @@ namespace LinqToDB
 				{
 					builder.ResultExpression = qualified
 						? new SqlExpression(builder.Mapping.GetDbDataType(typeof(string)), "{0}", Precedence.Primary, new SqlField(field))
+						#pragma warning disable LINQ2DB0007 // mapping-derived name as raw text: rejected for untrusted clients unless the host adds it
 						: new SqlExpression(builder.Mapping.GetDbDataType(typeof(string)), field.PhysicalName, Precedence.Primary);
+						#pragma warning restore LINQ2DB0007
 				}
 				else
 				{
@@ -158,7 +159,9 @@ namespace LinqToDB
 				return new SqlField(column);
 			}
 
+			#pragma warning disable LINQ2DB0007 // mapping-derived name as raw text: rejected for untrusted clients unless the host adds it
 			return new SqlExpression(column.GetDbDataType(true), column.ColumnName, Precedence.Primary);
+			#pragma warning restore LINQ2DB0007
 		}
 
 		[Extension("", BuilderType = typeof(FieldsExprBuilderDirect), ServerSideOnly = false)]
@@ -179,14 +182,11 @@ namespace LinqToDB
 			for (var i = 0; i < columns.Length; i++)
 				columnExpressions[i] = qualified
 					? new SqlField(columns[i])
+					#pragma warning disable LINQ2DB0007 // mapping-derived name as raw text: rejected for untrusted clients unless the host adds it
 					: new SqlExpression(columns[i].GetDbDataType(true), columns[i].ColumnName, Precedence.Primary);
+					#pragma warning restore LINQ2DB0007
 
-			if (columns.Length == 1)
-				return columnExpressions[0];
-
-			return new SqlFragment(
-				string.Join(", ", Enumerable.Range(0, columns.Length).Select(i => string.Create(CultureInfo.InvariantCulture, $"{{{i}}}"))),
-				columnExpressions);
+			return SqlFragmentList.Join(columnExpressions);
 		}
 
 		private static ColumnDescriptor[] GetColumnsFromExpression(Type entityType, LambdaExpression fieldExpr, MappingSchema mappingSchema, DataOptions options)
@@ -287,7 +287,9 @@ namespace LinqToDB
 				if (isExpression)
 				{
 					if (qualified == TableQualification.None)
+						#pragma warning disable LINQ2DB0007 // mapping-derived name as raw text: rejected for untrusted clients unless the host adds it
 						builder.ResultExpression = new SqlExpression(builder.Mapping.GetDbDataType(typeof(string)), tableHelper.TableName, Precedence.Primary);
+						#pragma warning restore LINQ2DB0007
 					else
 					{
 						var tableName = new SqlObjectName(
@@ -366,7 +368,9 @@ namespace LinqToDB
 				}
 
 				builder.ResultExpression = isExpression
+					#pragma warning disable LINQ2DB0007 // mapping-derived name as raw text: rejected for untrusted clients unless the host adds it
 					? new SqlFragment(name)
+					#pragma warning restore LINQ2DB0007
 					: new SqlValue(name);
 			}
 		}
@@ -493,7 +497,9 @@ namespace LinqToDB
 				name = sb.Value.ToString();
 			}
 
+			#pragma warning disable LINQ2DB0007 // mapping-derived name as raw text: rejected for untrusted clients unless the host adds it
 			return new SqlFragment(name);
+			#pragma warning restore LINQ2DB0007
 		}
 
 		[Extension("", BuilderType = typeof(TableNameBuilder), ServerSideOnly = true)]
@@ -548,7 +554,9 @@ namespace LinqToDB
 				{
 					builder.ResultExpression = new SqlExpression(
 						builder.Mapping.GetDbDataType(memberType),
+						#pragma warning disable LINQ2DB0007 // user-supplied text: rejected for untrusted clients unless the host adds it
 						format,
+						#pragma warning restore LINQ2DB0007
 						Precedence.Primary,
 						memberType == typeof(bool) ? SqlFlags.IsPredicate | SqlFlags.IsPure : SqlFlags.IsPure,
 						ExpressionAttribute.ToParametersNullabilityType(builder.IsNullable),

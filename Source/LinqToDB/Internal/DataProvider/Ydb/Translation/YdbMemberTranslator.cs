@@ -259,11 +259,7 @@ namespace LinqToDB.Internal.DataProvider.Ydb.Translation
 									}
 
 									// Build tuple (k1, k2, ..., value)
-									ISqlExpression BuildTuple(IReadOnlyList<ISqlExpression> elems)
-									{
-										var fmt = "(" + string.Join(", ", Enumerable.Range(0, elems.Count).Select(i => "{" + i.ToString(CultureInfo.InvariantCulture) + "}")) + ")";
-										return factory.Fragment(fmt, elems.ToArray());
-									}
+									ISqlExpression BuildTuple(IReadOnlyList<ISqlExpression> elems) => SqlFragmentList.Tuple(elems);
 
 									var tupleElems = new List<ISqlExpression>(orderItems.Length + 1);
 									foreach (var (expr, _, _) in orderItems)
@@ -347,9 +343,7 @@ namespace LinqToDB.Internal.DataProvider.Ydb.Translation
 									// ($t) -> { return (k1_nullsKey, k1_key, k2_nullsKey, k2_key, ...) }
 									ISqlExpression BuildKeyLambda(IReadOnlyList<ISqlExpression> keys)
 									{
-										var keysFmt   = "(" + string.Join(", ", Enumerable.Range(0, keys.Count).Select(i => "{" + i.ToString(CultureInfo.InvariantCulture) + "}")) + ")";
-										var tupleKeys = factory.Fragment(keysFmt, keys.ToArray());
-										return factory.Fragment("($t) -> {{ return {0} }}", tupleKeys);
+										return factory.Fragment("($t) -> {{ return {0} }}", SqlFragmentList.Tuple(keys));
 									}
 
 									var keySelector = BuildKeyLambda(keyElems);

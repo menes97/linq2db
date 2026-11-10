@@ -103,7 +103,9 @@ namespace LinqToDB
 				if (error != null)
 					return SqlErrorExpression.EnsureError(error, expression.Type);
 
+				#pragma warning disable LINQ2DB0007 // attribute text: library declarations are catalogued by the generator, user declarations by the host
 				var function = new SqlFunction(dataContext.MappingSchema.GetDbDataType(expression.Type), expressionStr!,
+				#pragma warning restore LINQ2DB0007
 					(IsAggregate      ? SqlFlags.IsAggregate      : SqlFlags.None) |
 					(IsPure           ? SqlFlags.IsPure           : SqlFlags.None) |
 					(IsPredicate      ? SqlFlags.IsPredicate      : SqlFlags.None) |

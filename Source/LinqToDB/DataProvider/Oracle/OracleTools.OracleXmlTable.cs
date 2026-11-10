@@ -174,7 +174,9 @@ namespace LinqToDB.DataProvider.Oracle
 				}
 
 				table.SqlTableType   = SqlTableType.Expression;
+				#pragma warning disable LINQ2DB0007 // user-supplied text: rejected for untrusted clients unless the host adds it
 				table.Expression     = $"XmlTable(\'/t/r\' PASSING XmlType({{2}}) COLUMNS {columns.Value}) {{1}}";
+				#pragma warning restore LINQ2DB0007
 				table.TableArguments = new[] { arg };
 			}
 		}

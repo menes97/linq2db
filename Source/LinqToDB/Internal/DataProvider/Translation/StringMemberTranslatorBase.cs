@@ -961,32 +961,21 @@ namespace LinqToDB.Internal.DataProvider.Translation
 			if (orderBy.Count == 0)
 				return null;
 
-			using var sb   = Pools.StringBuilder.Allocate();
-			var       args = new ISqlExpression[orderBy.Count];
+			var items = new ISqlExpression[orderBy.Count];
 
-			sb.Value.Append("ORDER BY ");
 			for (var i = 0; i < orderBy.Count; i++)
 			{
 				var (expr, desc, nulls) = orderBy[i];
-				args[i] = expr;
-
-				if (i > 0)
-					sb.Value.Append(", ");
-				sb.Value.Append('{').Append(i).Append('}');
-				if (desc)
-					sb.Value.Append(" DESC");
 
 				// Skip the NULLS token when null-filtered, or when the request already matches the provider's
 				// natural placement for this direction (MatchesNaturalNullsPosition is false for None, so an
 				// unspecified position still emits the pinned FIRST below).
-				if (!isNullFiltered && !QueryHelper.MatchesNaturalNullsPosition(naturalOrdering, nulls, desc))
-				{
-					sb.Value.Append(" NULLS ");
-					sb.Value.Append(nulls is Sql.NullsPosition.First or Sql.NullsPosition.None ? "FIRST" : "LAST");
-				}
+				items[i] = !isNullFiltered && !QueryHelper.MatchesNaturalNullsPosition(naturalOrdering, nulls, desc)
+					? SqlFragmentList.OrderItem(expr, desc, nullsFirst: nulls is Sql.NullsPosition.First or Sql.NullsPosition.None)
+					: SqlFragmentList.OrderItem(expr, desc);
 			}
 
-			return factory.Fragment(sb.Value.ToString(), args);
+			return factory.Fragment("ORDER BY {0}", SqlFragmentList.Join(items));
 		}
 
 		public virtual ISqlExpression? TranslateReplace(ITranslationContext translationContext, MethodCallExpression methodCall, TranslationFlags translationFlags, ISqlExpression value, ISqlExpression oldValue, ISqlExpression newValue)

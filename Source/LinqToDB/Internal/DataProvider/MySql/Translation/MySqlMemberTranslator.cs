@@ -306,32 +306,26 @@ namespace LinqToDB.Internal.DataProvider.MySql.Translation
 								ISqlExpression? suffix = null;
 								if (info.OrderBySql.Length > 0)
 								{
-									using var sb = Pools.StringBuilder.Allocate();
+									var items = new List<ISqlExpression>(info.OrderBySql.Length * 2);
 
-									var args = info.OrderBySql.Select(o => o.expr).ToArray();
-
-									sb.Value.Append("ORDER BY ");
-									for (int i = 0; i < info.OrderBySql.Length; i++)
+									foreach (var (expr, desc, nulls) in info.OrderBySql)
 									{
-										if (i > 0) sb.Value.Append(", ");
-
 										// MySQL/MariaDB have no NULLS FIRST/LAST: emulate with a leading boolean sort key, unless the
 										// requested position already matches the natural order (NULL is smallest => NULLS FIRST ascending).
 										// NULLS LAST  => "(expr IS NULL)"     (non-null = 0 sorts first, null = 1 sorts last)
 										// NULLS FIRST => "(expr IS NOT NULL)"  (null = 0 sorts first)
-										if (info.OrderBySql[i].nulls != Sql.NullsPosition.None
-											&& !QueryHelper.MatchesNaturalNullsPosition(translationContext.ProviderFlags.DefaultNullsOrdering, info.OrderBySql[i].nulls, info.OrderBySql[i].desc))
+										if (nulls != Sql.NullsPosition.None
+											&& !QueryHelper.MatchesNaturalNullsPosition(translationContext.ProviderFlags.DefaultNullsOrdering, nulls, desc))
 										{
-											sb.Value.Append('(').Append('{').Append(i).Append('}')
-												.Append(info.OrderBySql[i].nulls == Sql.NullsPosition.Last ? " IS NULL" : " IS NOT NULL")
-												.Append("), ");
+											items.Add(nulls == Sql.NullsPosition.Last
+												? factory.Fragment("({0} IS NULL)",     expr)
+												: factory.Fragment("({0} IS NOT NULL)", expr));
 										}
 
-										sb.Value.Append('{').Append(i).Append('}');
-										if (info.OrderBySql[i].desc) sb.Value.Append(" DESC");
+										items.Add(SqlFragmentList.OrderItem(expr, desc));
 									}
 
-									suffix = factory.Fragment(sb.Value.ToString(), args);
+									suffix = factory.Fragment("ORDER BY {0}", SqlFragmentList.Join(items));
 								}
 
 								suffix = suffix != null

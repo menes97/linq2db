@@ -353,7 +353,7 @@ namespace LinqToDB.Internal.DataProvider.ClickHouse
 					// https://github.com/ClickHouse/ClickHouse/pull/16123
 					if (suffix != null && func.IsAggregate && _providerOptions.UseStandardCompatibleAggregates)
 					{
-						return func.WithFunctionName(func.FunctionName.ToLowerInvariant() + suffix);
+						return func.WithFunctionName(OrNullAggregateName(func.FunctionName));
 					}
 
 					break;
@@ -362,6 +362,15 @@ namespace LinqToDB.Internal.DataProvider.ClickHouse
 
 			return base.ConvertSqlExtendedFunction(func);
 		}
+
+		static string OrNullAggregateName(string name) => name switch
+		{
+			"MAX" => "maxOrNull",
+			"MIN" => "minOrNull",
+			"AVG" => "avgOrNull",
+			"SUM" => "sumOrNull",
+			_     => throw new InvalidOperationException($"Unexpected aggregate: {name}"),
+		};
 
 		// Date and DateTime start at 1970-01-01; the mapping schema writes a date mapped to any other type as Date32 or DateTime64,
 		// from 1900-01-01, or refuses it.
@@ -391,7 +400,7 @@ namespace LinqToDB.Internal.DataProvider.ClickHouse
 					// https://github.com/ClickHouse/ClickHouse/pull/16123
 					if (suffix != null && func.IsAggregate && _providerOptions.UseStandardCompatibleAggregates)
 					{
-						return new SqlFunction(func.Type, func.Name.ToLowerInvariant() + suffix, isAggregate: true, func.NullabilityType, canBeNullable, func.Parameters)
+						return new SqlFunction(func.Type, OrNullAggregateName(func.Name), isAggregate: true, func.NullabilityType, canBeNullable, func.Parameters)
 						{
 							DoNotOptimize = func.DoNotOptimize,
 						};

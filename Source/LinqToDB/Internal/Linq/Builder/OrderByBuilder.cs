@@ -153,7 +153,9 @@ namespace LinqToDB.Internal.Linq.Builder
 						if (position <= 0)
 							return BuildSequenceResult.Error(sequenceArgument, $"Invalid Index '{position.ToString(CultureInfo.InvariantCulture)}' for positioned OrderBy. Should be in range 1..N.");
 
+						#pragma warning disable LINQ2DB0007 // legacy ordinal ORDER BY: rejected for untrusted clients unless the host adds it
 						orderSql     = new SqlFragment(position.ToString(CultureInfo.InvariantCulture));
+						#pragma warning restore LINQ2DB0007
 						isPositioned = false;
 						// NULLS position on a literal ordinal index is meaningless.
 						itemNulls    = Sql.NullsPosition.None;

@@ -281,7 +281,9 @@ namespace LinqToDB.Internal.DataProvider.Oracle
 		public override ISqlExpression ConvertSqlExpression(SqlExpression element)
 		{
 			if (element.Expr.StartsWith("To_Number(To_Char(", StringComparison.Ordinal) && element.Expr.EndsWith(", 'FF'))", StringComparison.Ordinal))
+				#pragma warning disable LINQ2DB0007 // rewrites text that no library code produces
 				return Div(new SqlExpression(element.Type, element.Expr.Replace("To_Number(To_Char(", "to_Number(To_Char(", StringComparison.Ordinal), element.Parameters), 1000);
+				#pragma warning restore LINQ2DB0007
 
 			return base.ConvertSqlExpression(element);
 		}

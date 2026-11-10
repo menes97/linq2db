@@ -49,7 +49,9 @@ namespace LinqToDB
 			public override void SetTable<TContext>(DataOptions options, TContext context, ISqlBuilder sqlBuilder, MappingSchema mappingSchema, SqlTable table, MethodCallExpression methodCall, ExpressionAttribute.ConvertFunc<TContext> converter)
 			{
 				table.SqlTableType = SqlTableType.Expression;
+				#pragma warning disable LINQ2DB0007 // attribute text: library declarations are catalogued by the generator, user declarations by the host
 				var expressionStr  = table.Expression = Expression ?? methodCall.Method.Name!;
+				#pragma warning restore LINQ2DB0007
 
 				ExpressionAttribute.PrepareParameterValues(context, mappingSchema, methodCall, ref expressionStr, false, out var knownExpressions, false, false, out var genericTypes, converter);
 

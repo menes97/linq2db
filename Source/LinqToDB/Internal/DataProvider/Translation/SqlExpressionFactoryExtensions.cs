@@ -412,7 +412,7 @@ namespace LinqToDB.Internal.DataProvider.Translation
 		}
 
 		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "factory is an extension point")]
-		public static SqlPredicate.Like LikePredicate(this ISqlExpressionFactory factory, ISqlExpression value, bool isNot, ISqlExpression template, ISqlExpression? escape = null, string? functionName = null)
+		public static SqlPredicate.Like LikePredicate(this ISqlExpressionFactory factory, ISqlExpression value, bool isNot, ISqlExpression template, ISqlExpression? escape = null, [SqlText(SqlTextKind.Function)] string? functionName = null)
 		{
 			return new SqlPredicate.Like(value, isNot, template, escape, functionName);
 		}
