@@ -8,6 +8,7 @@ using LinqToDB.DataProvider.SqlServer;
 using LinqToDB.Internal.Common;
 using LinqToDB.Internal.SqlQuery;
 using LinqToDB.Mapping;
+using LinqToDB.Remote;
 
 using Newtonsoft.Json.Linq;
 
@@ -2110,6 +2111,7 @@ namespace Tests.Linq
 		}
 
 		[Test(Description = "https://github.com/linq2db/linq2db/issues/4870")]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TypeNotAllowed)]
 		public void Issue4870Test_Original([IncludeDataSources(true, TestProvName.AllSqlServer2017Plus)] string context)
 		{
 			using var db = GetDataContext(context);
@@ -2141,6 +2143,7 @@ namespace Tests.Linq
 		}
 
 		[Test(Description = "https://github.com/linq2db/linq2db/issues/4870")]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TypeNotAllowed)]
 		public void Issue4870Test_NoArgIndeces([IncludeDataSources(true, TestProvName.AllSqlServer2017Plus)] string context)
 		{
 			using var db = GetDataContext(context);
@@ -2172,6 +2175,7 @@ namespace Tests.Linq
 		}
 
 		[Test(Description = "https://github.com/linq2db/linq2db/issues/4870")]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TypeNotAllowed)]
 		public void Issue4870Test_Extension([IncludeDataSources(true, TestProvName.AllSqlServer2017Plus)] string context)
 		{
 			using var db = GetDataContext(context);
@@ -2203,6 +2207,7 @@ namespace Tests.Linq
 		}
 
 		[Test(Description = "https://github.com/linq2db/linq2db/issues/4870")]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TypeNotAllowed)]
 		public void Issue4870Test_ExistingApi([IncludeDataSources(true, TestProvName.AllSqlServer2017Plus)] string context)
 		{
 			using var db = GetDataContext(context);

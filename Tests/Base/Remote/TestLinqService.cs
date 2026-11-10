@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 
 using LinqToDB.Data;
 using LinqToDB.Mapping;
@@ -33,12 +34,35 @@ namespace Tests.Remote
 
 		static readonly string? _untrustedLog = Environment.GetEnvironmentVariable("LINQ2DB_TESTS_UNTRUSTED_REMOTE_LOG");
 
+		/// <summary>Whether remote test hosts run with <see cref="LinqService.TrustedClient"/> off.</summary>
+		internal static bool IsUntrusted => _untrustedLog != null;
+
+		static readonly List<RemoteRejection> _rejections = new();
+
+		/// <summary>
+		/// Rejections recorded since the last <see cref="ClearRejections"/>. The client sees only the transport's text,
+		/// so <see cref="RejectedWhenUntrustedAttribute"/> reads the typed rejections here. Remote tests run one at a time.
+		/// </summary>
+		internal static RemoteRejection[] GetRejections()
+		{
+			lock (_rejections)
+				return _rejections.ToArray();
+		}
+
+		internal static void ClearRejections()
+		{
+			lock (_rejections)
+				_rejections.Clear();
+		}
+
 		protected override void HandleException(Exception exception)
 		{
 			if (_untrustedLog != null && exception is RemoteRequestRejectedException rejected)
 			{
-				lock (typeof(TestLinqService))
+				lock (_rejections)
 				{
+					_rejections.AddRange(rejected.Rejections);
+
 					foreach (var r in rejected.Rejections)
 						System.IO.File.AppendAllText(_untrustedLog, $"{r.Reason}\t{r.Kind}\t{r.NodeType}\t{r.Text.Replace("\n", "\\n").Replace("\r", "\\r").Replace("\t", "\\t")}{Environment.NewLine}");
 				}

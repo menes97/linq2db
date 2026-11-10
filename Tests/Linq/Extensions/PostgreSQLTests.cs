@@ -4,6 +4,7 @@ using System.Linq;
 using LinqToDB;
 using LinqToDB.DataProvider.PostgreSQL;
 using LinqToDB.Mapping;
+using LinqToDB.Remote;
 
 using NUnit.Framework;
 
@@ -109,6 +110,7 @@ namespace Tests.Extensions
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.ExtensionArgument)]
 		public void SubQueryHintTest3([IncludeDataSources(true, TestProvName.AllPostgreSQL95Plus)] string context)
 		{
 			using var db = GetDataContext(context);

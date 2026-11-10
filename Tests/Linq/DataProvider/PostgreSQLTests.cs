@@ -20,6 +20,7 @@ using LinqToDB.DataProvider.PostgreSQL;
 using LinqToDB.Internal.Common;
 using LinqToDB.Internal.SqlQuery;
 using LinqToDB.Mapping;
+using LinqToDB.Remote;
 using LinqToDB.SchemaProvider;
 using LinqToDB.SqlQuery;
 using LinqToDB.Tools;
@@ -2850,6 +2851,7 @@ $function$
 		static bool JsonContains(string? json, int value) => throw new ServerSideOnlyException(nameof(JsonContains));
 
 		[Test(Description = "https://github.com/linq2db/linq2db/issues/4348")]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.Expression)]
 		public void Issue4348Test1([IncludeDataSources(true, TestProvName.AllPostgreSQL95Plus)] string context)
 		{
 			using var db = GetDataContext(context);
@@ -2863,6 +2865,7 @@ $function$
 		}
 
 		[Test(Description = "https://github.com/linq2db/linq2db/issues/4348")]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.Expression)]
 		public void Issue4348Test2([IncludeDataSources(true, TestProvName.AllPostgreSQL95Plus)] string context)
 		{
 			using var db = GetDataContext(context);

@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using LinqToDB;
 using LinqToDB.Async;
 using LinqToDB.Data;
+using LinqToDB.Remote;
 
 using NUnit.Framework;
 
@@ -14,6 +15,7 @@ namespace Tests.Extensions
 	public class QueryHintsTests : TestBase
 	{
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.QueryHint)]
 		public void Comment([DataSources(TestProvName.AllAccess, TestProvName.AllMySql)] string context)
 		{
 			using var db = GetDataContext(context);
@@ -58,6 +60,7 @@ namespace Tests.Extensions
 		[Repeat(100)]
 		[Test]
 		[NoBaselines("multi-threading")]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.QueryHint)]
 		public void Issue3137([IncludeDataSources(true, TestProvName.AllSQLite, TestProvName.AllClickHouse)] string context)
 		{
 			var rnd = new Random();

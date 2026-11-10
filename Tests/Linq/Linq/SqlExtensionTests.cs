@@ -10,6 +10,7 @@ using LinqToDB.Extensions;
 using LinqToDB.Internal.Expressions;
 using LinqToDB.Internal.SqlQuery;
 using LinqToDB.Mapping;
+using LinqToDB.Remote;
 using LinqToDB.SqlQuery;
 
 using NUnit.Framework;
@@ -442,6 +443,7 @@ namespace Tests.Linq
 		#region DatePart
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.Expression)]
 		public void DatePartYear([DataSources] string context)
 		{
 			using var db = GetDataContext(context);
@@ -451,6 +453,7 @@ namespace Tests.Linq
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.Expression)]
 		public void DatePartQuarter([DataSources] string context)
 		{
 			using var db = GetDataContext(context);
@@ -460,6 +463,7 @@ namespace Tests.Linq
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.Expression)]
 		public void DatePartMonth([DataSources] string context)
 		{
 			using var db = GetDataContext(context);
@@ -469,6 +473,7 @@ namespace Tests.Linq
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.Expression)]
 		public void DatePartDayOfYear([DataSources] string context)
 		{
 			using var db = GetDataContext(context);
@@ -478,6 +483,7 @@ namespace Tests.Linq
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.Expression)]
 		public void DatePartDay([DataSources] string context)
 		{
 			using var db = GetDataContext(context);
@@ -487,6 +493,7 @@ namespace Tests.Linq
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.Expression)]
 		public void DatePartWeek([DataSources] string context)
 		{
 			using var db = GetDataContext(context);
@@ -494,6 +501,7 @@ namespace Tests.Linq
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.Expression)]
 		public void DatePartWeekDay([DataSources] string context)
 		{
 			using var db = GetDataContext(context);
@@ -503,6 +511,7 @@ namespace Tests.Linq
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.Expression)]
 		public void DatePartHour([DataSources] string context)
 		{
 			using var db = GetDataContext(context);
@@ -512,6 +521,7 @@ namespace Tests.Linq
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.Expression)]
 		public void DatePartMinute([DataSources] string context)
 		{
 			using var db = GetDataContext(context);
@@ -521,6 +531,7 @@ namespace Tests.Linq
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.Expression)]
 		public void DatePartSecond([DataSources] string context)
 		{
 			using var db = GetDataContext(context);
@@ -530,6 +541,7 @@ namespace Tests.Linq
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.Expression)]
 		public void DatePartMillisecond([DataSources(TestProvName.AllInformix, TestProvName.AllMySql, TestProvName.AllAccess, TestProvName.AllSapHana)] string context)
 		{
 			using var db = GetDataContext(context);
