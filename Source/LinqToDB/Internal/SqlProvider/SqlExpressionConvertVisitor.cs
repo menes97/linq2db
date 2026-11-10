@@ -13,6 +13,7 @@ using LinqToDB.Internal.SqlQuery.Visitors;
 using LinqToDB.Linq.Translation;
 using LinqToDB.Mapping;
 using LinqToDB.SqlQuery;
+using LinqToDB.Remote;
 
 namespace LinqToDB.Internal.SqlProvider
 {
@@ -3276,7 +3277,7 @@ namespace LinqToDB.Internal.SqlProvider
 			return caseExpr;
 		}
 
-		protected ISqlExpression ConvertCoalesceToBinaryFunc(SqlCoalesceExpression coalesce, string funcName, bool supportsParameters = true)
+		protected ISqlExpression ConvertCoalesceToBinaryFunc(SqlCoalesceExpression coalesce, [SqlText(SqlTextKind.Function)] string funcName, bool supportsParameters = true)
 		{
 			var count = coalesce.Expressions.Length;
 

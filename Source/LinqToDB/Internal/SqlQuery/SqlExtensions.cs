@@ -4,6 +4,7 @@ using System.Linq.Expressions;
 
 using LinqToDB.Mapping;
 using LinqToDB.SqlQuery;
+using LinqToDB.Remote;
 
 namespace LinqToDB.Internal.SqlQuery
 {
@@ -129,7 +130,7 @@ namespace LinqToDB.Internal.SqlQuery
 				canBeAffectedByOrderBy: false);
 		}
 
-		public static SqlFunction WithName(this SqlFunction func, string name)
+		public static SqlFunction WithName(this SqlFunction func, [SqlText(SqlTextKind.Function)] string name)
 		{
 			if (string.Equals(name, func.Name, StringComparison.Ordinal))
 				return func;

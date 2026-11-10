@@ -3,12 +3,13 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 
 using LinqToDB.Internal.SqlQuery.Visitors;
+using LinqToDB.Remote;
 
 namespace LinqToDB.Internal.SqlQuery
 {
 	public sealed class SqlBinaryExpression : SqlExpressionBase
 	{
-		public SqlBinaryExpression(DbDataType dbDataType, ISqlExpression expr1, string operation, ISqlExpression expr2, int precedence = LinqToDB.SqlQuery.Precedence.Unknown)
+		public SqlBinaryExpression(DbDataType dbDataType, ISqlExpression expr1, [SqlText(SqlTextKind.Operator)] string operation, ISqlExpression expr2, int precedence = LinqToDB.SqlQuery.Precedence.Unknown)
 		{
 			Expr1      = expr1     ?? throw new ArgumentNullException(nameof(expr1));
 			Operation  = operation ?? throw new ArgumentNullException(nameof(operation));
@@ -17,7 +18,7 @@ namespace LinqToDB.Internal.SqlQuery
 			Precedence = precedence;
 		}
 
-		public SqlBinaryExpression(Type systemType, ISqlExpression expr1, string operation, ISqlExpression expr2, int precedence = LinqToDB.SqlQuery.Precedence.Unknown)
+		public SqlBinaryExpression(Type systemType, ISqlExpression expr1, [SqlText(SqlTextKind.Operator)] string operation, ISqlExpression expr2, int precedence = LinqToDB.SqlQuery.Precedence.Unknown)
 			: this(new DbDataType(systemType), expr1, operation, expr2, precedence)
 		{
 		}
@@ -32,7 +33,7 @@ namespace LinqToDB.Internal.SqlQuery
 			}
 		}
 
-		public string         Operation  { get; }
+		[SqlText(SqlTextKind.Operator)] public string         Operation  { get; }
 
 		public ISqlExpression Expr2
 		{

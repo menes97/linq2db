@@ -5,6 +5,7 @@ using System.Globalization;
 
 using LinqToDB.Common;
 using LinqToDB.Internal.SqlQuery.Visitors;
+using LinqToDB.Remote;
 
 #if BUGCHECK
 using System.Linq;
@@ -82,37 +83,37 @@ namespace LinqToDB.Internal.SqlQuery
 			return this;
 		}
 
-		public SqlSelectClause Expr(DbDataType type, string expr, params ISqlExpression[] values)
+		public SqlSelectClause Expr(DbDataType type, [SqlText(SqlTextKind.Expression)] string expr, params ISqlExpression[] values)
 		{
 			AddOrFindColumn(new SqlColumn(SelectQuery, new SqlExpression(type, expr, values)));
 			return this;
 		}
 
-		public SqlSelectClause Expr(DbDataType type, string expr, int priority, params ISqlExpression[] values)
+		public SqlSelectClause Expr(DbDataType type, [SqlText(SqlTextKind.Expression)] string expr, int priority, params ISqlExpression[] values)
 		{
 			AddOrFindColumn(new SqlColumn(SelectQuery, new SqlExpression(type, expr, priority, values)));
 			return this;
 		}
 
-		public SqlSelectClause Expr(DbDataType type, string alias, string expr, int priority, params ISqlExpression[] values)
+		public SqlSelectClause Expr(DbDataType type, string alias, [SqlText(SqlTextKind.Expression)] string expr, int priority, params ISqlExpression[] values)
 		{
 			AddOrFindColumn(new SqlColumn(SelectQuery, new SqlExpression(type, expr, priority, values)) { Alias = alias });
 			return this;
 		}
 
-		public SqlSelectClause Expr<T>(ISqlExpression expr1, string operation, ISqlExpression expr2)
+		public SqlSelectClause Expr<T>(ISqlExpression expr1, [SqlText(SqlTextKind.Operator)] string operation, ISqlExpression expr2)
 		{
 			AddOrFindColumn(new SqlColumn(SelectQuery, new SqlBinaryExpression(typeof(T), expr1, operation, expr2)));
 			return this;
 		}
 
-		public SqlSelectClause Expr<T>(ISqlExpression expr1, string operation, ISqlExpression expr2, int priority)
+		public SqlSelectClause Expr<T>(ISqlExpression expr1, [SqlText(SqlTextKind.Operator)] string operation, ISqlExpression expr2, int priority)
 		{
 			AddOrFindColumn(new SqlColumn(SelectQuery, new SqlBinaryExpression(typeof(T), expr1, operation, expr2, priority)));
 			return this;
 		}
 
-		public SqlSelectClause Expr<T>(string alias, ISqlExpression expr1, string operation, ISqlExpression expr2, int priority)
+		public SqlSelectClause Expr<T>(string alias, ISqlExpression expr1, [SqlText(SqlTextKind.Operator)] string operation, ISqlExpression expr2, int priority)
 		{
 			AddOrFindColumn(new SqlColumn(SelectQuery, new SqlBinaryExpression(typeof(T), expr1, operation, expr2, priority), alias));
 			return this;

@@ -1,41 +1,16 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Text;
+using System.Threading;
+
+using LinqToDB.Extensions;
+using LinqToDB.Internal.Common;
 
 namespace LinqToDB.Remote
 {
-	/// <summary>
-	/// Position in a remote request where SQL text is rendered. Text approved for one kind is not accepted for another.
-	/// </summary>
-	public enum SqlTextKind
-	{
-		/// <summary>SQL expression template.</summary>
-		Expression,
-		/// <summary>SQL fragment template.</summary>
-		Fragment,
-		/// <summary>Function name.</summary>
-		Function,
-		/// <summary>Table expression template.</summary>
-		TableExpression,
-		/// <summary>Binary operator.</summary>
-		Operator,
-		/// <summary>Query hint.</summary>
-		QueryHint,
-		/// <summary>Text argument of a query or table extension.</summary>
-		ExtensionArgument,
-		/// <summary>Hint of a merge statement.</summary>
-		MergeHint,
-		/// <summary>Text of a raw SQL table source.</summary>
-		RawSqlTable,
-		/// <summary>Header of a create table statement.</summary>
-		StatementHeader,
-		/// <summary>Footer of a create table statement.</summary>
-		StatementFooter,
-		/// <summary>Runtime override of a table, schema, database or server name.</summary>
-		TableName,
-	}
-
 	/// <summary>
 	/// Host-maintained SQL text accepted from untrusted clients of a <see cref="LinqService"/>.
 	/// </summary>
@@ -45,7 +20,7 @@ namespace LinqToDB.Remote
 	/// </remarks>
 	public sealed class SqlTextCatalog
 	{
-		readonly object _sync = new();
+		readonly Lock _sync = new();
 
 		volatile HashSet<(SqlTextKind Kind, string Text)> _added   = new();
 		volatile HashSet<(SqlTextKind Kind, string Text)> _removed = new();
@@ -55,7 +30,7 @@ namespace LinqToDB.Remote
 		/// <param name="text">SQL text.</param>
 		public void Add(SqlTextKind kind, string text)
 		{
-			if (text == null) throw new ArgumentNullException(nameof(text));
+			ArgumentNullException.ThrowIfNull(text);
 
 			lock (_sync)
 				_added = new(_added) { (kind, Canonicalize(text)) };
@@ -66,27 +41,109 @@ namespace LinqToDB.Remote
 		/// <param name="text">SQL text.</param>
 		public void Remove(SqlTextKind kind, string text)
 		{
-			if (text == null) throw new ArgumentNullException(nameof(text));
+			ArgumentNullException.ThrowIfNull(text);
 
 			lock (_sync)
 				_removed = new(_removed) { (kind, Canonicalize(text)) };
 		}
 
-		internal RemoteRejectionReason? Check(SqlTextKind kind, string text)
+		internal RemoteRejectionReason? Check(SqlTextKind kind, string text, HashSet<(SqlTextKind Kind, string Text)> sources)
 		{
 			var key = (kind, Canonicalize(text));
 
 			if (_removed.Contains(key))
 				return RemoteRejectionReason.TextRemovedFromCatalog;
 
-			if (_added.Contains(key))
+			if (_added.Contains(key) || sources.Contains(key))
 				return null;
 
 			var canonical = key.Item2;
 
-			return _added.Any(e => e.Kind != kind && string.Equals(e.Text, canonical, StringComparison.Ordinal))
+			return _added.Concat(sources).Any(e => e.Kind != kind && string.Equals(e.Text, canonical, StringComparison.Ordinal))
 				? RemoteRejectionReason.TextAllowedForOtherKind
 				: RemoteRejectionReason.TextNotInCatalog;
+		}
+
+		static readonly ConcurrentDictionary<(Assembly Assembly, string? Family), HashSet<(SqlTextKind Kind, string Text)>> _assemblyCache = new();
+
+		internal static HashSet<(SqlTextKind Kind, string Text)> GetAssemblySources(Assembly assembly, string? family)
+		{
+			return _assemblyCache.GetOrAdd((assembly, family), static key => Build(key.Assembly, key.Family));
+		}
+
+		static HashSet<(SqlTextKind Kind, string Text)> Build(Assembly assembly, string? family)
+		{
+			var result = new HashSet<(SqlTextKind Kind, string Text)>();
+
+			foreach (var attribute in assembly.GetAttributes<SqlTextCatalogAttribute>())
+			{
+				var catalog = ActivatorExt.CreateInstance<ISqlTextCatalog>(attribute.CatalogType, true);
+
+				foreach (var item in catalog.Items)
+				{
+					if (item.Partition != null && !string.Equals(item.Partition, family, StringComparison.Ordinal))
+						continue;
+
+					if (item.IsTemplate)
+					{
+						foreach (var text in ExpandTemplate(item.Text))
+							result.Add((item.Kind, Canonicalize(text)));
+					}
+					else
+					{
+						result.Add((item.Kind, Canonicalize(item.Text)));
+					}
+				}
+			}
+
+			return result;
+		}
+
+		const int MaxOptionalTokens = 6;
+
+		internal static IReadOnlyList<string> ExpandTemplate(string template)
+		{
+			var tokens   = new List<string>();
+			var hasList  = false;
+
+			Sql.ExpressionAttribute.ResolveExpressionValues(
+				(object?)null,
+				template,
+				(_, name, delimiter) =>
+				{
+					hasList |= delimiter != null;
+
+					if (!tokens.Contains(name, StringComparer.Ordinal))
+						tokens.Add(name);
+
+					return "{0}";
+				},
+				out _);
+
+			if (hasList)
+				return [];
+
+			var optional = tokens.Where(t => template.Contains("{" + t + "?", StringComparison.Ordinal)).ToList();
+
+			if (optional.Count > MaxOptionalTokens)
+				return [];
+
+			var results = new List<string>(1 << optional.Count);
+
+			for (var mask = 0; mask < 1 << optional.Count; mask++)
+			{
+				var absent = new HashSet<string>(optional.Where((_, i) => (mask & (1 << i)) != 0), StringComparer.Ordinal);
+
+				var text = Sql.ExpressionAttribute.ResolveExpressionValues(
+					absent,
+					template,
+					static (a, name, _) => a.Contains(name) ? null : "{0}",
+					out _);
+
+				results.Add(text);
+			}
+
+			return results;
 		}
 
 		internal static string Canonicalize(string text)

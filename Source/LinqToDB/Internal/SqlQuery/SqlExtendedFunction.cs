@@ -6,13 +6,14 @@ using System.Linq;
 using LinqToDB.Common;
 using LinqToDB.Internal.SqlQuery.Visitors;
 using LinqToDB.SqlQuery;
+using LinqToDB.Remote;
 
 namespace LinqToDB.Internal.SqlQuery
 {
 	public class SqlExtendedFunction : SqlExpressionBase
 	{
 		public SqlExtendedFunction(DbDataType dbDataType,
-			string                            functionName,
+			[SqlText(SqlTextKind.Function)] string functionName,
 			IEnumerable<SqlFunctionArgument>  arguments,
 			bool[]                            argumentsNullability,
 			bool?                             canBeNull                   = null,
@@ -51,7 +52,7 @@ namespace LinqToDB.Internal.SqlQuery
 		}
 
 		public DbDataType                Type                        { get; }
-		public string                    FunctionName                { get; }
+		[SqlText(SqlTextKind.Function)] public string                    FunctionName                { get; }
 		public bool[]                    ArgumentsNullability        { get; }
 		public bool?                     CanBeNull                   { get; }
 		public bool                      CanBeNullInAggregationQuery { get; }
@@ -121,7 +122,7 @@ namespace LinqToDB.Internal.SqlQuery
 				argumentDomain: ArgumentDomain);
 		}
 
-		public SqlExtendedFunction WithFunctionName(string functionName)
+		public SqlExtendedFunction WithFunctionName([SqlText(SqlTextKind.Function)] string functionName)
 		{
 			return new SqlExtendedFunction(
 				Type,

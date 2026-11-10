@@ -3,6 +3,7 @@ using System.Diagnostics;
 
 using LinqToDB.Common;
 using LinqToDB.Internal.SqlQuery.Visitors;
+using LinqToDB.Remote;
 
 namespace LinqToDB.Internal.SqlQuery
 {
@@ -11,49 +12,49 @@ namespace LinqToDB.Internal.SqlQuery
 		private const SqlFlags                  DefaultFlags       = SqlFlags.IsPure;
 		private const ParametersNullabilityType DefaultNullability = ParametersNullabilityType.IfAnyParameterNullable;
 
-		public SqlFunction(DbDataType type, string name, params ISqlExpression[] parameters)
+		public SqlFunction(DbDataType type, [SqlText(SqlTextKind.Function)] string name, params ISqlExpression[] parameters)
 			: this(type, name, DefaultFlags, DefaultNullability, null, parameters)
 		{
 		}
 
-		public SqlFunction(DbDataType type, string name, bool? canBeNull, params ISqlExpression[] parameters)
+		public SqlFunction(DbDataType type, [SqlText(SqlTextKind.Function)] string name, bool? canBeNull, params ISqlExpression[] parameters)
 			: this(type, name, DefaultFlags, DefaultNullability, canBeNull, parameters)
 		{
 		}
 
-		public SqlFunction(DbDataType type, string name, SqlFlags flags, params ISqlExpression[] parameters)
+		public SqlFunction(DbDataType type, [SqlText(SqlTextKind.Function)] string name, SqlFlags flags, params ISqlExpression[] parameters)
 			: this(type, name, flags, DefaultNullability, null, parameters)
 		{
 		}
 
-		public SqlFunction(DbDataType type, string name, bool isAggregate, bool? canBeNull, params ISqlExpression[] parameters)
+		public SqlFunction(DbDataType type, [SqlText(SqlTextKind.Function)] string name, bool isAggregate, bool? canBeNull, params ISqlExpression[] parameters)
 			: this(type, name, isAggregate ? SqlFlags.IsAggregate | SqlFlags.IsPure : SqlFlags.IsPure, DefaultNullability, canBeNull, parameters)
 		{
 		}
 
-		public SqlFunction(DbDataType type, string name, bool isAggregate, ParametersNullabilityType parametersNullability, params ISqlExpression[] parameters)
+		public SqlFunction(DbDataType type, [SqlText(SqlTextKind.Function)] string name, bool isAggregate, ParametersNullabilityType parametersNullability, params ISqlExpression[] parameters)
 			: this(type, name, isAggregate ? SqlFlags.IsAggregate | SqlFlags.IsPure : SqlFlags.IsPure, parametersNullability, null, parameters)
 		{
 		}
 
-		public SqlFunction(DbDataType type, string name, ParametersNullabilityType parametersNullability, params ISqlExpression[] parameters)
+		public SqlFunction(DbDataType type, [SqlText(SqlTextKind.Function)] string name, ParametersNullabilityType parametersNullability, params ISqlExpression[] parameters)
 			: this(type, name, DefaultFlags, parametersNullability, null, parameters)
 		{
 		}
 
-		public SqlFunction(DbDataType type, string name, bool isAggregate, ParametersNullabilityType parametersNullability, bool? canBeNull, params ISqlExpression[] parameters)
+		public SqlFunction(DbDataType type, [SqlText(SqlTextKind.Function)] string name, bool isAggregate, ParametersNullabilityType parametersNullability, bool? canBeNull, params ISqlExpression[] parameters)
 			: this(type, name, isAggregate ? SqlFlags.IsAggregate | SqlFlags.IsPure : SqlFlags.IsPure, parametersNullability, canBeNull, parameters)
 		{
 		}
 
-		public SqlFunction(DbDataType type, string name, ParametersNullabilityType parametersNullability, bool? canBeNull, params ISqlExpression[] parameters)
+		public SqlFunction(DbDataType type, [SqlText(SqlTextKind.Function)] string name, ParametersNullabilityType parametersNullability, bool? canBeNull, params ISqlExpression[] parameters)
 			: this(type, name, DefaultFlags, parametersNullability, canBeNull, parameters)
 		{
 		}
 
 		public SqlFunction(
 			DbDataType                type,
-			string                    name,
+			[SqlText(SqlTextKind.Function)] string name,
 			SqlFlags                  flags,
 			ParametersNullabilityType nullabilityType,
 			bool?                     canBeNull,
@@ -62,7 +63,7 @@ namespace LinqToDB.Internal.SqlQuery
 		{
 		}
 
-		public string Name => ExprOrName;
+		[SqlText(SqlTextKind.Function)] public string Name => ExprOrName;
 
 		public bool DoNotOptimize { get; set; }
 

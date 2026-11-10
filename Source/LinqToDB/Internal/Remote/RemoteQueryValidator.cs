@@ -200,7 +200,8 @@ namespace LinqToDB.Internal.Remote
 					break;
 
 				case SqlTableSource e:
-					CheckIdentifier(policy, e.RawAlias, "SqlTableSource.Alias", mappedNames);
+					if (e.RawAlias is not ("$" or "$F"))
+						CheckIdentifier(policy, e.RawAlias, "SqlTableSource.Alias", mappedNames);
 					break;
 
 				case SqlDataType e:

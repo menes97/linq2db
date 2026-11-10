@@ -11,6 +11,7 @@ using LinqToDB.Internal.Expressions;
 using LinqToDB.Internal.Extensions;
 using LinqToDB.Internal.SqlQuery;
 using LinqToDB.SqlQuery;
+using LinqToDB.Remote;
 
 namespace LinqToDB.Linq.Translation
 {
@@ -722,7 +723,7 @@ namespace LinqToDB.Linq.Translation
 			int?                                     argumentIndex,
 			int                                      windowArgument,
 			DbDataType                               dbDataType,
-			string                                   functionName,
+			[SqlText(SqlTextKind.Function)] string                                   functionName,
 			Action<List<SqlFunctionArgument>, bool>? adjustArguments = null,
 			Func<ISqlExpression, ISqlExpression>?    transform       = null)
 			=> TranslateWindowFunctionCore(
@@ -738,7 +739,7 @@ namespace LinqToDB.Linq.Translation
 			Expression[]?                            functionArguments,
 			int                                      windowArgument,
 			DbDataType                               dbDataType,
-			string                                   functionName,
+			[SqlText(SqlTextKind.Function)] string                                   functionName,
 			Action<List<SqlFunctionArgument>, bool>? adjustArguments,
 			Func<ISqlExpression, ISqlExpression>?    transform)
 		{
@@ -1054,7 +1055,7 @@ namespace LinqToDB.Linq.Translation
 			return TranslatePercentileFunction(translationContext, methodCall, "PERCENTILE_DISC", requireSingleOrderBy: false, booleanOrderByError: IsPercentileDiscBooleanOrderBySupported ? null : ErrorHelper.Error_WindowFunction_PercentileDiscBooleanOrderBy);
 		}
 
-		Expression? TranslatePercentileFunction(ITranslationContext translationContext, MethodCallExpression methodCall, string functionName, bool requireSingleOrderBy, string? booleanOrderByError = null)
+		Expression? TranslatePercentileFunction(ITranslationContext translationContext, MethodCallExpression methodCall, [SqlText(SqlTextKind.Function)] string functionName, bool requireSingleOrderBy, string? booleanOrderByError = null)
 		{
 			if (!IsWindowFunctionsSupported)
 				return translationContext.CreateErrorExpression(methodCall, ErrorHelper.Error_WindowFunction_NotSupported, methodCall.Type);
@@ -1202,7 +1203,7 @@ namespace LinqToDB.Linq.Translation
 		// Windowed ordered-set aggregate: PERCENTILE_CONT/DISC(fraction) WITHIN GROUP (ORDER BY key) OVER (PARTITION BY ...).
 		// The builder lambda's OrderBy maps to WITHIN GROUP (not the OVER ORDER BY) and PartitionBy maps to OVER; the form
 		// exposes neither FILTER nor a frame. Distinct from the group-source TranslatePercentileFunction (no group-element composer).
-		Expression? TranslatePercentileWindowed(ITranslationContext translationContext, MethodCallExpression methodCall, string functionName, bool requireSingleOrderBy, string? booleanOrderByError = null)
+		Expression? TranslatePercentileWindowed(ITranslationContext translationContext, MethodCallExpression methodCall, [SqlText(SqlTextKind.Function)] string functionName, bool requireSingleOrderBy, string? booleanOrderByError = null)
 		{
 			var fraction = translationContext.Translate(methodCall.Arguments[1]);
 			if (fraction is not SqlPlaceholderExpression fractionPlaceholder)
@@ -1268,7 +1269,7 @@ namespace LinqToDB.Linq.Translation
 		// Hypothetical-set ordered-set aggregate: FUNC(value...) WITHIN GROUP (ORDER BY key...). The values are the leading
 		// method arguments (positional, matched to the order keys by the database) and the order lambda is the last argument;
 		// no OVER clause is emitted. Gated by IsHypotheticalSetSupported (Oracle/PostgreSQL).
-		Expression? TranslateHypotheticalSet(ITranslationContext translationContext, MethodCallExpression methodCall, string functionName)
+		Expression? TranslateHypotheticalSet(ITranslationContext translationContext, MethodCallExpression methodCall, [SqlText(SqlTextKind.Function)] string functionName)
 		{
 			if (!IsWindowFunctionsSupported)
 				return translationContext.CreateErrorExpression(methodCall, ErrorHelper.Error_WindowFunction_NotSupported, methodCall.Type);
@@ -1401,14 +1402,14 @@ namespace LinqToDB.Linq.Translation
 		}
 
 		// Sample standard deviation. STDDEV on Oracle/DuckDB/PostgreSQL; STDEV on SQL Server / Sybase. Override per provider.
-		protected virtual string StdDevFunctionName     => "STDDEV";
+		[SqlText(SqlTextKind.Function)] protected virtual string StdDevFunctionName     => "STDDEV";
 		// Per-function name overrides for the explicit STDDEV_*/VAR_* forms and bare VARIANCE. Providers that spell them
 		// differently (SQL Server STDEVP/STDEV/VAR/VARP; SAP HANA VAR for sample variance) override these.
-		protected virtual string StdDevPopFunctionName  => "STDDEV_POP";
-		protected virtual string StdDevSampFunctionName => "STDDEV_SAMP";
-		protected virtual string VarianceFunctionName   => "VARIANCE";
-		protected virtual string VarPopFunctionName     => "VAR_POP";
-		protected virtual string VarSampFunctionName    => "VAR_SAMP";
+		[SqlText(SqlTextKind.Function)] protected virtual string StdDevPopFunctionName  => "STDDEV_POP";
+		[SqlText(SqlTextKind.Function)] protected virtual string StdDevSampFunctionName => "STDDEV_SAMP";
+		[SqlText(SqlTextKind.Function)] protected virtual string VarianceFunctionName   => "VARIANCE";
+		[SqlText(SqlTextKind.Function)] protected virtual string VarPopFunctionName     => "VAR_POP";
+		[SqlText(SqlTextKind.Function)] protected virtual string VarSampFunctionName    => "VAR_SAMP";
 
 		// RATIO_TO_REPORT(expr) OVER (w). Base implementation emulates it as expr / SUM(expr) OVER (w); providers with a
 		// native function (Oracle, DB2) override this to emit RATIO_TO_REPORT directly.
@@ -1468,7 +1469,7 @@ namespace LinqToDB.Linq.Translation
 		// Univariate statistical aggregates (STDDEV/VARIANCE family). The bare STDDEV/VARIANCE are gated by
 		// IsVarianceBareSupported and the explicit *_POP/*_SAMP by IsVarianceSupported, since ClickHouse has the latter
 		// but not the former. Providers using non-standard names (e.g. SQL Server STDEV/VAR) stay off until name-mapped.
-		Expression? TranslateVarianceFunction(ITranslationContext translationContext, MethodCallExpression methodCall, string functionName, bool isSupported)
+		Expression? TranslateVarianceFunction(ITranslationContext translationContext, MethodCallExpression methodCall, [SqlText(SqlTextKind.Function)] string functionName, bool isSupported)
 		{
 			if (!IsWindowFunctionsSupported)
 				return translationContext.CreateErrorExpression(methodCall, ErrorHelper.Error_WindowFunction_NotSupported, methodCall.Type);
@@ -1522,7 +1523,7 @@ namespace LinqToDB.Linq.Translation
 		// Shared dispatch for the two-value-argument statistical aggregates: the window-builder lambda is the 4th
 		// argument (this, expr1, expr2, func); TranslateWindowFunctionCore emits both arguments. Each caller passes its
 		// family capability flag + error so unsupported providers throw a clean error instead of emitting bad SQL.
-		Expression? TranslateBivariate(ITranslationContext translationContext, MethodCallExpression methodCall, string functionName, bool isSupported, string errorMessage)
+		Expression? TranslateBivariate(ITranslationContext translationContext, MethodCallExpression methodCall, [SqlText(SqlTextKind.Function)] string functionName, bool isSupported, string errorMessage)
 		{
 			if (!IsWindowFunctionsSupported)
 				return translationContext.CreateErrorExpression(methodCall, ErrorHelper.Error_WindowFunction_NotSupported, methodCall.Type);
@@ -1658,7 +1659,7 @@ namespace LinqToDB.Linq.Translation
 			int[]                argumentIndexes,
 			int                  windowArgument,
 			DbDataType           dbDataType,
-			string               functionName)
+			[SqlText(SqlTextKind.Function)] string               functionName)
 		{
 			var functionArgs = new Expression[argumentIndexes.Length];
 			for (var i = 0; i < argumentIndexes.Length; i++)

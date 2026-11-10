@@ -5,73 +5,74 @@ using System.Collections.Generic;
 using LinqToDB.Internal.SqlQuery;
 using LinqToDB.Linq.Translation;
 using LinqToDB.SqlQuery;
+using LinqToDB.Remote;
 
 namespace LinqToDB.Internal.DataProvider.Translation
 {
 	public static class SqlExpressionFactoryExtensions
 	{
 		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "factory is an extension point")]
-		public static ISqlExpression Fragment(this ISqlExpressionFactory factory, string fragmentText, params ISqlExpression[] parameters)
+		public static ISqlExpression Fragment(this ISqlExpressionFactory factory, [SqlText(SqlTextKind.Fragment)] string fragmentText, params ISqlExpression[] parameters)
 		{
 			return new SqlFragment(fragmentText, parameters);
 		}
 
 		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "factory is an extension point")]
-		public static ISqlExpression Fragment(this ISqlExpressionFactory factory, string fragmentText, int precedence, params ISqlExpression[] parameters)
+		public static ISqlExpression Fragment(this ISqlExpressionFactory factory, [SqlText(SqlTextKind.Fragment)] string fragmentText, int precedence, params ISqlExpression[] parameters)
 		{
 			return new SqlFragment(fragmentText, precedence, parameters);
 		}
 
 		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "factory is an extension point")]
-		public static ISqlExpression Expression(this ISqlExpressionFactory factory, DbDataType dataType, string expr, params ISqlExpression[] parameters)
+		public static ISqlExpression Expression(this ISqlExpressionFactory factory, DbDataType dataType, [SqlText(SqlTextKind.Expression)] string expr, params ISqlExpression[] parameters)
 		{
 			return factory.Expression(dataType, Precedence.Primary, expr, null, parameters);
 		}
 
 		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "factory is an extension point")]
-		public static ISqlExpression Expression(this ISqlExpressionFactory factory, DbDataType dataType, string expr, int precedence, params ISqlExpression[] parameters)
+		public static ISqlExpression Expression(this ISqlExpressionFactory factory, DbDataType dataType, [SqlText(SqlTextKind.Expression)] string expr, int precedence, params ISqlExpression[] parameters)
 		{
 			return factory.Expression(dataType, precedence, expr, null, parameters);
 		}
 
 		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "factory is an extension point")]
-		public static ISqlExpression NotNullExpression(this ISqlExpressionFactory factory, DbDataType dataType, string expr, params ISqlExpression[] parameters)
+		public static ISqlExpression NotNullExpression(this ISqlExpressionFactory factory, DbDataType dataType, [SqlText(SqlTextKind.Expression)] string expr, params ISqlExpression[] parameters)
 		{
 			return factory.NotNullExpression(dataType, Precedence.Primary, expr, parameters);
 		}
 
 		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "factory is an extension point")]
-		public static ISqlExpression NonPureExpression(this ISqlExpressionFactory factory, DbDataType dataType, string expr, params ISqlExpression[] parameters)
+		public static ISqlExpression NonPureExpression(this ISqlExpressionFactory factory, DbDataType dataType, [SqlText(SqlTextKind.Expression)] string expr, params ISqlExpression[] parameters)
 		{
 			return new SqlExpression(dataType, expr, Precedence.Primary, SqlFlags.None, ParametersNullabilityType.IfAnyParameterNullable, null, parameters);
 		}
 
 		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "factory is an extension point")]
-		public static ISqlExpression Expression(this ISqlExpressionFactory factory, DbDataType dataType, int precedence, string expr, params ISqlExpression[] parameters)
+		public static ISqlExpression Expression(this ISqlExpressionFactory factory, DbDataType dataType, int precedence, [SqlText(SqlTextKind.Expression)] string expr, params ISqlExpression[] parameters)
 		{
 			return new SqlExpression(dataType, expr, precedence, SqlFlags.None, parameters);
 		}
 
 		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "factory is an extension point")]
-		public static ISqlExpression Expression(this ISqlExpressionFactory factory, DbDataType dataType, int precedence, string expr, bool? canBeNull, params ISqlExpression[] parameters)
+		public static ISqlExpression Expression(this ISqlExpressionFactory factory, DbDataType dataType, int precedence, [SqlText(SqlTextKind.Expression)] string expr, bool? canBeNull, params ISqlExpression[] parameters)
 		{
 			return new SqlExpression(dataType, expr, precedence, SqlFlags.None, canBeNull, parameters);
 		}
 
 		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "factory is an extension point")]
-		public static ISqlExpression NotNullExpression(this ISqlExpressionFactory factory, DbDataType dataType, int precedence, string expr, params ISqlExpression[] parameters)
+		public static ISqlExpression NotNullExpression(this ISqlExpressionFactory factory, DbDataType dataType, int precedence, [SqlText(SqlTextKind.Expression)] string expr, params ISqlExpression[] parameters)
 		{
 			return new SqlExpression(dataType, expr, precedence, SqlFlags.None, ParametersNullabilityType.NotNullable, parameters);
 		}
 
 		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "factory is an extension point")]
-		public static ISqlExpression Function(this ISqlExpressionFactory factory, DbDataType type, string functionName, params ISqlExpression[] parameters)
+		public static ISqlExpression Function(this ISqlExpressionFactory factory, DbDataType type, [SqlText(SqlTextKind.Function)] string functionName, params ISqlExpression[] parameters)
 		{
 			return new SqlFunction(type, functionName, parameters);
 		}
 
 		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "factory is an extension point")]
-		public static ISqlExpression Function(this ISqlExpressionFactory factory, DbDataType dataType, string functionName, ParametersNullabilityType parametersNullability, params ISqlExpression[] parameters)
+		public static ISqlExpression Function(this ISqlExpressionFactory factory, DbDataType dataType, [SqlText(SqlTextKind.Function)] string functionName, ParametersNullabilityType parametersNullability, params ISqlExpression[] parameters)
 		{
 			return new SqlFunction(dataType, functionName, parametersNullability, parameters);
 		}
@@ -83,7 +84,7 @@ namespace LinqToDB.Internal.DataProvider.Translation
 		}
 
 		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "factory is an extension point")]
-		public static ISqlExpression NonPureFunction(this ISqlExpressionFactory factory, DbDataType dataType, string functionName, params ISqlExpression[] parameters)
+		public static ISqlExpression NonPureFunction(this ISqlExpressionFactory factory, DbDataType dataType, [SqlText(SqlTextKind.Function)] string functionName, params ISqlExpression[] parameters)
 		{
 			return new SqlFunction(dataType, functionName, SqlFlags.None, parameters);
 		}
@@ -198,7 +199,7 @@ namespace LinqToDB.Internal.DataProvider.Translation
 		}
 
 		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "factory is an extension point")]
-		public static ISqlExpression Binary(this ISqlExpressionFactory factory, DbDataType dbDataType, ISqlExpression x, string operation, ISqlExpression y)
+		public static ISqlExpression Binary(this ISqlExpressionFactory factory, DbDataType dbDataType, ISqlExpression x, [SqlText(SqlTextKind.Operator)] string operation, ISqlExpression y)
 		{
 			if (dbDataType.SystemType == typeof(string) && (string.Equals(operation, "+", StringComparison.Ordinal) || string.Equals(operation, "||", StringComparison.Ordinal)))
 				throw new InvalidOperationException("String concatenation must use factory.Concat(...) so it produces SqlConcatExpression. factory.Binary is for non-concat operations.");
@@ -335,7 +336,7 @@ namespace LinqToDB.Internal.DataProvider.Translation
 		}
 
 		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "factory is an extension point")]
-		public static ISqlExpression Function(this ISqlExpressionFactory factory, DbDataType dataType, string functionName,
+		public static ISqlExpression Function(this ISqlExpressionFactory factory, DbDataType dataType, [SqlText(SqlTextKind.Function)] string functionName,
 			SqlFunctionArgument[] arguments,
 			bool[] argumentsNullability,
 			bool? canBeNull = null,

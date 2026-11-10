@@ -5,6 +5,7 @@ using System.Globalization;
 using System.Linq;
 
 using LinqToDB.Internal.SqlQuery.Visitors;
+using LinqToDB.Remote;
 
 namespace LinqToDB.Internal.SqlQuery
 {
@@ -15,19 +16,19 @@ namespace LinqToDB.Internal.SqlQuery
 	{
 		private const int DefaultPrecedence = LinqToDB.SqlQuery.Precedence.Primary;
 
-		public SqlFragment(string expr, params ISqlExpression[] parameters)
+		public SqlFragment([SqlText(SqlTextKind.Fragment)] string expr, params ISqlExpression[] parameters)
 			: this(expr, DefaultPrecedence, parameters)
 		{
 		}
 
-		public SqlFragment(string expr, int precedence, params ISqlExpression[] parameters)
+		public SqlFragment([SqlText(SqlTextKind.Fragment)] string expr, int precedence, params ISqlExpression[] parameters)
 		{
 			Expr = expr;
 			Precedence = precedence;
 			Parameters = parameters;
 		}
 
-		public string Expr { get; }
+		[SqlText(SqlTextKind.Fragment)] public string Expr { get; }
 		public ISqlExpression[] Parameters { get; }
 
 		#region Overrides

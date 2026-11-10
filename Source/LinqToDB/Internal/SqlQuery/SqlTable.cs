@@ -8,6 +8,7 @@ using LinqToDB.Data;
 using LinqToDB.Internal.SqlQuery.Visitors;
 using LinqToDB.Mapping;
 using LinqToDB.SqlQuery;
+using LinqToDB.Remote;
 
 namespace LinqToDB.Internal.SqlQuery
 {
@@ -25,7 +26,7 @@ namespace LinqToDB.Internal.SqlQuery
 
 		internal SqlTable(
 			int                      id,
-			string?                  expression,
+			[SqlText(SqlTextKind.TableExpression)] string?                  expression,
 			string                   alias,
 			SqlObjectName            tableName,
 			Type                     objectType,
@@ -284,7 +285,7 @@ string.Equals(Alias, otherTable.Alias, StringComparison.Ordinal);
 		/// <item>{2+}: arguments from <see cref="TableArguments"/> (with index adjusted by 2)</item>
 		/// </list>
 		/// </summary>
-		public string?           Expression     { get; set; }
+		[SqlText(SqlTextKind.TableExpression)] public string?           Expression     { get; set; }
 		public ISqlExpression[]? TableArguments { get; set; }
 
 		internal string NameForLogging => Expression ?? TableName.Name;

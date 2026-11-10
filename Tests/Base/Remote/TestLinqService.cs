@@ -13,7 +13,36 @@ namespace Tests.Remote
 		public TestLinqService(Func<string?, MappingSchema?, DataConnection> connectionFactory)
 		{
 			_connectionFactory = connectionFactory;
-			TrustedClient      = true;
+			TrustedClient      = _untrustedLog == null;
+
+			if (_untrustedLog != null)
+			{
+				MappingAssemblies.Add(typeof(TestLinqService).Assembly);
+				MappingAssemblies.Add(typeof(Tests.Model.Person).Assembly);
+
+				if (System.Reflection.Assembly.GetEntryAssembly() is { } entry)
+					MappingAssemblies.Add(entry);
+
+				foreach (var provider in TestConfiguration.UserProviders)
+				{
+					AllowedConfigurations.Add(provider);
+					AllowedConfigurations.Add(provider + ".LinqService");
+				}
+			}
+		}
+
+		static readonly string? _untrustedLog = Environment.GetEnvironmentVariable("LINQ2DB_TESTS_UNTRUSTED_REMOTE_LOG");
+
+		protected override void HandleException(Exception exception)
+		{
+			if (_untrustedLog != null && exception is RemoteRequestRejectedException rejected)
+			{
+				lock (typeof(TestLinqService))
+				{
+					foreach (var r in rejected.Rejections)
+						System.IO.File.AppendAllText(_untrustedLog, $"{r.Reason}\t{r.Kind}\t{r.NodeType}\t{r.Text.Replace("\n", "\\n").Replace("\r", "\\r").Replace("\t", "\\t")}{Environment.NewLine}");
+				}
+			}
 		}
 
 		public override DataConnection CreateDataContext(string? configuration)

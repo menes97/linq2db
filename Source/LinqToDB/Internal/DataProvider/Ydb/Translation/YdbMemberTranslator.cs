@@ -10,6 +10,7 @@ using LinqToDB.Internal.SqlQuery;
 using LinqToDB.Linq.Translation;
 using LinqToDB.SqlQuery;
 using System.Globalization;
+using LinqToDB.Remote;
 
 namespace LinqToDB.Internal.DataProvider.Ydb.Translation
 {
@@ -656,7 +657,7 @@ namespace LinqToDB.Internal.DataProvider.Ydb.Translation
 			// YQL MIN_OF/MAX_OF require both arguments to have the same type — in particular two Decimals
 			// must share precision/scale. Widen both to a common type that can hold either operand
 			// (max integer digits, max scale) rather than forcing one onto the other's type.
-			static ISqlExpression TranslateMinMax(ITranslationContext translationContext, string function, ISqlExpression xValue, ISqlExpression yValue)
+			static ISqlExpression TranslateMinMax(ITranslationContext translationContext, [SqlText(SqlTextKind.Function)] string function, ISqlExpression xValue, ISqlExpression yValue)
 			{
 				var factory = translationContext.ExpressionFactory;
 				var xType   = factory.GetDbDataType(xValue);

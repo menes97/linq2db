@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 
 using LinqToDB.SqlQuery;
+using LinqToDB.Remote;
 
 namespace LinqToDB.Internal.SqlQuery
 {
@@ -329,7 +330,7 @@ namespace LinqToDB.Internal.SqlQuery
 			return _operationTypes.TryGetValue((left, operation, right), out var type) ? type : null;
 		}
 
-		public static SqlBinaryExpression CreateWithTypeInferred(Type defaultType, ISqlExpression expr1, string operation, ISqlExpression expr2, int precedence = Precedence.Unknown)
+		public static SqlBinaryExpression CreateWithTypeInferred(Type defaultType, ISqlExpression expr1, [SqlText(SqlTextKind.Operator)] string operation, ISqlExpression expr2, int precedence = Precedence.Unknown)
 		{
 			var type = expr1.SystemType == null || expr2.SystemType == null
 				? defaultType

@@ -4,6 +4,7 @@ using LinqToDB.Internal.DataProvider.Translation;
 using LinqToDB.Internal.Extensions;
 using LinqToDB.Internal.SqlProvider;
 using LinqToDB.Internal.SqlQuery;
+using LinqToDB.Remote;
 
 namespace LinqToDB.Internal.DataProvider.DB2
 {
@@ -55,7 +56,7 @@ namespace LinqToDB.Internal.DataProvider.DB2
 				return operand;
 			}
 
-			ISqlExpression FieldDifference(string function)
+			ISqlExpression FieldDifference([SqlText(SqlTextKind.Function)] string function)
 			{
 				return Factory.Sub(longType,
 					Factory.Cast(Factory.Function(intType, function, Typed(element.End)),   longType, true),

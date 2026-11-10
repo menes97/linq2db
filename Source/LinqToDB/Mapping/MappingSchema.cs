@@ -1516,16 +1516,16 @@ namespace LinqToDB.Mapping
 
 		#region Scalar Types
 
-		/// <summary>
-		/// Returns <see langword="true"/>, if provided type mapped to scalar database type in current schema.
-		/// </summary>
-		/// <param name="type">Type to check.</param>
-		/// <returns><see langword="true"/>, if type mapped to scalar database type.</returns>
 		internal IEnumerable<Type> GetRegisteredScalarTypes()
 		{
 			return Schemas.SelectMany(static info => info.GetRegisteredScalarTypes());
 		}
 
+		/// <summary>
+		/// Returns <see langword="true"/>, if provided type mapped to scalar database type in current schema.
+		/// </summary>
+		/// <param name="type">Type to check.</param>
+		/// <returns><see langword="true"/>, if type mapped to scalar database type.</returns>
 		public bool IsScalarType(Type type)
 		{
 			type = type.UnwrapNullableType();

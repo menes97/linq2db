@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -11,21 +12,6 @@ using LinqToDB.Remote;
 
 namespace LinqToDB.Internal.Remote
 {
-	/// <summary>
-	/// How a type read from a remote request is going to be used.
-	/// </summary>
-	public enum RemoteTypeRole
-	{
-		/// <summary>Type a value is converted to.</summary>
-		Value,
-		/// <summary>System type of a data type.</summary>
-		DataType,
-		/// <summary>Entity type of a table.</summary>
-		Object,
-		/// <summary>Query or table extension builder.</summary>
-		Builder,
-	}
-
 	/// <summary>
 	/// Rules applied to one request from an untrusted client.
 	/// </summary>
@@ -54,15 +40,19 @@ namespace LinqToDB.Internal.Remote
 
 		bool _isTruncated;
 
-		readonly SqlTextCatalog _catalog;
+		readonly SqlTextCatalog                          _catalog;
+		readonly HashSet<(SqlTextKind Kind, string Text)> _sources;
+		readonly Assembly                                _driverAssembly;
 
-		RemoteQueryPolicy(MappingSchema schema, IEnumerable<Assembly> nameAssemblies, IEnumerable<Assembly> entityAssemblies, IEnumerable<Assembly> builderAssemblies, string? provider, string? configuration, SqlTextCatalog catalog)
+		RemoteQueryPolicy(MappingSchema schema, IEnumerable<Assembly> nameAssemblies, IEnumerable<Assembly> entityAssemblies, IEnumerable<Assembly> builderAssemblies, string? provider, string? configuration, SqlTextCatalog catalog, HashSet<(SqlTextKind Kind, string Text)> sources, Assembly driverAssembly)
 		{
+			_driverAssembly    = driverAssembly;
 			_catalog           = catalog;
+			_sources           = sources;
 			_schema            = schema;
-			_entityAssemblies  = new HashSet<Assembly>(entityAssemblies);
-			_builderAssemblies = new HashSet<Assembly>(builderAssemblies);
-			_definedTypes      = new HashSet<Type>(schema.GetDefinedTypes());
+			_entityAssemblies  = [.. entityAssemblies];
+			_builderAssemblies = [.. builderAssemblies];
+			_definedTypes      = [.. schema.GetDefinedTypes()];
 			_provider          = provider;
 			_configuration     = configuration;
 
@@ -98,7 +88,34 @@ namespace LinqToDB.Internal.Remote
 
 			var builderAssemblies = new List<Assembly>(mapping) { typeof(DataConnection).Assembly, providerAssembly };
 
-			return new RemoteQueryPolicy(connection.MappingSchema, nameAssemblies, mapping, builderAssemblies, connection.DataProvider.Name, configuration, catalog ?? new SqlTextCatalog());
+			var family  = GetProviderFamily(connection.DataProvider.GetType());
+			var sources = new HashSet<(SqlTextKind Kind, string Text)>(SqlTextCatalog.GetAssemblySources(typeof(DataConnection).Assembly, family));
+
+			if (providerAssembly != typeof(DataConnection).Assembly)
+				sources.UnionWith(SqlTextCatalog.GetAssemblySources(providerAssembly, null));
+
+			foreach (var assembly in mapping)
+				sources.UnionWith(SqlTextCatalog.GetAssemblySources(assembly, null));
+
+			return new RemoteQueryPolicy(connection.MappingSchema, nameAssemblies, mapping, builderAssemblies, connection.DataProvider.Name, configuration, catalog ?? new SqlTextCatalog(), sources, connection.DataProvider.DataReaderType.Assembly);
+		}
+
+		const string ProviderNamespacePrefix = "LinqToDB.Internal.DataProvider.";
+
+		static string? GetProviderFamily(Type providerType)
+		{
+			for (var type = providerType; type != null; type = type.BaseType)
+			{
+				if (type.Namespace?.StartsWith(ProviderNamespacePrefix, StringComparison.Ordinal) == true)
+				{
+					var rest = type.Namespace.Substring(ProviderNamespacePrefix.Length);
+					var dot  = rest.IndexOf('.', StringComparison.Ordinal);
+
+					return dot < 0 ? rest : rest.Substring(0, dot);
+				}
+			}
+
+			return null;
 		}
 
 		/// <summary>Gets the violations collected so far.</summary>
@@ -213,12 +230,17 @@ namespace LinqToDB.Internal.Remote
 			if (type.IsArray)
 				return IsValueType(type.GetElementType()!);
 
-			return type == typeof(Sql.SqlID) || _schema.IsScalarType(type);
+			if (type == typeof(Sql.SqlID) || _schema.IsScalarType(type))
+				return true;
+
+			var unwrapped = Nullable.GetUnderlyingType(type) ?? type;
+
+			return unwrapped.IsValueType && unwrapped.Assembly == _driverAssembly;
 		}
 
 		void Reject(RemoteRejectionReason reason, object entry, RemoteTypeRole role, string remedy)
 		{
-			var text = entry is UnresolvedType unresolved ? unresolved.Name : ((Type)entry).FullName ?? entry.ToString()!;
+			var text = entry is UnresolvedType unresolved ? unresolved.Name : ((Type)entry).FullName ?? ((Type)entry).Name;
 
 			Add(new RemoteRejection(reason, null, text, role.ToString(), remedy));
 		}
@@ -240,13 +262,13 @@ namespace LinqToDB.Internal.Remote
 
 		internal void CheckText(SqlTextKind kind, string text, int argumentCount, string node)
 		{
-			var reason = _catalog.Check(kind, text);
+			var reason = _catalog.Check(kind, text, _sources);
 
 			if (reason != null)
 			{
 				var remedy = reason == RemoteRejectionReason.TextRemovedFromCatalog
 					? "The text was removed from the catalog by the host."
-					: FormattableString.Invariant($"Add it with LinqService.SqlText.Add(SqlTextKind.{kind}, ...) only if this text comes from your own code.");
+					: string.Create(CultureInfo.InvariantCulture, $"Add it with LinqService.SqlText.Add(SqlTextKind.{kind}, ...) only if this text comes from your own code.");
 
 				Add(new RemoteRejection(reason.Value, kind, text, node, remedy));
 				return;

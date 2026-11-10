@@ -3,6 +3,7 @@ using System.Diagnostics.CodeAnalysis;
 
 using LinqToDB.Internal.SqlQuery;
 using LinqToDB.SqlQuery;
+using LinqToDB.Remote;
 
 namespace LinqToDB
 {
@@ -13,7 +14,7 @@ namespace LinqToDB
 			return builder.AddParameter(name, new SqlValue(value));
 		}
 
-		public static Sql.SqlExtensionParam AddFragment(this Sql.ISqlExtensionBuilder builder, string name, string expr)
+		public static Sql.SqlExtensionParam AddFragment(this Sql.ISqlExtensionBuilder builder, string name, [SqlText(SqlTextKind.Fragment)] string expr)
 		{
 			return builder.AddParameter(name, new SqlFragment(expr));
 		}

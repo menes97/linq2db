@@ -16,6 +16,7 @@ using LinqToDB.Internal.Extensions;
 using LinqToDB.Internal.Linq.Builder;
 using LinqToDB.Internal.SqlQuery;
 using LinqToDB.Mapping;
+using LinqToDB.Remote;
 
 namespace LinqToDB
 {
@@ -52,7 +53,7 @@ namespace LinqToDB
 			SqlExtension    Extension        { get; }
 			ISqlExpression? ResultExpression { get; set; }
 			bool            IsConvertible    { get; set; }
-			string          Expression       { get; set; }
+			[SqlText(SqlTextKind.Expression)] string          Expression       { get; set; }
 			Expression[]    Arguments        { get; }
 
 			IsNullableType  IsNullable       { get; }
@@ -329,7 +330,7 @@ namespace LinqToDB
 				public IsNullableType       IsNullable       { get; }
 				public bool?                CanBeNull        { get; }
 
-				public string Expression
+				[SqlText(SqlTextKind.Expression)] public string Expression
 				{
 					get => Extension.Expr;
 					set => Extension.Expr = value;

@@ -3,6 +3,7 @@ using System.Diagnostics;
 
 using LinqToDB.Internal.SqlQuery.Visitors;
 using LinqToDB.SqlQuery;
+using LinqToDB.Remote;
 
 namespace LinqToDB.Internal.SqlQuery
 {
@@ -14,8 +15,8 @@ namespace LinqToDB.Internal.SqlQuery
 		}
 
 		public SqlTable        Table           { get; private set; }
-		public string?         StatementHeader { get; set; }
-		public string?         StatementFooter { get; set; }
+		[SqlText(SqlTextKind.StatementHeader)] public string?         StatementHeader { get; set; }
+		[SqlText(SqlTextKind.StatementFooter)] public string?         StatementFooter { get; set; }
 		public DefaultNullable DefaultNullable { get; set; }
 
 		public override QueryType        QueryType   => QueryType.CreateTable;
