@@ -814,6 +814,78 @@ namespace Tests.AST
 		}
 
 		[Test]
+		public void OutputColumnTypeIsRejected([Values("Insert", "Update", "Delete", "Merge")] string statementKind)
+		{
+			using var db = CreateConnection();
+
+			var catalog = new SqlTextCatalog();
+
+			catalog.Add(SqlTextKind.Expression, InertText);
+
+			var output = new SqlOutputClause { OutputColumns = [new SqlExpression(new DbDataType(typeof(LocalEntity)), InertText, One)] };
+
+			SqlStatement statement = statementKind switch
+			{
+				"Insert" => new SqlInsertStatement { Output = output },
+				"Update" => new SqlUpdateStatement(new SelectQuery()) { Output = output },
+				"Delete" => new SqlDeleteStatement { Output = output },
+				_        => new SqlMergeStatement(MappedTable(db)) { Output = output },
+			};
+
+			var exception = Assert.Throws<RemoteRequestRejectedException>(() => RoundTrip(db, statement, RemoteQueryPolicy.Create(db, [_thisAssembly], null, catalog)))!;
+
+			exception.Rejections.ShouldContain(static r => r.NodeType == "ResultColumn");
+		}
+
+		static SqlSelectStatement WithIdentifier(DataConnection db, string position, string name)
+		{
+			var table  = MappedTable(db);
+			var query  = new SelectQuery();
+
+			if (position == "TableAlias")
+				table.Alias = name;
+
+			query.From.Tables.Add(new SqlTableSource(table, position == "TableSourceAlias" ? name : "t"));
+			query.Select.Add(position == "ParameterName" ? new SqlParameter(new DbDataType(typeof(int)), name, 1) : One);
+
+			if (position == "ColumnAlias")
+				query.Select.Columns[0].Alias = name;
+
+			return new SqlSelectStatement(query);
+		}
+
+		[Test]
+		public void IdentifierOutsideShapeIsRejected([Values("TableSourceAlias", "TableAlias", "ColumnAlias", "ParameterName")] string position)
+		{
+			using var db = CreateConnection();
+
+			Rejected(db, WithIdentifier(db, position, "not a name")).Rejections
+				.ShouldContain(static r => r.Reason == RemoteRejectionReason.IdentifierNotMapped && r.Text == "not a name");
+		}
+
+		[Test]
+		public void IdentifierInShapeIsAccepted([Values("TableSourceAlias", "TableAlias", "ColumnAlias", "ParameterName")] string position)
+		{
+			using var db = CreateConnection();
+
+			RoundTrip(db, WithIdentifier(db, position, "a_name_1"), RemoteQueryPolicy.Create(db, [_thisAssembly], null));
+		}
+
+		[Test]
+		public void AllFieldSentinelIsAccepted()
+		{
+			using var db = CreateConnection();
+
+			var table = MappedTable(db);
+			var query = new SelectQuery();
+
+			query.From.Tables.Add(new SqlTableSource(table, "t"));
+			query.Select.Add(table.All);
+
+			RoundTrip(db, new SqlSelectStatement(query), RemoteQueryPolicy.Create(db, [_thisAssembly], null));
+		}
+
+		[Test]
 		public void UnregisteredStructIsRejectedUntilRegistered()
 		{
 			var schema = new MappingSchema();
