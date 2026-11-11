@@ -19,6 +19,8 @@ using NUnit.Framework;
 
 using Shouldly;
 
+[assembly: SqlTextCatalog(typeof(Tests.AST.RemoteQueryValidatorTests.MappingAssemblyCatalog))]
+
 namespace Tests.AST
 {
 	[TestFixture]
@@ -959,6 +961,30 @@ namespace Tests.AST
 
 			// renders nothing, so even text outside the catalog never reaches the SQL
 			RoundTrip(db, WithExtension("LinqToDB.SqlQuery.NoneExtensionBuilder", "hint", new SqlValue(InertText)), RemoteQueryPolicy.Create(db, [_thisAssembly], null));
+		}
+
+		const string MappingAssemblyText = "MAPPING_ASSEMBLY_TEXT({0})";
+
+		/// <summary>The catalog this test assembly contributes when a host lists it in <c>MappingAssemblies</c>.</summary>
+		public sealed class MappingAssemblyCatalog : ISqlTextCatalog
+		{
+			public IReadOnlyList<SqlTextItem> Items { get; } = [new(SqlTextKind.Expression, MappingAssemblyText, null, nameof(RemoteQueryValidatorTests), false)];
+		}
+
+		[Test]
+		public void MappingAssemblyCatalogContributesEntries()
+		{
+			using var db = CreateConnection();
+
+			var statement = SelectOf(new SqlExpression(new DbDataType(typeof(int)), MappingAssemblyText, One));
+
+			RoundTrip(db, statement, RemoteQueryPolicy.Create(db, [_thisAssembly], null));
+
+			// without the assembly its catalog is not consulted: the text fails closed, and the exception names the provider
+			var exception = Assert.Throws<RemoteRequestRejectedException>(() => RoundTrip(db, statement, RemoteQueryPolicy.Create(db, [], null)))!;
+
+			exception.Rejections[0].Reason.ShouldBe(RemoteRejectionReason.TextNotInCatalog);
+			exception.Provider.ShouldBe(db.DataProvider.Name);
 		}
 
 		[Test]
