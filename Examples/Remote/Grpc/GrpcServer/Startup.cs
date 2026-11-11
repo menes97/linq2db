@@ -30,7 +30,11 @@ namespace Server
 				new GrpcLinqService(
 					new LinqService()
 					{
-						AllowUpdates = true
+						AllowUpdates  = true,
+						// This sample's model exists only in the client, so the server cannot vouch for its tables and the
+						// client is trusted. A production host shares the model assembly, lists it in MappingAssemblies and
+						// keeps TrustedClient off; see the Security section of the package readme.
+						TrustedClient = true,
 					},
 					true
 				));

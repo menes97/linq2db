@@ -11,8 +11,11 @@ namespace Host
 	{
 		static void Main(string[] args)
 		{
+			// This sample's model exists only in the client, so the server cannot vouch for its tables and the client is
+			// trusted. A production host shares the model assembly, lists it in MappingAssemblies and keeps TrustedClient
+			// off; see the Security section of the package readme.
 			using var host = new ServiceHost(
-				new WcfLinqService(new LinqService() { AllowUpdates = true, RemoteClientTag = "Wcf" }, true),
+				new WcfLinqService(new LinqService() { AllowUpdates = true, RemoteClientTag = "Wcf", TrustedClient = true }, true),
 				new Uri("net.tcp://localhost:30304"));
 
 			host.Description.Behaviors.Add(new ServiceMetadataBehavior());
