@@ -234,16 +234,25 @@ namespace LinqToDB.Internal.Remote
 		{
 			CheckIdentifier(policy, table.Alias, "SqlTable.Alias", mappedNames);
 
+			// a table expression gets the rendered table name as {0} and the alias as {1}, ahead of its own arguments
 			if (table.Expression != null)
-			{
-				policy.CheckText(SqlTextKind.TableExpression, table.Expression, table.TableArguments?.Length ?? 0, "SqlTable");
-				return;
-			}
+				policy.CheckText(SqlTextKind.TableExpression, table.Expression, 2 + (table.TableArguments?.Length ?? 0), "SqlTable");
 
-			var descriptor = policy.GetEntityDescriptor(table.ObjectType);
+			var mapped = policy.GetEntityDescriptor(table.ObjectType)?.Name;
+			var name   = table.TableName;
 
-			if (descriptor == null || descriptor.Name != table.TableName)
-				policy.CheckText(SqlTextKind.TableName, table.TableName.Name, 0, "SqlTable");
+			CheckNamePart(policy, name.Name,     mapped?.Name);
+			CheckNamePart(policy, name.Schema,   mapped?.Schema);
+			CheckNamePart(policy, name.Database, mapped?.Database);
+			CheckNamePart(policy, name.Server,   mapped?.Server);
+			CheckNamePart(policy, name.Package,  mapped?.Package);
+		}
+
+		// each part is rendered as written, so a part the mapping does not supply needs its own catalog entry
+		static void CheckNamePart(RemoteQueryPolicy policy, string? part, string? mappedPart)
+		{
+			if (part != null && !string.Equals(part, mappedPart, StringComparison.Ordinal))
+				policy.CheckText(SqlTextKind.TableName, part, 0, "SqlTable");
 		}
 
 		static void CheckField(RemoteQueryPolicy policy, SqlField field, HashSet<string> mappedNames)
@@ -321,7 +330,7 @@ namespace LinqToDB.Internal.Remote
 
 			return key.Length > prefixLength
 				&& string.CompareOrdinal(pattern, 0, key, 0, prefixLength) == 0
-				&& key.Skip(prefixLength).All(char.IsDigit);
+				&& key.Skip(prefixLength).All(static c => c is >= '0' and <= '9');
 		}
 
 		static void CheckResultColumns(RemoteQueryPolicy policy, SqlStatement statement)

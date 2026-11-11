@@ -516,6 +516,96 @@ namespace Tests.AST
 			source.ObjectType.ShouldBeNull();
 		}
 
+		static SqlSelectStatement SelectFrom(SqlTable table)
+		{
+			var query = new SelectQuery();
+
+			query.From.Tables.Add(new SqlTableSource(table, "t"));
+			query.Select.Add(new SqlValue(1));
+
+			return new SqlSelectStatement(query);
+		}
+
+		const string TableExpression = "{0} {1}";
+
+		static SqlTable MappedTable(DataConnection db) => new(db.MappingSchema.GetEntityDescriptor(typeof(LocalEntity)));
+
+		[Test]
+		public void MappedTableWithCatalogedExpressionIsAccepted()
+		{
+			using var db = CreateConnection();
+
+			var catalog = new SqlTextCatalog();
+
+			catalog.Add(SqlTextKind.TableExpression, TableExpression);
+
+			var table = MappedTable(db);
+
+			table.Expression = TableExpression;
+
+			RoundTrip(db, SelectFrom(table), RemoteQueryPolicy.Create(db, [_thisAssembly], null, catalog));
+		}
+
+		[Test]
+		public void TableNameIsCheckedWhenTableExpressionIsSet()
+		{
+			using var db = CreateConnection();
+
+			var catalog = new SqlTextCatalog();
+
+			catalog.Add(SqlTextKind.TableExpression, TableExpression);
+
+			var table = MappedTable(db);
+
+			// the expression renders the table name into {0}, so an unmapped name must not ride along with a catalogued expression
+			table.Expression = TableExpression;
+			table.TableName  = new SqlObjectName("NOT_A_MAPPED_NAME");
+
+			var exception = Assert.Throws<RemoteRequestRejectedException>(() => RoundTrip(db, SelectFrom(table), RemoteQueryPolicy.Create(db, [_thisAssembly], null, catalog)))!;
+
+			exception.Rejections.ShouldContain(static r => r.Kind == SqlTextKind.TableName && r.Text == "NOT_A_MAPPED_NAME");
+		}
+
+		[Test]
+		public void EveryPartOfAnOverriddenTableNameIsChecked([Values("Schema", "Database", "Server")] string part)
+		{
+			using var db = CreateConnection();
+
+			var catalog = new SqlTextCatalog();
+
+			catalog.Add(SqlTextKind.TableName, "Allowed_Name");
+
+			var table = MappedTable(db);
+
+			table.TableName = part switch
+			{
+				"Schema"   => new SqlObjectName("Allowed_Name", Schema  : "NOT_ALLOWED"),
+				"Database" => new SqlObjectName("Allowed_Name", Database: "NOT_ALLOWED"),
+				_          => new SqlObjectName("Allowed_Name", Server  : "NOT_ALLOWED"),
+			};
+
+			var exception = Assert.Throws<RemoteRequestRejectedException>(() => RoundTrip(db, SelectFrom(table), RemoteQueryPolicy.Create(db, [_thisAssembly], null, catalog)))!;
+
+			exception.Rejections.ShouldContain(static r => r.Kind == SqlTextKind.TableName && r.Text == "NOT_ALLOWED");
+		}
+
+		[Test]
+		public void AllowedTableNameOverrideIsAccepted()
+		{
+			using var db = CreateConnection();
+
+			var catalog = new SqlTextCatalog();
+
+			catalog.Add(SqlTextKind.TableName, "Allowed_Name");
+			catalog.Add(SqlTextKind.TableName, "Allowed_Schema");
+
+			var table = MappedTable(db);
+
+			table.TableName = new SqlObjectName("Allowed_Name", Schema: "Allowed_Schema");
+
+			RoundTrip(db, SelectFrom(table), RemoteQueryPolicy.Create(db, [_thisAssembly], null, catalog));
+		}
+
 		[Test]
 		public void UnregisteredStructIsRejectedUntilRegistered()
 		{
