@@ -41,11 +41,83 @@ namespace CodeGenerators
 
 			var enabled = context.CompilationProvider.Select(static (c, _) => c.AssemblyName == AssemblyName);
 
-			context.RegisterImplementationSourceOutput(items.Combine(enabled), static (spc, x) =>
+			var baseline = context.AdditionalTextsProvider
+				.Where(static t => string.Equals(System.IO.Path.GetFileName(t.Path), BaselineFileName, StringComparison.OrdinalIgnoreCase))
+				.Select(static (t, ct) => t.GetText(ct)?.ToString())
+				.Collect();
+
+			context.RegisterImplementationSourceOutput(items.Combine(enabled).Combine(baseline), static (spc, x) =>
 			{
-				if (x.Right)
-					spc.AddSource("SqlTextCatalog.g.cs", Emit(x.Left));
+				var ((generated, isEnabled), baselines) = x;
+
+				if (!isEnabled)
+					return;
+
+				spc.AddSource("SqlTextCatalog.g.cs", Emit(generated));
+				CheckBaseline(spc, generated, baselines);
 			});
+		}
+
+		const string BaselineFileName = "SqlTextCatalog.baseline.txt";
+		const int    MaxReported      = 50;
+
+		static readonly DiagnosticDescriptor BaselineRule = new(
+			id:                 "LINQ2DB0008",
+			title:              "SQL text catalog differs from its baseline",
+			messageFormat:      "{0}",
+			category:           "Usage",
+			defaultSeverity:    DiagnosticSeverity.Warning,
+			isEnabledByDefault: true,
+			description:        "The generated SQL text catalog decides what untrusted LinqService clients may send, so every change to it is reviewed through PublicAPI/" + BaselineFileName + " (shared) and PublicAPI/<tfm>/" + BaselineFileName + " (entries of one target framework).");
+
+		/// <summary>
+		/// Compares the generated entries with the committed baseline files, so a change to what untrusted clients may send
+		/// shows up in review and fails the build until the baseline is updated.
+		/// </summary>
+		static void CheckBaseline(SourceProductionContext context, ImmutableArray<Item> generated, ImmutableArray<string?> baselines)
+		{
+			if (baselines.IsDefaultOrEmpty)
+			{
+				context.ReportDiagnostic(Diagnostic.Create(BaselineRule, Location.None, $"No {BaselineFileName} is passed as an additional file."));
+				return;
+			}
+
+			var expected = new HashSet<string>(StringComparer.Ordinal);
+
+			foreach (var text in baselines)
+				foreach (var line in (text ?? "").Split('\n'))
+					if (line.TrimEnd('\r') is { Length: > 0 } entry && entry[0] != '#')
+						expected.Add(entry);
+
+			var actual = new HashSet<string>(generated.Select(FormatBaselineLine), StringComparer.Ordinal);
+
+			var missing = actual.Where(l => !expected.Contains(l)).OrderBy(static l => l, StringComparer.Ordinal).ToList();
+			var stale   = expected.Where(l => !actual.Contains(l)).OrderBy(static l => l, StringComparer.Ordinal).ToList();
+
+			var reported = 0;
+
+			foreach (var line in missing)
+				if (reported++ < MaxReported)
+					context.ReportDiagnostic(Diagnostic.Create(BaselineRule, Location.None, $"Generated entry missing from {BaselineFileName}, add it if the change is intended: {line}"));
+
+			foreach (var line in stale)
+				if (reported++ < MaxReported)
+					context.ReportDiagnostic(Diagnostic.Create(BaselineRule, Location.None, $"{BaselineFileName} entry no longer generated, remove it if the change is intended: {line}"));
+
+			if (reported > MaxReported)
+				context.ReportDiagnostic(Diagnostic.Create(BaselineRule, Location.None, $"{reported - MaxReported} more {BaselineFileName} differences are not listed."));
+		}
+
+		// <kind> TAB <partition or -> TAB <text>, with backslash, tab, CR and LF escaped
+		static string FormatBaselineLine(Item item)
+		{
+			var text = item.Text
+				.Replace("\\", "\\\\")
+				.Replace("\t", "\\t")
+				.Replace("\r", "\\r")
+				.Replace("\n", "\\n");
+
+			return KindNames[item.Kind] + "\t" + (item.Partition ?? "-") + "\t" + text;
 		}
 
 		static bool IsCandidate(SyntaxNode node, System.Threading.CancellationToken cancellationToken)

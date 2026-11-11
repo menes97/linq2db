@@ -1,0 +1,1726 @@
+# SQL text the generated catalog lets untrusted LinqService clients send. Checked by LINQ2DB0008 on every build:
+# update it with the lines the diagnostic reports, and review each change as a change to what clients may send.
+Expression	-	(CAST({1} as DATE) - CAST({0} as DATE)) * 1440
+Expression	-	(CAST({1} as DATE) - CAST({0} as DATE)) * 24
+Expression	-	(CAST({1} as DATE) - CAST({0} as DATE)) * 86400
+Expression	-	(CAST({1} as DATE) - CAST({0} as DATE)) / 7
+Expression	-	(DATE_PART('year', {1}::date) - DATE_PART('year', {0}::date)) * 12 + (DATE_PART('month', {1}::date) - DATE_PART('month', {0}::date))
+Expression	-	{0}
+Expression	-	{aggregate}
+Expression	-	{aggregate} DESC
+Expression	-	{array, ', '}
+Expression	-	{expr}
+Expression	-	{expr} DESC
+Expression	-	{function} FILTER (WHERE {filter})
+Expression	-	{function} KEEP (DENSE_RANK FIRST {order_by_clause}){_}{over?}
+Expression	-	{function} KEEP (DENSE_RANK LAST {order_by_clause}){_}{over?}
+Expression	-	{function} OVER({query_partition_clause?}{_}{order_by_clause?})
+Expression	-	{function} OVER({query_partition_clause?}{_}{order_by_clause?}{_}{windowing_clause?})
+Expression	-	{order_expr}
+Expression	-	{order_expr} DESC
+Expression	-	@@DATEFIRST
+Expression	-	*
+Expression	-	1
+Expression	-	1/tan({0})
+Expression	-	1/TAN({0})
+Expression	-	1000 * (EXTRACT(SECOND FROM CAST ({1} as TIMESTAMP) - CAST ({0} as TIMESTAMP)) + 60 * (EXTRACT(MINUTE FROM CAST ({1} as TIMESTAMP) - CAST ({0} as TIMESTAMP)) + 60 * (EXTRACT(HOUR FROM CAST ({1} as TIMESTAMP) - CAST ({0} as TIMESTAMP)) + 24 * EXTRACT(DAY FROM CAST ({1} as TIMESTAMP) - CAST ({0} as TIMESTAMP)))))
+Expression	-	AVG({expr})
+Expression	-	AVG({modifier?}{_}{expr})
+Expression	-	CAST({0} AS Double) * 180.0 / Math::Pi()
+Expression	-	CAST({1} as DATE) - CAST({0} as DATE)
+Expression	-	CAST(String::LeftPad('', {0}, ' ') AS Utf8)
+Expression	-	CAST(String::LeftPad({0}, {1}, {2}) AS Utf8)
+Expression	-	CAST(String::LeftPad(CAST({0} AS String), {1}, '0') AS Utf8)
+Expression	-	CAST(String::RightPad({0}, {1}, {2}) AS Utf8)
+Expression	-	CHARACTER_LENGTH({0},CODEUNITS32)
+Expression	-	COLLATION_KEY_BIT({0}, {1})
+Expression	-	concat(substringUTF8({0}, 1, {1} - 1), {3}, substringUTF8({0}, {1} + {2}))
+Expression	-	CORR({expr1}, {expr2})
+Expression	-	COUNT({expr})
+Expression	-	COUNT({modifier?}{_}{expr})
+Expression	-	COUNT(*)
+Expression	-	COVAR_POP({expr1}, {expr2})
+Expression	-	COVAR_SAMP({expr1}, {expr2})
+Expression	-	CUME_DIST()
+Expression	-	CUME_DIST({expr, ', '}) {within_group}
+Expression	-	CURRENT_TIMESTAMP
+Expression	-	DATE_PART('year', {1}::date) - DATE_PART('year', {0}::date)
+Expression	-	DateDiff
+Expression	-	DATEDIFF('d', {0}, {1})
+Expression	-	DATEDIFF('h', {0}, {1})
+Expression	-	DATEDIFF('m', {0}, {1})
+Expression	-	DATEDIFF('n', {0}, {1})
+Expression	-	DATEDIFF('q', {0}, {1})
+Expression	-	DATEDIFF('s', {0}, {1})
+Expression	-	DATEDIFF('w', {0}, {1})
+Expression	-	DATEDIFF('ww', {0}, {1})
+Expression	-	DATEDIFF('y', {0}, {1})
+Expression	-	DATEDIFF('yyyy', {0}, {1})
+Expression	-	DEFAULT
+Expression	-	DENSE_RANK()
+Expression	-	DENSE_RANK({expr1}, {expr2}) {within_group}
+Expression	-	EXTRACT(EPOCH FROM ({1}::timestamp - {0}::timestamp))
+Expression	-	EXTRACT(EPOCH FROM ({1}::timestamp - {0}::timestamp)) / 3600
+Expression	-	EXTRACT(EPOCH FROM ({1}::timestamp - {0}::timestamp)) / 60
+Expression	-	EXTRACT(EPOCH FROM ({1}::timestamp - {0}::timestamp)) / 86400
+Expression	-	FIRST_VALUE({expr}){_}{modifier?}
+Expression	-	FIRST_VALUE({expr}{_}{modifier?})
+Expression	-	format({0}, 'd{1}')
+Expression	-	Format({0}, String('0', {1}))
+Expression	-	GROUPING({fields, ', '})
+Expression	-	LAG({expr}, {offset}, {default})
+Expression	-	LAG({expr}, {offset}, {default}){_}{modifier?}
+Expression	-	LAG({expr}, {offset}, {default}{_}{modifier?})
+Expression	-	LAG({expr}, {offset})
+Expression	-	LAG({expr})
+Expression	-	LAG({expr}){_}{modifier?}
+Expression	-	LAG({expr}{_}{modifier?}, {offset}, {default})
+Expression	-	LAG({expr}{_}{modifier?})
+Expression	-	LAST_VALUE({expr}){_}{modifier?}
+Expression	-	LAST_VALUE({expr}{_}{modifier?})
+Expression	-	LEAD({expr}, {offset}, {default})
+Expression	-	LEAD({expr}, {offset}, {default}){_}{modifier?}
+Expression	-	LEAD({expr}, {offset})
+Expression	-	LEAD({expr})
+Expression	-	LEAD({expr}){_}{modifier?}
+Expression	-	LEAD({expr}{_}{modifier?}, {offset}, {default})
+Expression	-	LEAD({expr}{_}{modifier?})
+Expression	-	leftPadUTF8('', toUInt32({0}), ' ')
+Expression	-	leftPadUTF8({0}, toUInt32({1}), {2})
+Expression	-	leftPadUTF8(toString({0}), toUInt32({1}), '0')
+Expression	-	LISTAGG({expr}, {delimiter}) {within_group}
+Expression	-	LISTAGG({expr}) {within_group}
+Expression	-	Locate(Substring({1},{2} + 1),{0}) + {2}
+Expression	-	Log({1}) / Log({0})
+Expression	-	Log(10,{0})
+Expression	-	Lpad('',{0},' ')
+Expression	-	Lpad({0},{1},'0')
+Expression	-	Lpad({0}::text,{1},'0')
+Expression	-	Lpad(CAST({0} AS VARCHAR),{1},'0')
+Expression	-	Math::Cos({0}) / Math::Sin({0})
+Expression	-	Math::Log({1}) / Math::Log({0})
+Expression	-	MAX({expr})
+Expression	-	MAX({modifier?}{_}{expr})
+Expression	-	MEDIAN({expr})
+Expression	-	MEDIAN({expr}) {over}
+Expression	-	MIN({expr})
+Expression	-	MIN({modifier?}{_}{expr})
+Expression	-	NOT
+Expression	-	NTH_VALUE({expr}, {n})
+Expression	-	NTH_VALUE({expr}, {n}){_}{from?}{_}{nulls?}
+Expression	-	NTILE({expr})
+Expression	-	NULL
+Expression	-	ORDER BY {order_item, ', '}
+Expression	-	OVER({query_partition_clause?})
+Expression	-	PARTITION BY {partition_expr, ', '}
+Expression	-	PERCENT_RANK()
+Expression	-	PERCENT_RANK({expr, ', '}) {within_group}
+Expression	-	PERCENTILE_CONT({expr}) {within_group}
+Expression	-	PERCENTILE_DISC({expr}) {within_group}
+Expression	-	positionUTF8({1}, {0}, toUInt32({2}))
+Expression	-	printf('%0{1}d', {0})
+Expression	-	RANK()
+Expression	-	RANK({expr, ', '}) {within_group}
+Expression	-	RATIO_TO_REPORT({expr}) {over}
+Expression	-	REGR_AVGX({expr1}, {expr2})
+Expression	-	REGR_AVGY({expr1}, {expr2})
+Expression	-	REGR_COUNT({expr1}, {expr2})
+Expression	-	REGR_INTERCEPT({expr1}, {expr2})
+Expression	-	REGR_R2({expr1}, {expr2})
+Expression	-	REGR_SLOPE({expr1}, {expr2})
+Expression	-	REGR_SXX({expr1}, {expr2})
+Expression	-	REGR_SXY({expr1}, {expr2})
+Expression	-	REGR_SYY({expr1}, {expr2})
+Expression	-	REPEAT(' ', {0})
+Expression	-	REPLACE(HEX(ZEROBLOB({0})), '00', ' ')
+Expression	-	REPLACE(HEX(ZEROBLOB({1})), '00', {0})
+Expression	-	REPLICATE('0', {1} - LEN(CAST({0} as NVARCHAR({1})))) + CAST({0} as NVARCHAR({1}))
+Expression	-	REPLICATE('0', CASE WHEN LEN(CAST({0} as NVARCHAR)) > {1} THEN 0 ELSE ({1} - LEN(CAST({0} as NVARCHAR))) END) + CAST({0} as NVARCHAR)
+Expression	-	right(replicate('0',{1}) + cast({0} as varchar(255)),{1})
+Expression	-	rightPadUTF8({0}, toUInt32({1}), {2})
+Expression	-	round((julianday({1}) - julianday({0})) * 1440)
+Expression	-	round((julianday({1}) - julianday({0})) * 24)
+Expression	-	round((julianday({1}) - julianday({0})) * 86400)
+Expression	-	round((julianday({1}) - julianday({0})) * 86400000)
+Expression	-	round((julianday({1}) - julianday({0})))
+Expression	-	Round({0}, 0, 1)
+Expression	-	Round({0}, 0, ROUND_DOWN)
+Expression	-	ROUND(EXTRACT(EPOCH FROM ({1}::timestamp - {0}::timestamp)) * 1000)
+Expression	-	ROW_NUMBER()
+Expression	-	ROW_NUMBER() OVER ()
+Expression	-	ROW_NUMBER() OVER (ORDER BY {0})
+Expression	-	STDDEV_POP({expr})
+Expression	-	STDDEV_SAMP({expr})
+Expression	-	STDDEV({expr})
+Expression	-	STDDEV({modifier?}{_}{expr})
+Expression	-	STDEV({expr})
+Expression	-	STDEV({modifier?}{_}{expr})
+Expression	-	Strip({0}, B, {1})
+Expression	-	Strip({0}, L, {1})
+Expression	-	Strip({0}, T, {1})
+Expression	-	SUBSTR({0}, 1, {1} - 1) || {3} || SUBSTR({0}, {1} + {2})
+Expression	-	Substring({0} from {1} for {2})
+Expression	-	SUBSTRING({0}, 1, {1})
+Expression	-	SUBSTRING({0}, LENGTH({0}) - {1} + 1)
+Expression	-	SUM({expr})
+Expression	-	SUM({modifier?}{_}{expr})
+Expression	-	SYSTIMESTAMP
+Expression	-	TIMESTAMPDIFF
+Expression	-	toUnixTimestamp64Milli(toDateTime64({1}, 3)) - toUnixTimestamp64Milli(toDateTime64({0}, 3))
+Expression	-	trim(BOTH {1} FROM {0})
+Expression	-	trim(LEADING {1} FROM {0})
+Expression	-	TRIM(LEADING {1} FROM {0})
+Expression	-	TRIM(LEADING FROM {0})
+Expression	-	trim(TRAILING {1} FROM {0})
+Expression	-	TRIM(TRAILING {1} FROM {0})
+Expression	-	TRIM(TRAILING FROM {0})
+Expression	-	Trunc({0}, 0)
+Expression	-	Trunc({0})
+Expression	-	TRUNC(DATE_PART('day', {1}::timestamp - {0}::timestamp) / 7)
+Expression	-	Truncate({0}, 0)
+Expression	-	Unicode::Find({1}, {0}, {2}) + 1
+Expression	-	Unicode::Find({1}, {0}) + 1
+Expression	-	Unicode::Substring({0}, {1} - 1, {2})
+Expression	-	Unicode::Substring({0}, 0, {1} - 1) || {3} || Unicode::Substring({0}, {1} + {2} - 1)
+Expression	-	Unicode::Substring({0}, 0, {1})
+Expression	-	Unicode::Substring({0}, CAST(Unicode::GetLength({0}) - {1} AS UInt32), {1})
+Expression	-	VAR_POP({expr})
+Expression	-	VAR_SAMP({expr})
+Expression	-	VARIANCE({expr})
+Expression	-	VARIANCE({modifier?}{_}{expr})
+Expression	-	WITHIN GROUP ({order_by_clause})
+Expression	-	WITHIN GROUP ({order_by_clause}){_}{over?}
+Expression	-	WITHIN GROUP (ORDER BY ROWNUM)
+Expression	Access	@@IDENTITY
+Expression	Access	Now
+Expression	ClickHouse	[{0}]
+Expression	ClickHouse	TRAILING ' ' FROM {0}
+Expression	ClickHouse	trim(LEADING {1} FROM {0})
+Expression	ClickHouse	trim(TRAILING {1} FROM {0})
+Expression	DB2	{0} DAY
+Expression	DB2	{0} HOUR
+Expression	DB2	{0} MICROSECONDS
+Expression	DB2	{0} MINUTE
+Expression	DB2	{0} MONTH
+Expression	DB2	{0} SECOND
+Expression	DB2	{0} YEAR
+Expression	DB2	CURRENT TIMESTAMP
+Expression	DB2	CURRENT TIMESTAMP WITH TIME ZONE
+Expression	DB2	CURRENT TIMEZONE
+Expression	DB2	day from {0}
+Expression	DB2	hour from {0}
+Expression	DB2	minute from {0}
+Expression	DB2	month from {0}
+Expression	DB2	second from {0}
+Expression	DB2	year from {0}
+Expression	DuckDB	{0} // {1}
+Expression	DuckDB	{0} AT TIME ZONE 'UTC'
+Expression	DuckDB	EXTRACT(day FROM {0})
+Expression	DuckDB	EXTRACT(dayofyear FROM {0})
+Expression	DuckDB	EXTRACT(dow FROM {0})
+Expression	DuckDB	EXTRACT(hour FROM {0})
+Expression	DuckDB	EXTRACT(millisecond FROM {0})
+Expression	DuckDB	EXTRACT(minute FROM {0})
+Expression	DuckDB	EXTRACT(month FROM {0})
+Expression	DuckDB	EXTRACT(quarter FROM {0})
+Expression	DuckDB	EXTRACT(second FROM {0})
+Expression	DuckDB	EXTRACT(week FROM {0})
+Expression	DuckDB	EXTRACT(year FROM {0})
+Expression	DuckDB	Interval {0}
+Expression	DuckDB	Position({0} in {1})
+Expression	DuckDB	xor({0}, {1})
+Expression	Firebird	{0} CONTAINING {1}
+Expression	Firebird	{0} NOT CONTAINING {1}
+Expression	Firebird	{0} NOT STARTING WITH {1}
+Expression	Firebird	{0} STARTING WITH {1}
+Expression	Firebird	CAST({0} AS BLOB)
+Expression	Firebird	CURRENT_TIMESTAMP
+Expression	Firebird	CURRENT_TIMESTAMP AT TIME ZONE 'UTC'
+Expression	Firebird	Day
+Expression	Firebird	day from {0}
+Expression	Firebird	DayOfYear
+Expression	Firebird	Hour
+Expression	Firebird	hour from {0}
+Expression	Firebird	Millisecond
+Expression	Firebird	millisecond from {0}
+Expression	Firebird	Minute
+Expression	Firebird	minute from {0}
+Expression	Firebird	Month
+Expression	Firebird	month from {0}
+Expression	Firebird	Month from {0}
+Expression	Firebird	Quarter
+Expression	Firebird	quarter from {0}
+Expression	Firebird	Second
+Expression	Firebird	second from {0}
+Expression	Firebird	TRIM(LEADING FROM {0})
+Expression	Firebird	TRIM(TRAILING FROM {0})
+Expression	Firebird	UUID_TO_CHAR({guid})
+Expression	Firebird	Week
+Expression	Firebird	week from {0}
+Expression	Firebird	WeekDay
+Expression	Firebird	weekday from {0}
+Expression	Firebird	Year
+Expression	Firebird	year from {0}
+Expression	Firebird	yearday from {0}
+Expression	Informix	CURRENT
+Expression	Informix	Extend({0}, Hour to Second)
+Expression	Informix	Interval ({0}) Day to Day
+Expression	Informix	Interval ({0}) Hour to Hour
+Expression	Informix	Interval ({0}) Minute to Minute
+Expression	Informix	Interval ({0}) Month to Month
+Expression	Informix	Interval ({0}) Second to Second
+Expression	Informix	Interval ({0}) Year to Year
+Expression	Informix	Interval (1) Day to Day
+Expression	Informix	Year to Day
+Expression	MySql	{0} COLLATE utf8_bin
+Expression	MySql	{0} DIV {1}
+Expression	MySql	CURRENT_TIMESTAMP
+Expression	MySql	day from {0}
+Expression	MySql	hour from {0}
+Expression	MySql	Interval {0} Day
+Expression	MySql	Interval {0} Hour
+Expression	MySql	Interval {0} Microsecond
+Expression	MySql	Interval {0} Millisecond
+Expression	MySql	Interval {0} Minute
+Expression	MySql	Interval {0} Month
+Expression	MySql	Interval {0} Quarter
+Expression	MySql	Interval {0} Second
+Expression	MySql	Interval {0} Week
+Expression	MySql	Interval {0} Year
+Expression	MySql	interval 1 day
+Expression	MySql	MATCH({columns, ', '}) AGAINST ({search})
+Expression	MySql	MATCH({columns, ', '}) AGAINST ({search}{modifier?})
+Expression	MySql	MAX_EXECUTION_TIME({0})
+Expression	MySql	minute from {0}
+Expression	MySql	month from {0}
+Expression	MySql	quarter from {0}
+Expression	MySql	REGEXP_REPLACE({0}, {1}, '')
+Expression	MySql	second from {0}
+Expression	MySql	week from {0}
+Expression	MySql	year from {0}
+Expression	Oracle	CAST({0} AS {1} DEFAULT {2} ON CONVERSION ERROR)
+Expression	Oracle	CAST({0} AS {1} DEFAULT NULL ON CONVERSION ERROR)
+Expression	Oracle	CONTAINERS(DEFAULT_PDB_HINT='{0}')
+Expression	Oracle	CURRENT_TIMESTAMP
+Expression	Oracle	Day From {0}
+Expression	Oracle	DAY FROM {0}
+Expression	Oracle	FIRST_ROWS({0})
+Expression	Oracle	Hour From {0}
+Expression	Oracle	HOUR FROM {0}
+Expression	Oracle	INTERVAL '0.001' SECOND
+Expression	Oracle	INTERVAL '1' DAY
+Expression	Oracle	INTERVAL '1' HOUR
+Expression	Oracle	INTERVAL '1' MINUTE
+Expression	Oracle	INTERVAL '1' MONTH
+Expression	Oracle	INTERVAL '1' SECOND
+Expression	Oracle	INTERVAL '1' YEAR
+Expression	Oracle	INTERVAL '3' MONTH
+Expression	Oracle	INTERVAL '7' DAY
+Expression	Oracle	LOCALTIMESTAMP
+Expression	Oracle	Minute From {0}
+Expression	Oracle	MINUTE FROM {0}
+Expression	Oracle	MONTH FROM {0}
+Expression	Oracle	ROWNUM
+Expression	Oracle	Second From {0}
+Expression	Oracle	SECOND FROM {0}
+Expression	Oracle	SYSTIMESTAMP AT TIME ZONE 'UTC'
+Expression	Oracle	YEAR FROM {0}
+Expression	PostgreSQL	{0} AT TIME ZONE {1}
+Expression	PostgreSQL	{array1} @> {array2}
+Expression	PostgreSQL	{array1} && {array2}
+Expression	PostgreSQL	{array1} < {array2}
+Expression	PostgreSQL	{array1} <@ {array2}
+Expression	PostgreSQL	{array1} <= {array2}
+Expression	PostgreSQL	{array1} > {array2}
+Expression	PostgreSQL	{array1} >= {array2}
+Expression	PostgreSQL	{array1} || {array2}
+Expression	PostgreSQL	{arrays, ' || '}
+Expression	PostgreSQL	{value} < ANY({array})
+Expression	PostgreSQL	{value} <= ANY({array})
+Expression	PostgreSQL	{value} <> ANY({array})
+Expression	PostgreSQL	{value} = ANY({array})
+Expression	PostgreSQL	{value} > ANY({array})
+Expression	PostgreSQL	{value} >= ANY({array})
+Expression	PostgreSQL	ARRAY_AGG({expr})
+Expression	PostgreSQL	ARRAY_AGG({expr}{_}{order_by_clause?})
+Expression	PostgreSQL	ARRAY_AGG({modifier?}{_}{expr})
+Expression	PostgreSQL	ARRAY_AGG({modifier?}{_}{expr}{_}{order_by_clause?})
+Expression	PostgreSQL	ARRAY_APPEND({array}, {element})
+Expression	PostgreSQL	ARRAY_CAT({array1}, {array2})
+Expression	PostgreSQL	ARRAY_DIMS({array})
+Expression	PostgreSQL	ARRAY_LENGTH({array}, {dimension})
+Expression	PostgreSQL	ARRAY_LOWER({array}, {dimension})
+Expression	PostgreSQL	ARRAY_NDIMS({array})
+Expression	PostgreSQL	ARRAY_POSITION({array}, {element}, {start})
+Expression	PostgreSQL	ARRAY_POSITION({array}, {element})
+Expression	PostgreSQL	ARRAY_POSITIONS({array}, {element})
+Expression	PostgreSQL	ARRAY_PREPEND({element}, {array})
+Expression	PostgreSQL	ARRAY_REMOVE({array}, {element})
+Expression	PostgreSQL	ARRAY_REPLACE({array}, {oldElement}, {newElement})
+Expression	PostgreSQL	ARRAY_TO_STRING({array}, {delimiter}, {nullString})
+Expression	PostgreSQL	ARRAY_TO_STRING({array}, {delimiter})
+Expression	PostgreSQL	ARRAY_UPPER({array}, {dimension})
+Expression	PostgreSQL	CARDINALITY({array})
+Expression	PostgreSQL	CURRENT_CATALOG
+Expression	PostgreSQL	CURRENT_DATABASE()
+Expression	PostgreSQL	CURRENT_ROLE
+Expression	PostgreSQL	CURRENT_SCHEMA
+Expression	PostgreSQL	CURRENT_SCHEMAS()
+Expression	PostgreSQL	CURRENT_SCHEMAS({includeImplicit})
+Expression	PostgreSQL	CURRENT_TIMESTAMP
+Expression	PostgreSQL	CURRENT_USER
+Expression	PostgreSQL	day From {0}
+Expression	PostgreSQL	dow From {0}
+Expression	PostgreSQL	doy From {0}
+Expression	PostgreSQL	epoch From {0}
+Expression	PostgreSQL	hour From {0}
+Expression	PostgreSQL	Interval '1 microsecond'
+Expression	PostgreSQL	Interval {0}
+Expression	PostgreSQL	minute From {0}
+Expression	PostgreSQL	month From {0}
+Expression	PostgreSQL	Position({0} in {1})
+Expression	PostgreSQL	quarter From {0}
+Expression	PostgreSQL	second From {0}
+Expression	PostgreSQL	SESSION_USER
+Expression	PostgreSQL	STRING_TO_ARRAY({str}, {delimiter}, {nullString})
+Expression	PostgreSQL	STRING_TO_ARRAY({str}, {delimiter})
+Expression	PostgreSQL	VERSION()
+Expression	PostgreSQL	week From {0}
+Expression	PostgreSQL	year From {0}
+Expression	SapHana	CURRENT_TIMESTAMP
+Expression	SapHana	CURRENT_UTCTIMESTAMP
+Expression	SqlCe	@@IDENTITY
+Expression	SqlCe	Cast(Convert(NChar, {0}, 114) as DateTime)
+Expression	SqlCe	Cast(Floor(Cast({0} as Float)) as DateTime)
+Expression	SqlCe	Convert(NChar, {0}, 114)
+Expression	SqlCe	day
+Expression	SqlCe	dayofyear
+Expression	SqlCe	hour
+Expression	SqlCe	millisecond
+Expression	SqlCe	minute
+Expression	SqlCe	month
+Expression	SqlCe	quarter
+Expression	SqlCe	second
+Expression	SqlCe	week
+Expression	SqlCe	weekday
+Expression	SqlCe	year
+Expression	SQLite	CURRENT_TIMESTAMP
+Expression	SQLite	INDEXED BY {0}
+Expression	SqlServer	{string} COLLATE {collation_name}
+Expression	SqlServer	@@CONNECTIONS
+Expression	SqlServer	@@CPU_BUSY
+Expression	SqlServer	@@DATEFIRST
+Expression	SqlServer	@@DBTS
+Expression	SqlServer	@@IDENTITY
+Expression	SqlServer	@@IDLE
+Expression	SqlServer	@@IO_BUSY
+Expression	SqlServer	@@LANGID
+Expression	SqlServer	@@LANGUAGE
+Expression	SqlServer	@@LOCK_TIMEOUT
+Expression	SqlServer	@@MAX_CONNECTIONS
+Expression	SqlServer	@@MAX_PRECISION
+Expression	SqlServer	@@NESTLEVEL
+Expression	SqlServer	@@OPTIONS
+Expression	SqlServer	@@PACK_RECEIVED
+Expression	SqlServer	@@PACK_SENT
+Expression	SqlServer	@@PACKET_ERRORS
+Expression	SqlServer	@@REMSERVER
+Expression	SqlServer	@@ROWCOUNT
+Expression	SqlServer	@@SERVERNAME
+Expression	SqlServer	@@SERVICENAME
+Expression	SqlServer	@@SPID
+Expression	SqlServer	@@TEXTSIZE
+Expression	SqlServer	@@TIMETICKS
+Expression	SqlServer	@@TOTAL_ERRORS
+Expression	SqlServer	@@TOTAL_READ
+Expression	SqlServer	@@TOTAL_WRITE
+Expression	SqlServer	@@TRANCOUNT
+Expression	SqlServer	@@VERSION
+Expression	SqlServer	bigint
+Expression	SqlServer	binary
+Expression	SqlServer	BINARY_CHECKSUM(*)
+Expression	SqlServer	binary({0})
+Expression	SqlServer	binary(max)
+Expression	SqlServer	bit
+Expression	SqlServer	CAST({0} as {1})
+Expression	SqlServer	CAST({expression} as {data_type})
+Expression	SqlServer	char
+Expression	SqlServer	char({0})
+Expression	SqlServer	char(max)
+Expression	SqlServer	CHECKSUM(*)
+Expression	SqlServer	COLUMNPROPERTY
+Expression	SqlServer	CONNECTIONPROPERTY
+Expression	SqlServer	CONTAINS(({tableOrColumns, ', '}), {search}, LANGUAGE {language})
+Expression	SqlServer	CONTAINS(({tableOrColumns, ', '}), {search})
+Expression	SqlServer	CONVERT({1}, {0})
+Expression	SqlServer	CONVERT({2}, {0}, {1})
+Expression	SqlServer	CONVERT({data_type}, {expression}, {style})
+Expression	SqlServer	CONVERT({data_type}, {expression})
+Expression	SqlServer	CURRENT_TIMESTAMP
+Expression	SqlServer	cursor
+Expression	SqlServer	DATABASEPROPERTYEX
+Expression	SqlServer	date
+Expression	SqlServer	DATEADD({datepart}, {number}, {date})
+Expression	SqlServer	DATEDIFF_BIG({datepart}, {startdate}, {enddate})
+Expression	SqlServer	DATEDIFF({datepart}, {startdate}, {enddate})
+Expression	SqlServer	DATENAME({datepart}, {date})
+Expression	SqlServer	DATEPART({datepart}, {date})
+Expression	SqlServer	datetime
+Expression	SqlServer	datetime2
+Expression	SqlServer	datetime2({0})
+Expression	SqlServer	DATETIME2FROMPARTS({0}, {1}, {2}, {3}, {4}, {5}, 0, 0)
+Expression	SqlServer	DATETIME2FROMPARTS({0}, {1}, {2}, 0, 0, 0, 0, 0)
+Expression	SqlServer	DATETIMEFROMPARTS({0}, {1}, {2}, {3}, {4}, {5}, 0)
+Expression	SqlServer	DATETIMEFROMPARTS({0}, {1}, {2}, 0, 0, 0, 0)
+Expression	SqlServer	datetimeoffset
+Expression	SqlServer	datetimeoffset({0})
+Expression	SqlServer	DATETIMEOFFSETFROMPARTS({0}, {1}, {2}, {3}, {4}, {5}, 0, 0, 0, 0)
+Expression	SqlServer	DATETIMEOFFSETFROMPARTS({0}, {1}, {2}, 0, 0, 0, 0, 0, 0, 0)
+Expression	SqlServer	day
+Expression	SqlServer	dayofyear
+Expression	SqlServer	decimal
+Expression	SqlServer	decimal({0}, {1})
+Expression	SqlServer	decimal({0})
+Expression	SqlServer	FAST {0}
+Expression	SqlServer	FILEGROUPPROPERTY
+Expression	SqlServer	FILEPROPERTY
+Expression	SqlServer	FILEPROPERTYEX
+Expression	SqlServer	float
+Expression	SqlServer	float({0})
+Expression	SqlServer	FREETEXT(({tableOrColumns, ', '}), {term}, LANGUAGE {language})
+Expression	SqlServer	FREETEXT(({tableOrColumns, ', '}), {term})
+Expression	SqlServer	FULLTEXTCATALOGPROPERTY
+Expression	SqlServer	FULLTEXTSERVICEPROPERTY
+Expression	SqlServer	geography
+Expression	SqlServer	geometry
+Expression	SqlServer	hierarchyid
+Expression	SqlServer	hour
+Expression	SqlServer	image
+Expression	SqlServer	INDEXKEY_PROPERTY
+Expression	SqlServer	INDEXPROPERTY
+Expression	SqlServer	int
+Expression	SqlServer	ISNULL({value}, {replacementValue})
+Expression	SqlServer	MAX_GRANT_PERCENT={0}
+Expression	SqlServer	MAXDOP {0}
+Expression	SqlServer	MAXRECURSION {0}
+Expression	SqlServer	microsecond
+Expression	SqlServer	millisecond
+Expression	SqlServer	MIN_GRANT_PERCENT={0}
+Expression	SqlServer	minute
+Expression	SqlServer	money
+Expression	SqlServer	month
+Expression	SqlServer	nanosecond
+Expression	SqlServer	nchar
+Expression	SqlServer	nchar({0})
+Expression	SqlServer	nchar(max)
+Expression	SqlServer	NEXT VALUE FOR {sequence_name}
+Expression	SqlServer	NEXT VALUE FOR {sequence_name} OVER ({order_by_clause})
+Expression	SqlServer	ntext
+Expression	SqlServer	numeric
+Expression	SqlServer	numeric({0}, {1})
+Expression	SqlServer	numeric({0})
+Expression	SqlServer	nvarchar
+Expression	SqlServer	nvarchar({0})
+Expression	SqlServer	nvarchar(max)
+Expression	SqlServer	OBJECTPROPERTY
+Expression	SqlServer	OBJECTPROPERTYEX
+Expression	SqlServer	OPTIMIZE FOR ({0})
+Expression	SqlServer	PARSE({0} as {1})
+Expression	SqlServer	PARSE({0} as {2} USING {1})
+Expression	SqlServer	PARSE({string_value} as {data_type} USING {culture})
+Expression	SqlServer	PARSE({string_value} as {data_type})
+Expression	SqlServer	quarter
+Expression	SqlServer	QUERYTRACEON {0}
+Expression	SqlServer	real
+Expression	SqlServer	rowversion
+Expression	SqlServer	second
+Expression	SqlServer	SERVERPROPERTY
+Expression	SqlServer	smalldatetime
+Expression	SqlServer	smallint
+Expression	SqlServer	smallmoney
+Expression	SqlServer	SPATIAL_WINDOW_MAX_CELLS={0}
+Expression	SqlServer	sql_variant
+Expression	SqlServer	SYSDATETIMEOFFSET() AT TIME ZONE 'UTC'
+Expression	SqlServer	table
+Expression	SqlServer	text
+Expression	SqlServer	time
+Expression	SqlServer	time({0})
+Expression	SqlServer	TIMEFROMPARTS({0}, {1}, {2}, 0, 0)
+Expression	SqlServer	tinyint
+Expression	SqlServer	TRIM({0} FROM {1})
+Expression	SqlServer	TRIM({1} FROM {0})
+Expression	SqlServer	TRY_CAST({0} as {1})
+Expression	SqlServer	TRY_CAST({expression} as {data_type})
+Expression	SqlServer	TRY_CONVERT({1}, {0})
+Expression	SqlServer	TRY_CONVERT({2}, {0}, {1})
+Expression	SqlServer	TRY_CONVERT({data_type}, {expression}, {style})
+Expression	SqlServer	TRY_CONVERT({data_type}, {expression})
+Expression	SqlServer	TRY_PARSE({0} as {1})
+Expression	SqlServer	TRY_PARSE({0} as {2} USING {1})
+Expression	SqlServer	TRY_PARSE({string_value} as {data_type} USING {culture})
+Expression	SqlServer	TRY_PARSE({string_value} as {data_type})
+Expression	SqlServer	TYPEPROPERTY
+Expression	SqlServer	uniqueidentifier
+Expression	SqlServer	varbinary
+Expression	SqlServer	varbinary({0})
+Expression	SqlServer	varbinary(max)
+Expression	SqlServer	varchar
+Expression	SqlServer	varchar({0})
+Expression	SqlServer	varchar(max)
+Expression	SqlServer	VECTOR_DISTANCE('cosine', {0}, {1})
+Expression	SqlServer	VECTOR_DISTANCE('dot', {0}, {1})
+Expression	SqlServer	VECTOR_DISTANCE('euclidean', {0}, {1})
+Expression	SqlServer	VECTOR_DISTANCE({distanceMetric}, {vector1}, {vector2})
+Expression	SqlServer	VECTOR_NORM({0}, 'norm1')
+Expression	SqlServer	VECTOR_NORM({0}, 'norm2')
+Expression	SqlServer	VECTOR_NORM({0}, 'norminf')
+Expression	SqlServer	VECTOR_NORM({vector}, {normType})
+Expression	SqlServer	VECTOR_NORMALIZE({0}, 'norm1')
+Expression	SqlServer	VECTOR_NORMALIZE({0}, 'norm2')
+Expression	SqlServer	VECTOR_NORMALIZE({0}, 'norminf')
+Expression	SqlServer	VECTOR_NORMALIZE({vector}, {normType})
+Expression	SqlServer	vector({0},float32)
+Expression	SqlServer	VECTORPROPERTY({0}, 'BaseType')
+Expression	SqlServer	VECTORPROPERTY({0}, 'Dimensions')
+Expression	SqlServer	VECTORPROPERTY({vector}, {property})
+Expression	SqlServer	week
+Expression	SqlServer	weekday
+Expression	SqlServer	xml
+Expression	SqlServer	year
+Expression	Sybase	day
+Expression	Sybase	dayofyear
+Expression	Sybase	hour
+Expression	Sybase	millisecond
+Expression	Sybase	minute
+Expression	Sybase	month
+Expression	Sybase	quarter
+Expression	Sybase	second
+Expression	Sybase	week
+Expression	Sybase	weekday
+Expression	Sybase	year
+Expression	Ydb	CAST(Re2::Replace({0})(CAST({1} AS String?), '') AS Utf8?)
+Expression	Ydb	Unwrap(CAST({0} AS Int32?))
+ExtensionArgument	Access	WITH OWNERACCESS OPTION
+ExtensionArgument	ClickHouse	ALL
+ExtensionArgument	ClickHouse	ANTI
+ExtensionArgument	ClickHouse	ANY
+ExtensionArgument	ClickHouse	ASOF
+ExtensionArgument	ClickHouse	FINAL
+ExtensionArgument	ClickHouse	GLOBAL
+ExtensionArgument	ClickHouse	GLOBAL ALL
+ExtensionArgument	ClickHouse	GLOBAL ANTI
+ExtensionArgument	ClickHouse	GLOBAL ANY
+ExtensionArgument	ClickHouse	GLOBAL ASOF
+ExtensionArgument	ClickHouse	GLOBAL OUTER
+ExtensionArgument	ClickHouse	GLOBAL SEMI
+ExtensionArgument	ClickHouse	OUTER
+ExtensionArgument	ClickHouse	SEMI
+ExtensionArgument	ClickHouse	SETTINGS
+ExtensionArgument	MySql	BKA
+ExtensionArgument	MySql	BNL
+ExtensionArgument	MySql	DERIVED_CONDITION_PUSHDOWN
+ExtensionArgument	MySql	FOR SHARE
+ExtensionArgument	MySql	FOR UPDATE
+ExtensionArgument	MySql	FORCE INDEX
+ExtensionArgument	MySql	FORCE INDEX FOR GROUP BY
+ExtensionArgument	MySql	FORCE INDEX FOR JOIN
+ExtensionArgument	MySql	FORCE INDEX FOR ORDER BY
+ExtensionArgument	MySql	FORCE KEY
+ExtensionArgument	MySql	FORCE KEY FOR GROUP BY
+ExtensionArgument	MySql	FORCE KEY FOR JOIN
+ExtensionArgument	MySql	FORCE KEY FOR ORDER BY
+ExtensionArgument	MySql	GROUP_INDEX
+ExtensionArgument	MySql	HASH_JOIN
+ExtensionArgument	MySql	IGNORE INDEX
+ExtensionArgument	MySql	IGNORE INDEX FOR GROUP BY
+ExtensionArgument	MySql	IGNORE INDEX FOR JOIN
+ExtensionArgument	MySql	IGNORE INDEX FOR ORDER BY
+ExtensionArgument	MySql	IGNORE KEY
+ExtensionArgument	MySql	IGNORE KEY FOR GROUP BY
+ExtensionArgument	MySql	IGNORE KEY FOR JOIN
+ExtensionArgument	MySql	IGNORE KEY FOR ORDER BY
+ExtensionArgument	MySql	INDEX
+ExtensionArgument	MySql	INDEX_MERGE
+ExtensionArgument	MySql	JOIN_FIXED_ORDER
+ExtensionArgument	MySql	JOIN_INDEX
+ExtensionArgument	MySql	JOIN_ORDER
+ExtensionArgument	MySql	JOIN_PREFIX
+ExtensionArgument	MySql	JOIN_SUFFIX
+ExtensionArgument	MySql	LOCK IN SHARE MODE
+ExtensionArgument	MySql	MERGE
+ExtensionArgument	MySql	MRR
+ExtensionArgument	MySql	NO_BKA
+ExtensionArgument	MySql	NO_BNL
+ExtensionArgument	MySql	NO_DERIVED_CONDITION_PUSHDOWN
+ExtensionArgument	MySql	NO_GROUP_INDEX
+ExtensionArgument	MySql	NO_HASH_JOIN
+ExtensionArgument	MySql	NO_ICP
+ExtensionArgument	MySql	NO_INDEX
+ExtensionArgument	MySql	NO_INDEX_MERGE
+ExtensionArgument	MySql	NO_JOIN_INDEX
+ExtensionArgument	MySql	NO_MERGE
+ExtensionArgument	MySql	NO_MRR
+ExtensionArgument	MySql	NO_ORDER_INDEX
+ExtensionArgument	MySql	NO_RANGE_OPTIMIZATION
+ExtensionArgument	MySql	NO_SEMIJOIN
+ExtensionArgument	MySql	NO_SKIP_SCAN
+ExtensionArgument	MySql	NOWAIT
+ExtensionArgument	MySql	ORDER_INDEX
+ExtensionArgument	MySql	RESOURCE_GROUP
+ExtensionArgument	MySql	SEMIJOIN
+ExtensionArgument	MySql	SET_VAR
+ExtensionArgument	MySql	SKIP LOCKED
+ExtensionArgument	MySql	SKIP_SCAN
+ExtensionArgument	MySql	USE INDEX
+ExtensionArgument	MySql	USE INDEX FOR GROUP BY
+ExtensionArgument	MySql	USE INDEX FOR JOIN
+ExtensionArgument	MySql	USE INDEX FOR ORDER BY
+ExtensionArgument	MySql	USE KEY
+ExtensionArgument	MySql	USE KEY FOR GROUP BY
+ExtensionArgument	MySql	USE KEY FOR JOIN
+ExtensionArgument	MySql	USE KEY FOR ORDER BY
+ExtensionArgument	Oracle	ALL_ROWS
+ExtensionArgument	Oracle	APPEND
+ExtensionArgument	Oracle	APPEND_VALUES
+ExtensionArgument	Oracle	CACHE
+ExtensionArgument	Oracle	CLUSTER
+ExtensionArgument	Oracle	CLUSTERING
+ExtensionArgument	Oracle	CURSOR_SHARING_EXACT
+ExtensionArgument	Oracle	DISABLE_PARALLEL_DML
+ExtensionArgument	Oracle	DRIVING_SITE
+ExtensionArgument	Oracle	DYNAMIC_SAMPLING
+ExtensionArgument	Oracle	ENABLE_PARALLEL_DML
+ExtensionArgument	Oracle	FACT
+ExtensionArgument	Oracle	FRESH_MV
+ExtensionArgument	Oracle	FULL
+ExtensionArgument	Oracle	GROUPING
+ExtensionArgument	Oracle	HASH
+ExtensionArgument	Oracle	INDEX
+ExtensionArgument	Oracle	INDEX_ASC
+ExtensionArgument	Oracle	INDEX_COMBINE
+ExtensionArgument	Oracle	INDEX_DESC
+ExtensionArgument	Oracle	INDEX_FFS
+ExtensionArgument	Oracle	INDEX_JOIN
+ExtensionArgument	Oracle	INDEX_SS
+ExtensionArgument	Oracle	INDEX_SS_ASC
+ExtensionArgument	Oracle	INDEX_SS_DESC
+ExtensionArgument	Oracle	INMEMORY_PRUNING
+ExtensionArgument	Oracle	LEADING
+ExtensionArgument	Oracle	MERGE
+ExtensionArgument	Oracle	MODEL_MIN_ANALYSIS
+ExtensionArgument	Oracle	MONITOR
+ExtensionArgument	Oracle	NATIVE_FULL_OUTER_JOIN
+ExtensionArgument	Oracle	NMEMORY
+ExtensionArgument	Oracle	NO_CLUSTERING
+ExtensionArgument	Oracle	NO_EXPAND
+ExtensionArgument	Oracle	NO_FACT
+ExtensionArgument	Oracle	NO_INDEX
+ExtensionArgument	Oracle	NO_INDEX_FFS
+ExtensionArgument	Oracle	NO_INDEX_SS
+ExtensionArgument	Oracle	NO_INMEMORY
+ExtensionArgument	Oracle	NO_INMEMORY_PRUNING
+ExtensionArgument	Oracle	NO_MERGE
+ExtensionArgument	Oracle	NO_MONITOR
+ExtensionArgument	Oracle	NO_NATIVE_FULL_OUTER_JOIN
+ExtensionArgument	Oracle	NO_PARALLEL
+ExtensionArgument	Oracle	NO_PARALLEL_INDEX
+ExtensionArgument	Oracle	NO_PQ_CONCURRENT_UNION
+ExtensionArgument	Oracle	NO_PQ_SKEW
+ExtensionArgument	Oracle	NO_PUSH_SUBQ
+ExtensionArgument	Oracle	NO_PX_JOIN_FILTER
+ExtensionArgument	Oracle	NO_QUERY_TRANSFORMATION
+ExtensionArgument	Oracle	NO_REWRITE
+ExtensionArgument	Oracle	NO_STAR_TRANSFORMATION
+ExtensionArgument	Oracle	NO_UNNEST
+ExtensionArgument	Oracle	NO_USE_BAND
+ExtensionArgument	Oracle	NO_USE_CUBE
+ExtensionArgument	Oracle	NO_USE_HASH
+ExtensionArgument	Oracle	NO_USE_MERGE
+ExtensionArgument	Oracle	NO_USE_NL
+ExtensionArgument	Oracle	NO_XML_QUERY_REWRITE
+ExtensionArgument	Oracle	NO_XMLINDEX_REWRITE
+ExtensionArgument	Oracle	NOAPPEND
+ExtensionArgument	Oracle	NOCACHE
+ExtensionArgument	Oracle	OPT_PARAM
+ExtensionArgument	Oracle	ORDERED
+ExtensionArgument	Oracle	PARALLEL
+ExtensionArgument	Oracle	PARALLEL_INDEX
+ExtensionArgument	Oracle	PQ_CONCURRENT_UNION
+ExtensionArgument	Oracle	PQ_DISTRIBUTE
+ExtensionArgument	Oracle	PQ_FILTER(HASH)
+ExtensionArgument	Oracle	PQ_FILTER(NONE)
+ExtensionArgument	Oracle	PQ_FILTER(RANDOM)
+ExtensionArgument	Oracle	PQ_FILTER(SERIAL)
+ExtensionArgument	Oracle	PQ_SKEW
+ExtensionArgument	Oracle	PUSH_PRED
+ExtensionArgument	Oracle	PUSH_SUBQ
+ExtensionArgument	Oracle	PX_JOIN_FILTER
+ExtensionArgument	Oracle	REWRITE
+ExtensionArgument	Oracle	STAR_TRANSFORMATION
+ExtensionArgument	Oracle	UNNEST
+ExtensionArgument	Oracle	USE_BAND
+ExtensionArgument	Oracle	USE_CONCAT
+ExtensionArgument	Oracle	USE_CUBE
+ExtensionArgument	Oracle	USE_HASH
+ExtensionArgument	Oracle	USE_MERGE
+ExtensionArgument	Oracle	USE_NL
+ExtensionArgument	Oracle	USE_NL_WITH_INDEX
+ExtensionArgument	PostgreSQL	FOR KEY SHARE
+ExtensionArgument	PostgreSQL	FOR NO KEY UPDATE
+ExtensionArgument	PostgreSQL	FOR SHARE
+ExtensionArgument	PostgreSQL	FOR UPDATE
+ExtensionArgument	PostgreSQL	NOWAIT
+ExtensionArgument	PostgreSQL	SKIP LOCKED
+ExtensionArgument	SqlCe	HoldLock
+ExtensionArgument	SqlCe	Index
+ExtensionArgument	SqlCe	NoLock
+ExtensionArgument	SqlCe	PagLock
+ExtensionArgument	SqlCe	RowLock
+ExtensionArgument	SqlCe	TabLock
+ExtensionArgument	SqlCe	UpdLock
+ExtensionArgument	SqlCe	XLock
+ExtensionArgument	SQLite	NOT INDEXED
+ExtensionArgument	SqlServer	ALL
+ExtensionArgument	SqlServer	AS OF
+ExtensionArgument	SqlServer	BETWEEN
+ExtensionArgument	SqlServer	CONCAT UNION
+ExtensionArgument	SqlServer	CONTAINED IN (
+ExtensionArgument	SqlServer	DISABLE EXTERNALPUSHDOWN
+ExtensionArgument	SqlServer	DISABLE SCALEOUTEXECUTION
+ExtensionArgument	SqlServer	EXPAND VIEWS
+ExtensionArgument	SqlServer	FORCE EXTERNALPUSHDOWN
+ExtensionArgument	SqlServer	FORCE ORDER
+ExtensionArgument	SqlServer	FORCE SCALEOUTEXECUTION
+ExtensionArgument	SqlServer	ForceScan
+ExtensionArgument	SqlServer	ForceSeek
+ExtensionArgument	SqlServer	FROM
+ExtensionArgument	SqlServer	HASH
+ExtensionArgument	SqlServer	HASH GROUP
+ExtensionArgument	SqlServer	HASH JOIN
+ExtensionArgument	SqlServer	HASH UNION
+ExtensionArgument	SqlServer	HoldLock
+ExtensionArgument	SqlServer	IGNORE_NONCLUSTERED_COLUMNSTORE_INDEX
+ExtensionArgument	SqlServer	Index
+ExtensionArgument	SqlServer	KEEP PLAN
+ExtensionArgument	SqlServer	KEEPFIXED PLAN
+ExtensionArgument	SqlServer	LOOP
+ExtensionArgument	SqlServer	LOOP JOIN
+ExtensionArgument	SqlServer	MERGE
+ExtensionArgument	SqlServer	MERGE JOIN
+ExtensionArgument	SqlServer	MERGE UNION
+ExtensionArgument	SqlServer	NO_PERFORMANCE_SPOOL
+ExtensionArgument	SqlServer	NoLock
+ExtensionArgument	SqlServer	NoWait
+ExtensionArgument	SqlServer	OPTIMIZE FOR UNKNOWN
+ExtensionArgument	SqlServer	ORDER GROUP
+ExtensionArgument	SqlServer	PagLock
+ExtensionArgument	SqlServer	PARAMETERIZATION FORCED
+ExtensionArgument	SqlServer	PARAMETERIZATION SIMPLE
+ExtensionArgument	SqlServer	ReadCommitted
+ExtensionArgument	SqlServer	ReadCommittedLock
+ExtensionArgument	SqlServer	ReadPast
+ExtensionArgument	SqlServer	ReadUncommitted
+ExtensionArgument	SqlServer	RECOMPILE
+ExtensionArgument	SqlServer	REMOTE
+ExtensionArgument	SqlServer	RepeatableRead
+ExtensionArgument	SqlServer	ROBUST PLAN
+ExtensionArgument	SqlServer	RowLock
+ExtensionArgument	SqlServer	Serializable
+ExtensionArgument	SqlServer	Snapshot
+ExtensionArgument	SqlServer	TabLock
+ExtensionArgument	SqlServer	TabLockX
+ExtensionArgument	SqlServer	UpdLock
+ExtensionArgument	SqlServer	XLock
+ExtensionArgument	Ydb	distinct
+ExtensionArgument	Ydb	unique
+Fragment	-	
+Fragment	-	!!!
+Fragment	-	({0})
+Fragment	-	(SELECT NULL)
+Fragment	-	{0} DESC
+Fragment	-	{0} NULLS FIRST
+Fragment	-	{0} NULLS LAST
+Fragment	-	{0}, {1}
+Fragment	-	*
+Fragment	-	ALL
+Fragment	-	day
+Fragment	-	dayofyear
+Fragment	-	DISTINCT
+Fragment	-	FROM FIRST
+Fragment	-	FROM LAST
+Fragment	-	hour
+Fragment	-	IGNORE NULLS
+Fragment	-	millisecond
+Fragment	-	minute
+Fragment	-	month
+Fragment	-	ORDER BY {0}
+Fragment	-	quarter
+Fragment	-	RESPECT NULLS
+Fragment	-	second
+Fragment	-	week
+Fragment	-	weekday
+Fragment	-	year
+Fragment	Access	ALTER TABLE {0} ALTER COLUMN {1} COUNTER(1, 1)
+Fragment	ClickHouse	(t) -> {0}
+Fragment	ClickHouse	(t) -> tupleElement(t, {0})
+Fragment	ClickHouse	{0}, {1}
+Fragment	ClickHouse	if(isNull({0}), 0, 1)
+Fragment	ClickHouse	if(isNull({0}), 1, 0)
+Fragment	ClickHouse	t.{0}
+Fragment	DB2	ALTER TABLE {0} ALTER {1} RESTART WITH 1
+Fragment	DB2	CASE WHEN {0} IS NULL THEN 0 ELSE 1 END
+Fragment	DB2	CASE WHEN {0} IS NULL THEN 1 ELSE 0 END
+Fragment	Firebird	day
+Fragment	Firebird	FROM {0}
+Fragment	Firebird	millisecond
+Fragment	Firebird	SET GENERATOR {0} TO 0
+Fragment	Informix	ALTER TABLE {0} MODIFY {1} SERIAL(1)
+Fragment	Informix	FROM {0}
+Fragment	Informix	Year to Day
+Fragment	MySql	 IN BOOLEAN MODE
+Fragment	MySql	 WITH QUERY EXPANSION
+Fragment	MySql	({0} IS NOT NULL)
+Fragment	MySql	({0} IS NULL)
+Fragment	MySql	{0} SEPARATOR {1}
+Fragment	MySql	Microsecond
+Fragment	MySql	ORDER BY {0}
+Fragment	MySql	SEPARATOR {0}
+Fragment	Oracle	CREATE OR REPLACE TRIGGER {0}\nBEFORE INSERT ON {1} FOR EACH ROW\nBEGIN\n\tSELECT {2}.NEXTVAL INTO :NEW.{3} FROM dual;\nEND;
+Fragment	Oracle	CREATE SEQUENCE {0}
+Fragment	Oracle	DECLARE\n\tl_value number;\nBEGIN\n\tEXECUTE IMMEDIATE 'SELECT {0}.NEXTVAL FROM dual' INTO l_value;\n\tEXECUTE IMMEDIATE 'ALTER SEQUENCE {0} INCREMENT BY -' || l_value || ' MINVALUE 0';\n\tEXECUTE IMMEDIATE 'SELECT {0}.NEXTVAL FROM dual' INTO l_value;\n\tEXECUTE IMMEDIATE 'ALTER SEQUENCE {0} INCREMENT BY 1 MINVALUE 0';\nEND;
+Fragment	Oracle	SYSTIMESTAMP
+Fragment	PostgreSQL	ALL
+Fragment	PostgreSQL	DISTINCT
+Fragment	SapHana	
+Fragment	SqlCe	ALTER TABLE {0} ALTER COLUMN {1} IDENTITY(1, 1)
+Fragment	SQLite	UPDATE SQLITE_SEQUENCE SET SEQ=0 WHERE NAME={0}
+Fragment	SqlServer	'BaseType'
+Fragment	SqlServer	'cosine'
+Fragment	SqlServer	'Dimensions'
+Fragment	SqlServer	'dot'
+Fragment	SqlServer	'euclidean'
+Fragment	SqlServer	'norm1'
+Fragment	SqlServer	'norm2'
+Fragment	SqlServer	'norminf'
+Fragment	SqlServer	1
+Fragment	SqlServer	Day
+Fragment	SqlServer	DayOfYear
+Fragment	SqlServer	dd
+Fragment	SqlServer	Hour
+Fragment	SqlServer	Microsecond
+Fragment	SqlServer	Millisecond
+Fragment	SqlServer	Minute
+Fragment	SqlServer	Month
+Fragment	SqlServer	Nanosecond
+Fragment	SqlServer	Quarter
+Fragment	SqlServer	Second
+Fragment	SqlServer	Week
+Fragment	SqlServer	WeekDay
+Fragment	SqlServer	Year
+Fragment	Sybase	sp_chgattribute {0}, 'identity_burn_max', 0, '0'
+Fragment	Ydb	($t) -> {{ return {0} }}
+Fragment	Ydb	($t) -> {{ return $t.{0} }}
+Fragment	Ydb	$t.{0}
+Fragment	Ydb	if({0} IS NULL, 0, 1)
+Fragment	Ydb	if({0} IS NULL, 1, 0)
+Fragment	Ydb	Math::RoundToNearest()
+Function	-	$Convert_Format$
+Function	-	$Convert_Remover$
+Function	-	$Length$
+Function	-	$Replace$
+Function	-	$ToLower$
+Function	-	$ToUpper$
+Function	-	$TryConvert$
+Function	-	$TryConvertOrDefault$
+Function	-	Abs
+Function	-	Acos
+Function	-	AltStuff
+Function	-	Asin
+Function	-	Atan
+Function	-	Atan2
+Function	-	Atn
+Function	-	Atn2
+Function	-	AVG
+Function	-	Ceil
+Function	-	Ceiling
+Function	-	Char_Length
+Function	-	CHAR_LENGTH
+Function	-	CharIndex
+Function	-	Coalesce
+Function	-	CONCAT_WS
+Function	-	Convert
+Function	-	CORR
+Function	-	Cos
+Function	-	cosh
+Function	-	Cosh
+Function	-	Cot
+Function	-	COUNT
+Function	-	COVAR_POP
+Function	-	COVAR_SAMP
+Function	-	CUME_DIST
+Function	-	CurrentUtcTimestamp
+Function	-	DataLength
+Function	-	date_diff
+Function	-	DATEDIFF
+Function	-	Days
+Function	-	Days_Between
+Function	-	Degrees
+Function	-	DENSE_RANK
+Function	-	Exp
+Function	-	FIRST_VALUE
+Function	-	Floor
+Function	-	FLOOR
+Function	-	Hex
+Function	-	IDENT_CURRENT
+Function	-	IDENT_INCR
+Function	-	INSTR
+Function	-	Int
+Function	-	LAG
+Function	-	LAST_VALUE
+Function	-	LEAD
+Function	-	Left
+Function	-	leftUTF8
+Function	-	Len
+Function	-	LEN
+Function	-	Length
+Function	-	Ln
+Function	-	Locate
+Function	-	Log
+Function	-	Log10
+Function	-	LogN
+Function	-	Lower
+Function	-	LPad
+Function	-	LPAD
+Function	-	LTrim
+Function	-	LTRIM
+Function	-	Math::Acos
+Function	-	Math::Asin
+Function	-	Math::Atan
+Function	-	Math::Atan2
+Function	-	Math::Ceil
+Function	-	Math::Cos
+Function	-	Math::Cosh
+Function	-	Math::Exp
+Function	-	Math::Floor
+Function	-	Math::Log
+Function	-	Math::Log10
+Function	-	Math::Sin
+Function	-	Math::Sinh
+Function	-	Math::Sqrt
+Function	-	Math::Tan
+Function	-	Math::Tanh
+Function	-	Math::Trunc
+Function	-	MAX
+Function	-	Mdy
+Function	-	MEDIAN
+Function	-	MICROSECOND
+Function	-	Mid
+Function	-	MIDNIGHT_SECONDS
+Function	-	MIN
+Function	-	Nano100_Between
+Function	-	now
+Function	-	NTH_VALUE
+Function	-	NTILE
+Function	-	NULLIF
+Function	-	Octet_Length
+Function	-	PERCENT_RANK
+Function	-	PERCENTILE_CONT
+Function	-	PERCENTILE_DISC
+Function	-	PI
+Function	-	Position
+Function	-	positionUTF8
+Function	-	Power
+Function	-	RANK
+Function	-	RATIO_TO_REPORT
+Function	-	REGR_AVGX
+Function	-	REGR_AVGY
+Function	-	REGR_COUNT
+Function	-	REGR_INTERCEPT
+Function	-	REGR_R2
+Function	-	REGR_SLOPE
+Function	-	REGR_SXX
+Function	-	REGR_SXY
+Function	-	REGR_SYY
+Function	-	Repeat
+Function	-	Replace
+Function	-	Replicate
+Function	-	Reverse
+Function	-	reverseUTF8
+Function	-	RIGHT
+Function	-	rightUTF8
+Function	-	Round
+Function	-	ROUND
+Function	-	ROW_NUMBER
+Function	-	RPad
+Function	-	RTrim
+Function	-	RTRIM
+Function	-	Seconds_Between
+Function	-	Sgn
+Function	-	Sign
+Function	-	Sin
+Function	-	sinh
+Function	-	Sinh
+Function	-	Space
+Function	-	Sqr
+Function	-	Sqrt
+Function	-	STDDEV
+Function	-	STDDEV_POP
+Function	-	STDDEV_SAMP
+Function	-	string
+Function	-	Stuff
+Function	-	substr
+Function	-	Substr
+Function	-	Substring
+Function	-	SUBSTRING
+Function	-	SUM
+Function	-	SYSDATETIMEOFFSET
+Function	-	Tan
+Function	-	Tanh
+Function	-	ToDate
+Function	-	Trim
+Function	-	trimLeft
+Function	-	trimRight
+Function	-	Truncate
+Function	-	Unicode::GetLength
+Function	-	Unicode::Reverse
+Function	-	Unicode::Strip
+Function	-	Upper
+Function	-	VAR_POP
+Function	-	VAR_SAMP
+Function	-	VarChar
+Function	-	VARIANCE
+Function	Access	
+Function	Access	ABS
+Function	Access	CBool
+Function	Access	CDate
+Function	Access	CDbl
+Function	Access	CStr
+Function	Access	DateAdd
+Function	Access	DateDiff
+Function	Access	DatePart
+Function	Access	DateSerial
+Function	Access	DateValue
+Function	Access	Fix
+Function	Access	Format
+Function	Access	IIF
+Function	Access	InStr
+Function	Access	Int
+Function	Access	IsNull
+Function	Access	LCase
+Function	Access	Len
+Function	Access	LTRIM
+Function	Access	Mid
+Function	Access	ROUND
+Function	Access	String
+Function	Access	STRING
+Function	Access	TimeValue
+Function	Access	UCase
+Function	ClickHouse	addDays
+Function	ClickHouse	addHours
+Function	ClickHouse	addMinutes
+Function	ClickHouse	addMonths
+Function	ClickHouse	addQuarters
+Function	ClickHouse	addSeconds
+Function	ClickHouse	addWeeks
+Function	ClickHouse	addYears
+Function	ClickHouse	arrayDistinct
+Function	ClickHouse	arrayMap
+Function	ClickHouse	arrayReverse
+Function	ClickHouse	arraySort
+Function	ClickHouse	arrayStringConcat
+Function	ClickHouse	avgOrNull
+Function	ClickHouse	bitAnd
+Function	ClickHouse	bitNot
+Function	ClickHouse	bitOr
+Function	ClickHouse	bitXor
+Function	ClickHouse	database
+Function	ClickHouse	empty
+Function	ClickHouse	endsWith
+Function	ClickHouse	fromUnixTimestamp64Nano
+Function	ClickHouse	generateUUIDv4
+Function	ClickHouse	generateUUIDv7
+Function	ClickHouse	groupArray
+Function	ClickHouse	groupArrayIf
+Function	ClickHouse	groupUniqArray
+Function	ClickHouse	groupUniqArrayIf
+Function	ClickHouse	intDiv
+Function	ClickHouse	lengthUTF8
+Function	ClickHouse	lowerUTF8
+Function	ClickHouse	makeDateTime
+Function	ClickHouse	makeDateTime64
+Function	ClickHouse	maxOrNull
+Function	ClickHouse	minOrNull
+Function	ClickHouse	negate
+Function	ClickHouse	now
+Function	ClickHouse	position
+Function	ClickHouse	positionCaseInsensitive
+Function	ClickHouse	replaceRegexpAll
+Function	ClickHouse	roundBankers
+Function	ClickHouse	startsWith
+Function	ClickHouse	STDDEV_SAMP
+Function	ClickHouse	sumOrNull
+Function	ClickHouse	toBoolOrNull
+Function	ClickHouse	toDate32OrNull
+Function	ClickHouse	toDateOrNull
+Function	ClickHouse	toDateTime64OrNull
+Function	ClickHouse	toDateTimeOrNull
+Function	ClickHouse	toDayOfMonth
+Function	ClickHouse	toDayOfWeek
+Function	ClickHouse	toDayOfYear
+Function	ClickHouse	toDecimal128OrNull
+Function	ClickHouse	toDecimal256OrNull
+Function	ClickHouse	toDecimal32OrNull
+Function	ClickHouse	toDecimal64OrNull
+Function	ClickHouse	toFloat32OrNull
+Function	ClickHouse	toFloat64OrNull
+Function	ClickHouse	toHour
+Function	ClickHouse	toInt128OrNull
+Function	ClickHouse	toInt16OrNull
+Function	ClickHouse	toInt256OrNull
+Function	ClickHouse	toInt32OrNull
+Function	ClickHouse	toInt64OrNull
+Function	ClickHouse	toInt8OrNull
+Function	ClickHouse	toIntervalNanosecond
+Function	ClickHouse	toIPv4OrNull
+Function	ClickHouse	toIPv6OrNull
+Function	ClickHouse	toISOWeek
+Function	ClickHouse	toJSONStringOrNull
+Function	ClickHouse	toMinute
+Function	ClickHouse	toMonth
+Function	ClickHouse	toQuarter
+Function	ClickHouse	toSecond
+Function	ClickHouse	toString
+Function	ClickHouse	toStringOrNull
+Function	ClickHouse	toUInt128OrNull
+Function	ClickHouse	toUInt16OrNull
+Function	ClickHouse	toUInt256OrNull
+Function	ClickHouse	toUInt32OrNull
+Function	ClickHouse	toUInt64OrNull
+Function	ClickHouse	toUInt8OrNull
+Function	ClickHouse	toUnixTimestamp
+Function	ClickHouse	toUnixTimestamp64Milli
+Function	ClickHouse	toUnixTimestamp64Nano
+Function	ClickHouse	toUUIDOrNull
+Function	ClickHouse	toYear
+Function	ClickHouse	trim
+Function	ClickHouse	trimLeft
+Function	ClickHouse	trimRight
+Function	ClickHouse	upperUTF8
+Function	ClickHouse	VAR_SAMP
+Function	DB2	Array
+Function	DB2	BFile
+Function	DB2	BigInt
+Function	DB2	Binary
+Function	DB2	BinaryJson
+Function	DB2	BitAnd
+Function	DB2	BitArray
+Function	DB2	BITNOT
+Function	DB2	BitOr
+Function	DB2	BitXor
+Function	DB2	Blob
+Function	DB2	Boolean
+Function	DB2	Byte
+Function	DB2	Char
+Function	DB2	CHAR_LENGTH
+Function	DB2	Cursor
+Function	DB2	Date
+Function	DB2	DATE
+Function	DB2	Date32
+Function	DB2	DateTime
+Function	DB2	DateTime2
+Function	DB2	DateTime2Tz
+Function	DB2	DateTime64
+Function	DB2	DateTimeOffset
+Function	DB2	DateTimeTz
+Function	DB2	DateTz
+Function	DB2	Days
+Function	DB2	DecFloat
+Function	DB2	Decimal
+Function	DB2	Decimal128
+Function	DB2	Decimal256
+Function	DB2	Decimal32
+Function	DB2	Decimal64
+Function	DB2	Dictionary
+Function	DB2	Double
+Function	DB2	Enum
+Function	DB2	Enum16
+Function	DB2	Enum8
+Function	DB2	Extract
+Function	DB2	Float
+Function	DB2	GREATEST
+Function	DB2	Guid
+Function	DB2	Half
+Function	DB2	hex
+Function	DB2	identity_val_local
+Function	DB2	Image
+Function	DB2	Int
+Function	DB2	Int128
+Function	DB2	Int16
+Function	DB2	Int256
+Function	DB2	Int32
+Function	DB2	Int64
+Function	DB2	Interval
+Function	DB2	Interval64
+Function	DB2	IntervalDay
+Function	DB2	IntervalHour
+Function	DB2	IntervalMinute
+Function	DB2	IntervalMonth
+Function	DB2	IntervalQuarter
+Function	DB2	IntervalSecond
+Function	DB2	IntervalWeek
+Function	DB2	IntervalYear
+Function	DB2	IPv4
+Function	DB2	IPv6
+Function	DB2	Json
+Function	DB2	LEAST
+Function	DB2	LISTAGG
+Function	DB2	Long
+Function	DB2	LongRaw
+Function	DB2	LPad
+Function	DB2	Microsecond
+Function	DB2	Midnight_Seconds
+Function	DB2	Mod
+Function	DB2	Money
+Function	DB2	NChar
+Function	DB2	NText
+Function	DB2	NVarChar
+Function	DB2	Real
+Function	DB2	RTrim
+Function	DB2	SByte
+Function	DB2	Single
+Function	DB2	SmallDateTime
+Function	DB2	SmallDecFloat
+Function	DB2	SmallInt
+Function	DB2	SmallMoney
+Function	DB2	STDDEV_SAMP
+Function	DB2	Structured
+Function	DB2	substr
+Function	DB2	SUBSTRING
+Function	DB2	Text
+Function	DB2	Time
+Function	DB2	Timestamp
+Function	DB2	TimeStamp
+Function	DB2	Timestamp64
+Function	DB2	TimeTZ
+Function	DB2	To_Char
+Function	DB2	To_Number
+Function	DB2	Trunc
+Function	DB2	Udt
+Function	DB2	UInt128
+Function	DB2	UInt16
+Function	DB2	UInt256
+Function	DB2	UInt32
+Function	DB2	UInt64
+Function	DB2	Undefined
+Function	DB2	VAR_SAMP
+Function	DB2	VarBinary
+Function	DB2	VarChar
+Function	DB2	Variant
+Function	DB2	VarNumeric
+Function	DB2	Vector16
+Function	DB2	Vector32
+Function	DB2	Xml
+Function	DB2	Yson
+Function	DuckDB	current_localtimestamp
+Function	DuckDB	Date_Diff
+Function	DuckDB	ILIKE
+Function	DuckDB	make_timestamp
+Function	DuckDB	now
+Function	DuckDB	STRING_AGG
+Function	DuckDB	Substring
+Function	DuckDB	To_Microseconds
+Function	DuckDB	uuid
+Function	DuckDB	uuidv7
+Function	Firebird	Bin_And
+Function	Firebird	BIN_NOT
+Function	Firebird	Bin_Or
+Function	Firebird	Bin_Xor
+Function	Firebird	CHAR_LENGTH
+Function	Firebird	CHAR_TO_UUID
+Function	Firebird	DateAdd
+Function	Firebird	DateDiff
+Function	Firebird	Extract
+Function	Firebird	Floor
+Function	Firebird	Gen_Uuid
+Function	Firebird	LIST
+Function	Firebird	LPad
+Function	Firebird	Mod
+Function	Firebird	SIMILAR TO
+Function	Firebird	SUBSTRING
+Function	Firebird	UUID_TO_CHAR
+Function	Informix	BitAnd
+Function	Informix	BITNOT
+Function	Informix	BitOr
+Function	Informix	BitXor
+Function	Informix	CHAR_LENGTH
+Function	Informix	Day
+Function	Informix	DBINFO
+Function	Informix	Extend
+Function	Informix	Floor
+Function	Informix	LPad
+Function	Informix	LTRIM
+Function	Informix	Mdy
+Function	Informix	Mod
+Function	Informix	Month
+Function	Informix	Nvl
+Function	Informix	NVL
+Function	Informix	STDDEV_SAMP
+Function	Informix	SUBSTRING
+Function	Informix	To_Char
+Function	Informix	To_Date
+Function	Informix	WeekDay
+Function	Informix	Year
+Function	MySql	CHAR_LENGTH
+Function	MySql	Date
+Function	MySql	Date_Add
+Function	MySql	Date_Sub
+Function	MySql	DayOfYear
+Function	MySql	Extract
+Function	MySql	GROUP_CONCAT
+Function	MySql	LAST_INSERT_ID
+Function	MySql	LOCATE
+Function	MySql	LPad
+Function	MySql	Microsecond
+Function	MySql	RLIKE
+Function	MySql	STDDEV_SAMP
+Function	MySql	STR_TO_DATE
+Function	MySql	TimestampDiff
+Function	MySql	UTC_TIMESTAMP
+Function	MySql	Uuid
+Function	MySql	UUID_v7
+Function	MySql	VAR_SAMP
+Function	MySql	WeekDay
+Function	Oracle	BITAND
+Function	Oracle	Extract
+Function	Oracle	EXTRACT
+Function	Oracle	GREATEST
+Function	Oracle	InStr
+Function	Oracle	LEAST
+Function	Oracle	LISTAGG
+Function	Oracle	LPad
+Function	Oracle	LTRIM
+Function	Oracle	MOD
+Function	Oracle	NumToDSInterval
+Function	Oracle	RAWTOHEX
+Function	Oracle	Round
+Function	Oracle	RTRIM
+Function	Oracle	SUBSTR
+Function	Oracle	SYS_EXTRACT_UTC
+Function	Oracle	Sys_Guid
+Function	Oracle	To_Char
+Function	Oracle	TO_CHAR
+Function	Oracle	TO_DATE
+Function	Oracle	To_NChar
+Function	Oracle	TO_NUMBER
+Function	Oracle	TO_TIMESTAMP
+Function	Oracle	TO_TIMESTAMP_TZ
+Function	Oracle	Trunc
+Function	Oracle	TRUNC
+Function	PostgreSQL	CEIL
+Function	PostgreSQL	Date_Trunc
+Function	PostgreSQL	Extract
+Function	PostgreSQL	FLOOR
+Function	PostgreSQL	gen_random_uuid
+Function	PostgreSQL	ILIKE
+Function	PostgreSQL	make_timestamp
+Function	PostgreSQL	now
+Function	PostgreSQL	POWER
+Function	PostgreSQL	Round
+Function	PostgreSQL	STRING_AGG
+Function	PostgreSQL	Substring
+Function	PostgreSQL	timezone
+Function	PostgreSQL	To_Char
+Function	PostgreSQL	Trunc
+Function	PostgreSQL	uuidv7
+Function	SapHana	Add_Days
+Function	SapHana	Add_Months
+Function	SapHana	Add_Seconds
+Function	SapHana	Add_Years
+Function	SapHana	BITAND
+Function	SapHana	BITNOT
+Function	SapHana	CURRENT_IDENTITY_VALUE
+Function	SapHana	DayOfMonth
+Function	SapHana	DayOfYear
+Function	SapHana	Floor
+Function	SapHana	GREATEST
+Function	SapHana	Hour
+Function	SapHana	LEAST
+Function	SapHana	LPad
+Function	SapHana	Minute
+Function	SapHana	Mod
+Function	SapHana	MOD
+Function	SapHana	Month
+Function	SapHana	Nano100_Between
+Function	SapHana	Second
+Function	SapHana	STRING_AGG
+Function	SapHana	SUBSTRING
+Function	SapHana	To_Date
+Function	SapHana	To_NVarchar
+Function	SapHana	To_Timestamp
+Function	SapHana	VAR
+Function	SapHana	Week
+Function	SapHana	Weekday
+Function	SapHana	Year
+Function	SqlCe	CHARINDEX
+Function	SqlCe	Convert
+Function	SqlCe	CONVERT
+Function	SqlCe	DateAdd
+Function	SqlCe	DateDiff
+Function	SqlCe	DatePart
+Function	SqlCe	Floor
+Function	SqlCe	GetDate
+Function	SqlCe	LEN
+Function	SqlCe	NewID
+Function	SqlCe	REPLACE
+Function	SqlCe	REPLICATE
+Function	SqlCe	SUBSTRING
+Function	SQLite	Date
+Function	SQLite	DATETIME
+Function	SQLite	GROUP_CONCAT
+Function	SQLite	hex
+Function	SQLite	HEX
+Function	SQLite	InStr
+Function	SQLite	JulianDay
+Function	SQLite	last_insert_rowid
+Function	SQLite	printf
+Function	SQLite	REPLACE
+Function	SQLite	Round
+Function	SQLite	strftime
+Function	SQLite	Strftime
+Function	SQLite	substr
+Function	SQLite	Substr
+Function	SQLite	SUBSTR
+Function	SQLite	ZEROBLOB
+Function	SqlServer	ABS
+Function	SqlServer	ACOS
+Function	SqlServer	APP_NAME
+Function	SqlServer	ASCII
+Function	SqlServer	ASIN
+Function	SqlServer	ATAN
+Function	SqlServer	ATN2
+Function	SqlServer	BINARY_CHECKSUM
+Function	SqlServer	CEILING
+Function	SqlServer	CHAR
+Function	SqlServer	CHARINDEX
+Function	SqlServer	CHECKSUM
+Function	SqlServer	CHOOSE
+Function	SqlServer	COL_LENGTH
+Function	SqlServer	COL_NAME
+Function	SqlServer	COMPRESS
+Function	SqlServer	CONCAT
+Function	SqlServer	CONCAT_WS
+Function	SqlServer	Convert
+Function	SqlServer	COS
+Function	SqlServer	COT
+Function	SqlServer	CURRENT_REQUEST_ID
+Function	SqlServer	CURRENT_TIMEZONE
+Function	SqlServer	CURRENT_TIMEZONE_ID
+Function	SqlServer	CURRENT_TRANSACTION_ID
+Function	SqlServer	DATALENGTH
+Function	SqlServer	DateAdd
+Function	SqlServer	DateDiff
+Function	SqlServer	DateDiff_Big
+Function	SqlServer	DATEFROMPARTS
+Function	SqlServer	DatePart
+Function	SqlServer	DATETIME2FROMPARTS
+Function	SqlServer	DATETIMEFROMPARTS
+Function	SqlServer	DATETIMEOFFSETFROMPARTS
+Function	SqlServer	DAY
+Function	SqlServer	DB_ID
+Function	SqlServer	DB_NAME
+Function	SqlServer	DECOMPRESS
+Function	SqlServer	DEGREES
+Function	SqlServer	DIFFERENCE
+Function	SqlServer	EOMONTH
+Function	SqlServer	EXP
+Function	SqlServer	FILE_ID
+Function	SqlServer	FILE_IDEX
+Function	SqlServer	FILE_NAME
+Function	SqlServer	FILEGROUP_ID
+Function	SqlServer	FILEGROUP_Name
+Function	SqlServer	FLOOR
+Function	SqlServer	FORMAT
+Function	SqlServer	FORMATMESSAGE
+Function	SqlServer	GETANSINULL
+Function	SqlServer	GETDATE
+Function	SqlServer	GETUTCDATE
+Function	SqlServer	GREATEST
+Function	SqlServer	HOST_ID
+Function	SqlServer	HOST_NAME
+Function	SqlServer	IDENT_CURRENT
+Function	SqlServer	IDENT_INCR
+Function	SqlServer	IDENT_SEED
+Function	SqlServer	IIF
+Function	SqlServer	INDEX_COL
+Function	SqlServer	ISDATE
+Function	SqlServer	ISJSON
+Function	SqlServer	ISNULL
+Function	SqlServer	ISNUMERIC
+Function	SqlServer	JSON_MODIFY
+Function	SqlServer	JSON_QUERY
+Function	SqlServer	JSON_VALUE
+Function	SqlServer	LEAST
+Function	SqlServer	LEFT
+Function	SqlServer	LEN
+Function	SqlServer	LOG
+Function	SqlServer	LOWER
+Function	SqlServer	LTRIM
+Function	SqlServer	MIN_ACTIVE_ROWVERSION
+Function	SqlServer	MONTH
+Function	SqlServer	NCHAR
+Function	SqlServer	NewID
+Function	SqlServer	NEWID
+Function	SqlServer	OBJECT_DEFINITION
+Function	SqlServer	OBJECT_ID
+Function	SqlServer	OBJECT_NAME
+Function	SqlServer	OBJECT_SCHEMA_NAME
+Function	SqlServer	ORIGINAL_DB_NAME
+Function	SqlServer	PARSENAME
+Function	SqlServer	PATINDEX
+Function	SqlServer	PI
+Function	SqlServer	POWER
+Function	SqlServer	PUBLISHINGSERVERNAME
+Function	SqlServer	QUOTENAME
+Function	SqlServer	RADIANS
+Function	SqlServer	RAND
+Function	SqlServer	REPLACE
+Function	SqlServer	REPLICATE
+Function	SqlServer	REVERSE
+Function	SqlServer	RIGHT
+Function	SqlServer	ROUND
+Function	SqlServer	ROWCOUNT_BIG
+Function	SqlServer	RTRIM
+Function	SqlServer	SCHEMA_ID
+Function	SqlServer	SCHEMA_NAME
+Function	SqlServer	SCOPE_IDENTITY
+Function	SqlServer	SIGN
+Function	SqlServer	SIN
+Function	SqlServer	SMALLDATETIMEFROMPARTS
+Function	SqlServer	SOUNDEX
+Function	SqlServer	SPACE
+Function	SqlServer	SQRT
+Function	SqlServer	SQUARE
+Function	SqlServer	STATS_DATE
+Function	SqlServer	STDEV
+Function	SqlServer	STDEVP
+Function	SqlServer	STR
+Function	SqlServer	STRING_AGG
+Function	SqlServer	STRING_ESCAPE
+Function	SqlServer	STUFF
+Function	SqlServer	SUBSTRING
+Function	SqlServer	SWITCHOFFSET
+Function	SqlServer	SYSDATETIME
+Function	SqlServer	SYSDATETIMEOFFSET
+Function	SqlServer	SYSUTCDATETIME
+Function	SqlServer	TAN
+Function	SqlServer	TIMEFROMPARTS
+Function	SqlServer	TODATETIMEOFFSET
+Function	SqlServer	TRANSLATE
+Function	SqlServer	TRIM
+Function	SqlServer	TRY_CONVERT
+Function	SqlServer	TYPE_ID
+Function	SqlServer	TYPE_NAME
+Function	SqlServer	UNICODE
+Function	SqlServer	UPPER
+Function	SqlServer	VAR
+Function	SqlServer	VARP
+Function	SqlServer	XACT_STATE
+Function	SqlServer	YEAR
+Function	Sybase	CHAR_LENGTH
+Function	Sybase	CharIndex
+Function	Sybase	CONVERT
+Function	Sybase	DateAdd
+Function	Sybase	DateDiff
+Function	Sybase	DatePart
+Function	Sybase	GetDate
+Function	Sybase	GETUTCDATE
+Function	Sybase	Len
+Function	Sybase	NewID
+Function	Sybase	RIGHT
+Function	Sybase	Str_Replace
+Function	Sybase	Stuff
+Function	Sybase	Substring
+Function	Sybase	SUBSTRING
+Function	Ydb	AGGREGATE_LIST
+Function	Ydb	AsList
+Function	Ydb	CurrentUtcTimestamp
+Function	Ydb	DateTime::GetDayOfMonth
+Function	Ydb	DateTime::GetDayOfWeek
+Function	Ydb	DateTime::GetDayOfYear
+Function	Ydb	DateTime::GetHour
+Function	Ydb	DateTime::GetMillisecondOfSecond
+Function	Ydb	DateTime::GetMinute
+Function	Ydb	DateTime::GetMonth
+Function	Ydb	DateTime::GetSecond
+Function	Ydb	DateTime::GetWeekOfYearIso8601
+Function	Ydb	DateTime::GetYear
+Function	Ydb	DateTime::IntervalFromDays
+Function	Ydb	DateTime::IntervalFromHours
+Function	Ydb	DateTime::IntervalFromMicroseconds
+Function	Ydb	DateTime::IntervalFromMilliseconds
+Function	Ydb	DateTime::IntervalFromMinutes
+Function	Ydb	DateTime::IntervalFromSeconds
+Function	Ydb	DateTime::MakeDatetime
+Function	Ydb	DateTime::MakeTimestamp
+Function	Ydb	DateTime::ParseIso8601
+Function	Ydb	DateTime::ShiftMonths
+Function	Ydb	DateTime::ShiftYears
+Function	Ydb	DateTime::Split
+Function	Ydb	DateTime::StartOfDay
+Function	Ydb	DateTime::TimeOfDay
+Function	Ydb	Ensure
+Function	Ydb	ILIKE
+Function	Ydb	ListConcat
+Function	Ydb	ListHead
+Function	Ydb	ListMap
+Function	Ydb	ListNotNull
+Function	Ydb	ListReverse
+Function	Ydb	ListSkip
+Function	Ydb	ListSort
+Function	Ydb	ListUniq
+Function	Ydb	Math::NearbyInt
+Function	Ydb	Math::Pow
+Function	Ydb	Math::Round
+Function	Ydb	MAX_OF
+Function	Ydb	MIN_OF
+Function	Ydb	String::LeftPad
+Function	Ydb	Unicode::GetLength
+Function	Ydb	Unicode::JoinFromList
+Function	Ydb	Unicode::ReplaceAll
+Function	Ydb	Unicode::SplitToList
+Function	Ydb	Unicode::Strip
+Function	Ydb	Unicode::Substring
+Function	Ydb	Unicode::ToLower
+Function	Ydb	Unicode::ToUpper
+Operator	-	-
+Operator	-	*
+Operator	-	/
+Operator	-	&
+Operator	-	%
+Operator	-	^
+Operator	-	+
+Operator	-	|
+Operator	Access	-
+Operator	Access	^
+Operator	Access	+
+Operator	Access	BAND
+Operator	Access	BOR
+Operator	Access	MOD
+Operator	ClickHouse	/
+Operator	ClickHouse	%
+Operator	DuckDB	//
+Operator	MySql	|
+Operator	Oracle	-
+Operator	Oracle	+
+Operator	PostgreSQL	-
+Operator	PostgreSQL	#
+Operator	SqlCe	-
+Operator	SqlCe	+
+Operator	SQLite	&
+Operator	Ydb	*
+Operator	Ydb	+
+Operator	Ydb	||
+TableExpression	Oracle	OracleXmlTable
+TableExpression	SapHana	{0}('PLACEHOLDER' = ({2})) {1}
+TableExpression	SqlServer	OPENJSON({2}, {3}) {1}
+TableExpression	SqlServer	OPENJSON({2}) {1}

@@ -1,0 +1,3 @@
+# SQL text the generated catalog lets untrusted LinqService clients send. Checked by LINQ2DB0008 on every build:
+# update it with the lines the diagnostic reports, and review each change as a change to what clients may send.
+Expression	SqlServer	vector({0},float16)

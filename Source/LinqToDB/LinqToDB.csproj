@@ -175,5 +175,7 @@
 	<ItemGroup>
 		<AdditionalFiles Include="PublicAPI/PublicAPI.*.txt" />
 		<AdditionalFiles Include="PublicAPI/$(TargetFramework)/PublicAPI.*.txt" />
+		<AdditionalFiles Include="PublicAPI/SqlTextCatalog.baseline.txt" />
+		<AdditionalFiles Include="PublicAPI/$(TargetFramework)/SqlTextCatalog.baseline.txt" Condition="Exists('PublicAPI/$(TargetFramework)/SqlTextCatalog.baseline.txt')" />
 	</ItemGroup>
 </Project>
