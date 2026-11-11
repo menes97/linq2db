@@ -567,6 +567,48 @@ namespace Tests.AST
 		}
 
 		[Test]
+		public void TableNameIsNotCheckedWhenTableExpressionDoesNotRenderIt()
+		{
+			using var db = CreateConnection();
+
+			const string expression = "NOT_THE_NAME({2}) {1}";
+
+			var catalog = new SqlTextCatalog();
+
+			catalog.Add(SqlTextKind.TableExpression, expression);
+
+			var table = MappedTable(db);
+
+			// like SqlFn.OpenJson: the expression has no {0}, so the table name never reaches the SQL
+			table.SqlTableType   = SqlTableType.Expression;
+			table.Expression     = expression;
+			table.TableName      = new SqlObjectName("NOT_A_MAPPED_NAME");
+			table.TableArguments = [One];
+
+			RoundTrip(db, SelectFrom(table), RemoteQueryPolicy.Create(db, [_thisAssembly], null, catalog));
+		}
+
+		[Test]
+		public void TableNameIsCheckedWhenTableExpressionRendersItWithSpaces([Values("{0 } {1}", "{ 0} {1}", "{0,5} {1}")] string expression)
+		{
+			using var db = CreateConnection();
+
+			var catalog = new SqlTextCatalog();
+
+			catalog.Add(SqlTextKind.TableExpression, expression);
+
+			var table = MappedTable(db);
+
+			table.SqlTableType = SqlTableType.Expression;
+			table.Expression   = expression;
+			table.TableName    = new SqlObjectName("NOT_A_MAPPED_NAME");
+
+			var exception = Assert.Throws<RemoteRequestRejectedException>(() => RoundTrip(db, SelectFrom(table), RemoteQueryPolicy.Create(db, [_thisAssembly], null, catalog)))!;
+
+			exception.Rejections.ShouldContain(static r => r.Kind == SqlTextKind.TableName && r.Text == "NOT_A_MAPPED_NAME");
+		}
+
+		[Test]
 		public void EveryPartOfAnOverriddenTableNameIsChecked([Values("Schema", "Database", "Server")] string part)
 		{
 			using var db = CreateConnection();

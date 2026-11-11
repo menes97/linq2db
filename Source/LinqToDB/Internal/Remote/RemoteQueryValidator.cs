@@ -238,7 +238,13 @@ namespace LinqToDB.Internal.Remote
 
 			// a table expression gets the rendered table name as {0} and the alias as {1}, ahead of its own arguments
 			if (table.Expression != null)
+			{
 				policy.CheckText(SqlTextKind.TableExpression, table.Expression, 2 + (table.TableArguments?.Length ?? 0), "SqlTable");
+
+				// an expression without {0} (SqlFn.OpenJson) never renders the name
+				if (!SqlTextCatalog.UsesPlaceholder(table.Expression, 0))
+					return;
+			}
 
 			var mapped = policy.GetEntityDescriptor(table.ObjectType)?.Name;
 			var name   = table.TableName;

@@ -379,6 +379,41 @@ namespace LinqToDB.Remote
 			return max + 1;
 		}
 
+		/// <summary>
+		/// Whether <paramref name="text"/> may refer to the format item <paramref name="index"/>. Errs towards <see langword="true"/>:
+		/// any unescaped brace followed by those digits counts, with spaces before them and anything after them (<c>{0 }</c>).
+		/// </summary>
+		internal static bool UsesPlaceholder(string text, int index)
+		{
+			for (var i = 0; i < text.Length; i++)
+			{
+				if (text[i] != '{')
+					continue;
+
+				if (i + 1 < text.Length && text[i + 1] == '{')
+				{
+					i++;
+					continue;
+				}
+
+				var start = i + 1;
+
+				while (start < text.Length && text[start] == ' ')
+					start++;
+
+				var end   = start;
+				var value = 0;
+
+				while (end < text.Length && IsAsciiDigit(text[end]) && value <= MaxPlaceholderIndex)
+					value = value * 10 + text[end++] - '0';
+
+				if (end > start && value == index)
+					return true;
+			}
+
+			return false;
+		}
+
 		const int MaxPlaceholderIndex = 100000;
 
 		// char.IsDigit accepts every Unicode decimal digit, which String.Format does not read as an index
