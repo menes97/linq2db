@@ -987,6 +987,108 @@ namespace Tests.AST
 			exception.Provider.ShouldBe(db.DataProvider.Name);
 		}
 
+		// Every text-bearing member of every query element, with how an untrusted request's value is handled.
+		// A member added later is not in this list and fails the guard below until someone records its disposition.
+		static readonly string[] _textMemberDispositions =
+		[
+			"LinqToDB.Internal.SqlQuery.CteClause.Name: identifier shape",
+			"LinqToDB.Internal.SqlQuery.QueryElement.DebugText: computed, not on the wire",
+			"LinqToDB.Internal.SqlQuery.SelectQuery.QueryName: identifier shape",
+			"LinqToDB.Internal.SqlQuery.SelectQuery.SqlText: computed, not on the wire",
+			"LinqToDB.Internal.SqlQuery.SqlBinaryExpression.Operation: closed operator set, else Operator catalog text",
+			"LinqToDB.Internal.SqlQuery.SqlBinaryExpression.Type: DbDataType, DbType shape in ReadDbDataType",
+			"LinqToDB.Internal.SqlQuery.SqlCaseExpression.Type: DbDataType, DbType shape in ReadDbDataType",
+			"LinqToDB.Internal.SqlQuery.SqlCaseExpression._dataType: backs Type",
+			"LinqToDB.Internal.SqlQuery.SqlCastExpression.ToType: DbDataType, DbType shape in ReadDbDataType",
+			"LinqToDB.Internal.SqlQuery.SqlCastExpression.Type: DbDataType, DbType shape in ReadDbDataType",
+			"LinqToDB.Internal.SqlQuery.SqlColumn.Alias: identifier shape, * admitted",
+			"LinqToDB.Internal.SqlQuery.SqlColumn.RawAlias: identifier shape, * admitted",
+			"LinqToDB.Internal.SqlQuery.SqlComment.Lines: only SqlStatement.Tag holds a comment, and it is dropped",
+			"LinqToDB.Internal.SqlQuery.SqlCreateTableStatement.StatementFooter: StatementFooter catalog text",
+			"LinqToDB.Internal.SqlQuery.SqlCreateTableStatement.StatementHeader: StatementHeader catalog text",
+			"LinqToDB.Internal.SqlQuery.SqlCteField.Name: identifier shape",
+			"LinqToDB.Internal.SqlQuery.SqlCteField.Type: DbDataType, DbType shape in ReadDbDataType",
+			"LinqToDB.Internal.SqlQuery.SqlCteTable.Alias: identifier shape",
+			"LinqToDB.Internal.SqlQuery.SqlCteTable.SqlText: computed, not on the wire",
+			"LinqToDB.Internal.SqlQuery.SqlCteTable.TableName: derived from the checked CteClause, not on the wire",
+			"LinqToDB.Internal.SqlQuery.SqlCteTableField.Name: derived from the checked SqlCteField, not on the wire",
+			"LinqToDB.Internal.SqlQuery.SqlCteTableField.Type: derived from the checked SqlCteField, not on the wire",
+			"LinqToDB.Internal.SqlQuery.SqlDefaultValueExpression.Type: DbDataType, DbType shape in ReadDbDataType",
+			"LinqToDB.Internal.SqlQuery.SqlExpression.Expr: Expression catalog text",
+			"LinqToDB.Internal.SqlQuery.SqlExtendedFunction.FunctionName: Function catalog text",
+			"LinqToDB.Internal.SqlQuery.SqlExtendedFunction.Type: DbDataType, DbType shape in ReadDbDataType",
+			"LinqToDB.Internal.SqlQuery.SqlField.CreateFormat: rejected",
+			"LinqToDB.Internal.SqlQuery.SqlField.PhysicalName: mapped name for a mapped table, else identifier shape",
+			"LinqToDB.Internal.SqlQuery.SqlFieldBase.Name: on the wire for SqlField but never rendered, PhysicalName is",
+			"LinqToDB.Internal.SqlQuery.SqlFieldBase.Type: DbDataType, DbType shape in ReadDbDataType",
+			"LinqToDB.Internal.SqlQuery.SqlFragment.Expr: Fragment catalog text",
+			"LinqToDB.Internal.SqlQuery.SqlFunction.Name: Function catalog text",
+			"LinqToDB.Internal.SqlQuery.SqlIntervalDifferenceExpression.Type: DbDataType, DbType shape in ReadDbDataType",
+			"LinqToDB.Internal.SqlQuery.SqlIntervalExpression.Type: DbDataType, DbType shape in ReadDbDataType",
+			"LinqToDB.Internal.SqlQuery.SqlIntervalPartExpression.Type: DbDataType, DbType shape in ReadDbDataType",
+			"LinqToDB.Internal.SqlQuery.SqlMergeStatement.Hint: MergeHint catalog text",
+			"LinqToDB.Internal.SqlQuery.SqlObjectNameExpression.Name: element not on the wire",
+			"LinqToDB.Internal.SqlQuery.SqlParameter.Name: identifier shape",
+			"LinqToDB.Internal.SqlQuery.SqlParameter.Type: DbDataType, DbType shape in ReadDbDataType",
+			"LinqToDB.Internal.SqlQuery.SqlParameterizedExpressionBase.ExprOrName: base of SqlExpression.Expr and SqlFunction.Name",
+			"LinqToDB.Internal.SqlQuery.SqlParameterizedExpressionBase.Type: DbDataType, DbType shape in ReadDbDataType",
+			"LinqToDB.Internal.SqlQuery.SqlPredicate+Like.FunctionName: Function catalog text",
+			"LinqToDB.Internal.SqlQuery.SqlQueryExtension.Arguments: per-builder argument roles",
+			"LinqToDB.Internal.SqlQuery.SqlQueryExtension.Configuration: matched against the provider, never rendered",
+			"LinqToDB.Internal.SqlQuery.SqlRawSqlTable.SQL: RawSqlTable catalog text",
+			"LinqToDB.Internal.SqlQuery.SqlRawSqlTable.SqlText: computed, not on the wire",
+			"LinqToDB.Internal.SqlQuery.SqlStatement.DebugSqlText: computed, not on the wire",
+			"LinqToDB.Internal.SqlQuery.SqlStatement.SqlText: computed, not on the wire",
+			"LinqToDB.Internal.SqlQuery.SqlTable.Alias: identifier shape",
+			"LinqToDB.Internal.SqlQuery.SqlTable.Expression: TableExpression catalog text",
+			"LinqToDB.Internal.SqlQuery.SqlTable.ID: matched by table hints, never rendered",
+			"LinqToDB.Internal.SqlQuery.SqlTable.NameForLogging: computed, not on the wire",
+			"LinqToDB.Internal.SqlQuery.SqlTable.TableName: each part differing from the mapping is TableName catalog text",
+			"LinqToDB.Internal.SqlQuery.SqlTable._fieldsLookup: lookup over the checked fields",
+			"LinqToDB.Internal.SqlQuery.SqlTableLikeSource.Name: derived, not on the wire",
+			"LinqToDB.Internal.SqlQuery.SqlTableSource.Alias: identifier shape",
+			"LinqToDB.Internal.SqlQuery.SqlTableSource.RawAlias: identifier shape, $ and $F admitted",
+			"LinqToDB.Internal.SqlQuery.SqlTableSource._alias: backs Alias",
+			"LinqToDB.Internal.SqlQuery.SqlTemporalArithmeticExpression.Type: DbDataType, DbType shape in ReadDbDataType",
+			"LinqToDB.Internal.SqlQuery.SqlUnaryExpression.Type: DbDataType, DbType shape in ReadDbDataType",
+			"LinqToDB.Internal.SqlQuery.SqlValue.ValueType: DbDataType, DbType shape in ReadDbDataType",
+			"LinqToDB.SqlQuery.SqlDataType.Type: DbDataType, DbType shape in ReadDbDataType",
+		];
+
+		static bool IsTextBearing(Type type)
+		{
+			type = Nullable.GetUnderlyingType(type) ?? type;
+
+			if (type == typeof(string) || type == typeof(DbDataType) || type == typeof(SqlObjectName))
+				return true;
+
+			return type.GetInterfaces().Concat([type]).Any(static i => i.IsGenericType
+				&& (i.GetGenericTypeDefinition() == typeof(IEnumerable<>) && i.GetGenericArguments()[0] == typeof(string)
+				 || i.GetGenericTypeDefinition() == typeof(IDictionary<,>) && i.GetGenericArguments()[0] == typeof(string)
+				 || i.GetGenericTypeDefinition() == typeof(IReadOnlyDictionary<,>) && i.GetGenericArguments()[0] == typeof(string)));
+		}
+
+		[Test]
+		public void EveryTextBearingMemberHasADisposition()
+		{
+			const BindingFlags flags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly;
+
+			var actual = typeof(DataOptions).Assembly.GetTypes()
+				.Where(static t => typeof(IQueryElement).IsAssignableFrom(t) && !t.IsInterface)
+				.SelectMany(t => t.GetFields(flags).Where(static f => f.Name[0] != '<').Select(static f => (Member: (MemberInfo)f, Type: f.FieldType))
+					.Concat(t.GetProperties(flags).Select(static p => (Member: (MemberInfo)p, Type: p.PropertyType)))
+					.Where(m => IsTextBearing(m.Type))
+					.Select(m => $"{t.FullName}.{m.Member.Name}"))
+				.Distinct()
+				.OrderBy(static n => n, StringComparer.Ordinal)
+				.ToList();
+
+			var recorded = _textMemberDispositions.Select(static d => d.Split(':')[0]).ToList();
+
+			actual.Except(recorded).ShouldBeEmpty("text-bearing members without a disposition");
+			recorded.Except(actual).ShouldBeEmpty("dispositions for members that no longer exist");
+		}
+
 		[Test]
 		public void UnregisteredStructIsRejectedUntilRegistered()
 		{
