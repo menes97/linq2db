@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using System.Runtime.ExceptionServices;
 
@@ -883,6 +884,81 @@ namespace Tests.AST
 			query.Select.Add(table.All);
 
 			RoundTrip(db, new SqlSelectStatement(query), RemoteQueryPolicy.Create(db, [_thisAssembly], null));
+		}
+
+		// every builder in the validator's argument table, with the identifier key it accepts, if any
+		static readonly (string Builder, string? IdentifierKey)[] _builders =
+		[
+			("LinqToDB.Internal.SqlProvider.HintExtensionBuilder",                                 null),
+			("LinqToDB.Internal.SqlProvider.HintWithParameterExtensionBuilder",                    "hintParameter"),
+			("LinqToDB.Internal.SqlProvider.HintWithParametersExtensionBuilder",                   "hintParameters.0"),
+			("LinqToDB.Internal.SqlProvider.HintWithFormatParametersExtensionBuilder",             null),
+			("LinqToDB.Internal.DataProvider.TableSpecHintExtensionBuilder",                       "hintParameter"),
+			("LinqToDB.DataProvider.ClickHouse.ClickHouseHints+TableHintExtensionBuilder",         null),
+			("LinqToDB.DataProvider.Ydb.YdbHints+YdbQueryHintExtensionBuilder",                    null),
+			("LinqToDB.DataProvider.PostgreSQL.PostgreSQLHints+SubQueryTableHintExtensionBuilder", null),
+			("LinqToDB.DataProvider.MySql.MySqlHints+SubQueryTableHintExtensionBuilder",           null),
+			("LinqToDB.DataProvider.SqlServer.SqlServerHints+WithForceSeekExtensionBuilder",       "indexName"),
+			("LinqToDB.DataProvider.SqlServer.SqlServerHints+ParamsExtensionBuilder",              null),
+			("LinqToDB.DataProvider.SqlServer.SqlServerHints+TableParamsExtensionBuilder",         null),
+			("LinqToDB.DataProvider.SqlServer.SqlServerHints+TemporalTableExtensionBuilder",       null),
+		];
+
+		static IEnumerable<string> BuilderNames()           => _builders.Select(static b => b.Builder);
+		static IEnumerable<string> BuildersWithIdentifier() => _builders.Where(static b => b.IdentifierKey != null).Select(static b => b.Builder);
+
+		static SqlSelectStatement WithExtension(string builder, string key, ISqlExpression value)
+		{
+			var statement = SelectOf(One);
+
+			statement.SelectQuery!.SqlQueryExtensions =
+			[
+				new SqlQueryExtension
+				{
+					Scope       = Sql.QueryExtensionScope.QueryHint,
+					BuilderType = typeof(DataOptions).Assembly.GetType(builder, throwOnError: true),
+					Arguments   = new(StringComparer.Ordinal) { [key] = value },
+				},
+			];
+
+			return statement;
+		}
+
+		[Test]
+		public void UnknownBuilderArgumentKeyIsRejected([ValueSource(nameof(BuilderNames))] string builder)
+		{
+			using var db = CreateConnection();
+
+			Rejected(db, WithExtension(builder, "unknown_key", One)).Rejections
+				.ShouldContain(r => r.Reason == RemoteRejectionReason.NodeNotAllowed && r.Text == builder + ":unknown_key");
+		}
+
+		[Test]
+		public void BuilderHintTextOutsideCatalogIsRejected([ValueSource(nameof(BuilderNames))] string builder)
+		{
+			using var db = CreateConnection();
+
+			Rejected(db, WithExtension(builder, "hint", new SqlValue(InertText))).Rejections
+				.ShouldContain(static r => r.Kind == SqlTextKind.ExtensionArgument && r.Text == InertText);
+		}
+
+		[Test]
+		public void BuilderIdentifierArgumentInShapeIsAccepted([ValueSource(nameof(BuildersWithIdentifier))] string builder)
+		{
+			var key = _builders.Single(b => b.Builder == builder).IdentifierKey!;
+
+			using var db = CreateConnection();
+
+			RoundTrip(db, WithExtension(builder, key, new SqlValue("IX_user_chosen_1")), RemoteQueryPolicy.Create(db, [_thisAssembly], null));
+		}
+
+		[Test]
+		public void NoneBuilderArgumentsAreNotChecked()
+		{
+			using var db = CreateConnection();
+
+			// renders nothing, so even text outside the catalog never reaches the SQL
+			RoundTrip(db, WithExtension("LinqToDB.SqlQuery.NoneExtensionBuilder", "hint", new SqlValue(InertText)), RemoteQueryPolicy.Create(db, [_thisAssembly], null));
 		}
 
 		[Test]
