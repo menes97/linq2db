@@ -648,6 +648,171 @@ namespace Tests.AST
 			RoundTrip(db, SelectFrom(table), RemoteQueryPolicy.Create(db, [_thisAssembly], null, catalog));
 		}
 
+		static RemoteRequestRejectedException Rejected(DataConnection db, SqlStatement statement)
+		{
+			return Assert.Throws<RemoteRequestRejectedException>(() => RoundTrip(db, statement, RemoteQueryPolicy.Create(db, [_thisAssembly], null)))!;
+		}
+
+		[Test]
+		public void RawSqlTableTextOutsideCatalogIsRejected()
+		{
+			using var db = CreateConnection();
+
+			var raw   = new SqlRawSqlTable(db.MappingSchema.GetEntityDescriptor(typeof(LocalEntity)), InertText, false, [One]);
+			var query = new SelectQuery();
+
+			query.From.Tables.Add(new SqlTableSource(raw, "r"));
+			query.Select.Add(One);
+
+			Rejected(db, new SqlSelectStatement(query)).Rejections.ShouldContain(static r => r.Kind == SqlTextKind.RawSqlTable && r.Text == InertText);
+		}
+
+		[Test]
+		public void CreateTableTextOutsideCatalogIsRejected([Values("Header", "Footer")] string position)
+		{
+			using var db = CreateConnection();
+
+			var statement = new SqlCreateTableStatement(MappedTable(db));
+
+			if (position == "Header")
+				statement.StatementHeader = "NOT_IN_CATALOG {0}";
+			else
+				statement.StatementFooter = "NOT_IN_CATALOG";
+
+			var kind = position == "Header" ? SqlTextKind.StatementHeader : SqlTextKind.StatementFooter;
+
+			Rejected(db, statement).Rejections.ShouldContain(r => r.Kind == kind);
+		}
+
+		[Test]
+		public void FieldCreateFormatIsRejected()
+		{
+			using var db = CreateConnection();
+
+			var table = MappedTable(db);
+
+			table.Fields[0].CreateFormat = "NOT_IN_CATALOG";
+
+			Rejected(db, new SqlCreateTableStatement(table)).Rejections.ShouldContain(static r => r.NodeType == "SqlField.CreateFormat");
+		}
+
+		[Test]
+		public void MergeHintOutsideCatalogIsRejected()
+		{
+			using var db = CreateConnection();
+
+			var statement = new SqlMergeStatement(MappedTable(db));
+
+			typeof(SqlMergeStatement).GetProperty(nameof(SqlMergeStatement.Hint))!.SetValue(statement, "NOT_IN_CATALOG");
+
+			Rejected(db, statement).Rejections.ShouldContain(static r => r.Kind == SqlTextKind.MergeHint);
+		}
+
+		[Test]
+		public void UnmappedFieldOfMappedTableIsRejected()
+		{
+			using var db = CreateConnection();
+
+			var table = MappedTable(db);
+			var field = new SqlField(new DbDataType(typeof(int)), "Unmapped", true) { PhysicalName = "NOT_MAPPED" };
+
+			table.Add(field);
+
+			var query = new SelectQuery();
+
+			query.From.Tables.Add(new SqlTableSource(table, "t"));
+			query.Select.Add(field);
+
+			Rejected(db, new SqlSelectStatement(query)).Rejections.ShouldContain(static r => r.Reason == RemoteRejectionReason.IdentifierNotMapped && r.Text == "NOT_MAPPED");
+		}
+
+		[Test]
+		public void UndefinedRenderedEnumValueIsRejected()
+		{
+			using var db = CreateConnection();
+
+			var query  = new SelectQuery();
+			var source = new SqlTableSource(MappedTable(db), "t");
+			var joined = new SqlTableSource(MappedTable(db), "u");
+
+			source.Joins.Add(new SqlJoinedTable((JoinType)999, joined, false));
+			query.From.Tables.Add(source);
+			query.Select.Add(One);
+
+			Rejected(db, new SqlSelectStatement(query)).Rejections.ShouldContain(static r => r.Reason == RemoteRejectionReason.InvalidEnumValue);
+		}
+
+		[Test]
+		public void RejectionsAreCappedAndMarkedTruncated()
+		{
+			using var db = CreateConnection();
+
+			var expressions = new ISqlExpression[150];
+
+			for (var i = 0; i < expressions.Length; i++)
+				expressions[i] = new SqlExpression(new DbDataType(typeof(int)), $"NOT_IN_CATALOG_{i}({{0}})", One);
+
+			var exception = Rejected(db, SelectOf(expressions));
+
+			exception.Rejections.Count.ShouldBe(100);
+			exception.IsTruncated.ShouldBeTrue();
+		}
+
+		[Test]
+		public void MessageEscapesTextAndListsNoCatalogEntry()
+		{
+			using var db = CreateConnection();
+
+			var catalog = new SqlTextCatalog();
+
+			catalog.Add(SqlTextKind.Expression, "CATALOG_ONLY_TEXT({0})");
+
+			// newline, bidi override and line separator would split or spoof a log line
+			var text      = "NOT_IN_CATALOG\n\u202E\u2028({0})" + new string('x', 600);
+			var policy    = RemoteQueryPolicy.Create(db, [], null, catalog);
+			var exception = Assert.Throws<RemoteRequestRejectedException>(() => RoundTrip(db, SelectOf(new SqlExpression(new DbDataType(typeof(int)), text, One)), policy))!;
+
+			exception.Message.ShouldContain("\\u000a");
+			exception.Message.ShouldContain("\\u202e");
+			exception.Message.ShouldContain("\\u2028");
+			exception.Message.ShouldNotContain("\u202E");
+			exception.Message.ShouldNotContain("\u2028");
+			exception.Message.ShouldContain("...");
+			exception.Message.ShouldNotContain(new string('x', 600));
+			exception.Message.ShouldNotContain("CATALOG_ONLY_TEXT");
+		}
+
+		static object? ReadCount(DataConnection db, string data)
+		{
+			var type         = typeof(DataOptions).Assembly.GetType("LinqToDB.Internal.Remote.LinqServiceSerializer+QueryDeserializer", throwOnError: true)!;
+			var deserializer = Activator.CreateInstance(type, GetSerializer().Schema, db.MappingSchema, db.Options, Untrusted(db))!;
+			var flags        = BindingFlags.NonPublic | BindingFlags.Instance;
+
+			type.BaseType!.GetField("Str", flags)!.SetValue(deserializer, data);
+			type.BaseType!.GetField("Pos", flags)!.SetValue(deserializer, 0);
+
+			try
+			{
+				return type.BaseType!.GetMethod("ReadCount", flags)!.Invoke(deserializer, null);
+			}
+			catch (TargetInvocationException ex)
+			{
+				ExceptionDispatchInfo.Capture(ex.InnerException!).Throw();
+				throw;
+			}
+		}
+
+		[Test]
+		public void ElementCountBeyondRequestLengthIsRejectedBeforeAllocation()
+		{
+			using var db = CreateConnection();
+
+			// control: a count the remaining input can hold is read as is
+			ReadCount(db, " 3 abc").ShouldBe(3);
+
+			Assert.Throws<LinqToDBException>(() => ReadCount(db, " 2000000000 abc"));
+		}
+
 		[Test]
 		public void UnregisteredStructIsRejectedUntilRegistered()
 		{

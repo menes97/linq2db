@@ -306,6 +306,11 @@ namespace LinqToDB.Internal.Remote
 			Add(new RemoteRejection(RemoteRejectionReason.IdentifierNotMapped, null, name, position, "Use a mapped name, or a name of ASCII letters, digits and underscores."));
 		}
 
+		internal void RejectEnum(Type enumType, int value)
+		{
+			Add(new RemoteRejection(RemoteRejectionReason.InvalidEnumValue, null, value.ToString(CultureInfo.InvariantCulture), enumType.Name, "The value is not defined by the enum."));
+		}
+
 		internal void RejectNode(string node)
 		{
 			Add(new RemoteRejection(RemoteRejectionReason.NodeNotAllowed, null, node, node, "This query element is not accepted from untrusted clients."));

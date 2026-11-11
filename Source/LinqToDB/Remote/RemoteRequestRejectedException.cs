@@ -82,7 +82,8 @@ namespace LinqToDB.Remote
 			{
 				var c = text[i];
 
-				if (char.IsControl(c))
+				// format characters (bidi overrides) and line separators spoof or split a log line as control characters do
+				if (char.IsControl(c) || CharUnicodeInfo.GetUnicodeCategory(c) is UnicodeCategory.Format or UnicodeCategory.LineSeparator or UnicodeCategory.ParagraphSeparator)
 					sb.Append(CultureInfo.InvariantCulture, $"\\u{(int)c:x4}");
 				else
 					sb.Append(c);

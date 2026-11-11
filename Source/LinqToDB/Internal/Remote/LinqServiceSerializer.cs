@@ -310,7 +310,7 @@ namespace LinqToDB.Internal.Remote
 			protected DbDataType ReadDbDataType()
 			{
 				var systemType = ReadType(RemoteTypeRole.DataType)!;
-				var dataType   = (DataType)ReadInt();
+				var dataType   = ReadEnum<DataType>();
 				var dbType     = ReadString();
 				var length     = ReadNullableInt();
 				var precision  = ReadNullableInt();
@@ -341,10 +341,48 @@ namespace LinqToDB.Internal.Remote
 				var minus = Get('-');
 				var value = 0;
 
-				for (var c = Peek(); char.IsDigit(c); c = Next())
+				for (var c = Peek(); c is >= '0' and <= '9'; c = Next())
 					value = value * 10 + (c - '0');
 
 				return minus ? -value : value;
+			}
+
+			/// <summary>Reads an enum value; under a policy, a value the enum does not define is rejected.</summary>
+			protected T ReadEnum<T>()
+				where T : struct, Enum
+			{
+				var value = ReadInt();
+
+				if (Policy != null && !EnumValues<T>.IsDefined(value))
+					Policy.RejectEnum(typeof(T), value);
+
+				return (T)Enum.ToObject(typeof(T), value);
+			}
+
+			/// <summary>Reads a nullable enum value; under a policy, a value the enum does not define is rejected.</summary>
+			protected T? ReadNullableEnum<T>()
+				where T : struct, Enum
+			{
+				var value = ReadNullableInt();
+
+				if (value == null)
+					return null;
+
+				if (Policy != null && !EnumValues<T>.IsDefined(value.Value))
+					Policy.RejectEnum(typeof(T), value.Value);
+
+				return (T)Enum.ToObject(typeof(T), value.Value);
+			}
+
+			static class EnumValues<T>
+				where T : struct, Enum
+			{
+				static readonly bool          _isFlags = typeof(T).IsDefined(typeof(FlagsAttribute), false);
+				static readonly HashSet<long> _values  = [.. Enum.GetValues<T>().Select(static v => Convert.ToInt64(v, CultureInfo.InvariantCulture))];
+				static readonly long          _mask    = _values.Aggregate(0L, static (m, v) => m | v);
+
+				// a flags value is defined when it sets no bit outside the declared members
+				public static bool IsDefined(int value) => _isFlags ? (value & ~_mask) == 0 : _values.Contains(value);
 			}
 
 			protected int? ReadNullableInt()
@@ -359,7 +397,7 @@ namespace LinqToDB.Internal.Remote
 				var minus = Get('-');
 				var value = 0;
 
-				for (var c = Peek(); char.IsDigit(c); c = Next())
+				for (var c = Peek(); c is >= '0' and <= '9'; c = Next())
 					value = value * 10 + (c - '0');
 
 				return minus ? -value : value;
@@ -374,8 +412,15 @@ namespace LinqToDB.Internal.Remote
 
 				var value = 0;
 
-				for (var c = Peek(); char.IsDigit(c); c = Next())
+				for (var c = Peek(); c is >= '0' and <= '9'; c = Next())
+				{
 					value = value * 10 + (c - '0');
+
+					// every element takes at least one character, so a larger count is malformed; the arrays are
+					// allocated from this count before any validation runs
+					if (value > Str.Length - Pos)
+						throw new LinqToDBException("Malformed remote request: element count exceeds the request length.");
+				}
 
 				return value;
 			}
@@ -2073,7 +2118,7 @@ string.Create(CultureInfo.InvariantCulture, $"TypeIndex or TypeArrayIndex ({Type
 			{
 				// Must match SerializeOptions order. The integer token is read first so the greedy ReadInt is not
 				// adjacent to the statement that follows the options with no separator.
-				var defaultNullsPosition          = (Sql.NullsPosition)ReadInt();
+				var defaultNullsPosition          = ReadEnum<Sql.NullsPosition>();
 				var preferExistsForScalar         = ReadBool();
 				var enableConstantExprInOrderBy   = ReadBool();
 				var generateFinalAliases          = ReadBool();
@@ -2248,8 +2293,8 @@ string.Create(CultureInfo.InvariantCulture, $"TypeIndex or TypeArrayIndex ({Type
 						{
 							var dbDataType    = ReadDbDataType();
 							var name          = ReadString()!;
-							var flags         = (SqlFlags)ReadInt();
-							var nullability   = (ParametersNullabilityType)ReadInt();
+							var flags         = ReadEnum<SqlFlags>();
+							var nullability   = ReadEnum<ParametersNullabilityType>();
 							var canBeNull     = ReadNullableBool();
 							var parameters    = ReadArray<ISqlExpression>()!;
 							var doNotOptimize = ReadBool();
@@ -2285,8 +2330,8 @@ string.Create(CultureInfo.InvariantCulture, $"TypeIndex or TypeArrayIndex ({Type
 							var dbDataType  = ReadDbDataType();
 							var expr        = ReadString()!;
 							var precedence  = ReadInt();
-							var flags       = (SqlFlags)ReadInt();
-							var nullability = (ParametersNullabilityType)ReadInt();
+							var flags       = ReadEnum<SqlFlags>();
+							var nullability = ReadEnum<ParametersNullabilityType>();
 							var canBeNull   = ReadNullableBool();
 							var parameters  = ReadArray<ISqlExpression>()!;
 
@@ -2310,7 +2355,7 @@ string.Create(CultureInfo.InvariantCulture, $"TypeIndex or TypeArrayIndex ({Type
 					case QueryElementType.SqlAnchor :
 					{
 						var sqlExpression = Read<ISqlExpression>()!;
-						var kind          = (SqlAnchor.AnchorKindEnum)ReadInt();
+						var kind          = ReadEnum<SqlAnchor.AnchorKindEnum>();
 
 						obj = new SqlAnchor(sqlExpression, kind);
 
@@ -2336,7 +2381,7 @@ string.Create(CultureInfo.InvariantCulture, $"TypeIndex or TypeArrayIndex ({Type
 					{
 						var systemType = ReadType(RemoteTypeRole.DataType)!;
 						var expr       = Read<ISqlExpression>()!;
-						var operation  = (SqlUnaryOperation)ReadInt()!;
+						var operation  = ReadEnum<SqlUnaryOperation>();
 						var precedence = ReadInt();
 
 						obj = new SqlUnaryExpression(systemType, expr, operation, precedence);
@@ -2400,9 +2445,9 @@ string.Create(CultureInfo.InvariantCulture, $"TypeIndex or TypeArrayIndex ({Type
 							flds[0] = all;
 							Array.Copy(fields, 0, flds, 1, fields.Length);
 
-							var sqlTableType = (SqlTableType)ReadInt();
+							var sqlTableType = ReadEnum<SqlTableType>();
 							var tableArgs    = sqlTableType == SqlTableType.Table ? null : ReadArray<ISqlExpression>();
-							var tableOptions = (TableOptions)ReadInt();
+							var tableOptions = ReadEnum<TableOptions>();
 
 							var extensions = ReadList<SqlQueryExtension>();
 
@@ -2516,7 +2561,7 @@ string.Create(CultureInfo.InvariantCulture, $"TypeIndex or TypeArrayIndex ({Type
 					case QueryElementType.ExprExprPredicate :
 						{
 							var expr1        = Read<ISqlExpression>()!;
-							var @operator    = (SqlPredicate.Operator)ReadInt();
+							var @operator    = ReadEnum<SqlPredicate.Operator>();
 							var expr2        = Read<ISqlExpression>()!;
 							var unknownValue = ReadNullableBool();
 							var notNullableExpr1 = ReadBool();
@@ -2546,7 +2591,7 @@ string.Create(CultureInfo.InvariantCulture, $"TypeIndex or TypeArrayIndex ({Type
 						var expr1         = Read<ISqlExpression>()!;
 						var isNot         = ReadBool();
 						var expr2         = Read<ISqlExpression>()!;
-						var kind          = (SqlPredicate.SearchString.SearchKind)ReadInt();
+						var kind          = ReadEnum<SqlPredicate.SearchString.SearchKind>();
 						var caseSensitive = Read<ISqlExpression>()!;
 						obj = new SqlPredicate.SearchString(expr1, isNot, expr2, kind, caseSensitive);
 
@@ -2705,7 +2750,7 @@ string.Create(CultureInfo.InvariantCulture, $"TypeIndex or TypeArrayIndex ({Type
 
 					case QueryElementType.JoinedTable :
 						{
-							var joinType   = (JoinType)ReadInt();
+							var joinType   = ReadEnum<JoinType>();
 							var table      = Read<SqlTableSource>()!;
 							var isWeak     = ReadBool();
 							var condition  = Read<SqlSearchCondition>()!;
@@ -2724,7 +2769,7 @@ string.Create(CultureInfo.InvariantCulture, $"TypeIndex or TypeArrayIndex ({Type
 							var isDistinct       = ReadBool();
 							var skipValue        = Read<ISqlExpression>()!;
 							var takeValue        = Read<ISqlExpression>()!;
-							var takeHints        = (TakeHints?)ReadNullableInt();
+							var takeHints        = ReadNullableEnum<TakeHints>();
 							var optimizeDistinct = ReadBool();
 							var distinctOn       = ReadArray<ISqlExpression>();
 							var columns          = ReadArray<SqlColumn>()!;
@@ -2921,7 +2966,7 @@ string.Create(CultureInfo.InvariantCulture, $"TypeIndex or TypeArrayIndex ({Type
 							var table           = Read<SqlTable>()!;
 							var statementHeader = ReadString();
 							var statementFooter = ReadString();
-							var defaultNullable = (DefaultNullable)ReadInt();
+							var defaultNullable = ReadEnum<DefaultNullable>();
 							var extensions      = ReadList<SqlQueryExtension>();
 
 							obj = _statement = new SqlCreateTableStatement(table)
@@ -2983,7 +3028,7 @@ string.Create(CultureInfo.InvariantCulture, $"TypeIndex or TypeArrayIndex ({Type
 					case QueryElementType.FromClause    : obj = new SqlFromClause   (ReadArray<SqlTableSource>()!);                break;
 					case QueryElementType.WhereClause   : obj = new SqlWhereClause  (Read     <SqlSearchCondition>()!);            break;
 					case QueryElementType.HavingClause  : obj = new SqlHavingClause (Read     <SqlSearchCondition>()!);            break;
-					case QueryElementType.GroupByClause : obj = new SqlGroupByClause((GroupingType)ReadInt(), ReadArray<ISqlExpression>()!); break;
+					case QueryElementType.GroupByClause : obj = new SqlGroupByClause(ReadEnum<GroupingType>(), ReadArray<ISqlExpression>()!); break;
 					case QueryElementType.GroupingSet   : obj = new SqlGroupingSet  (ReadArray<ISqlExpression>()!);                          break;
 					case QueryElementType.OrderByClause : obj = new SqlOrderByClause(ReadArray<SqlOrderByItem>()!);                break;
 
@@ -3005,7 +3050,7 @@ string.Create(CultureInfo.InvariantCulture, $"TypeIndex or TypeArrayIndex ({Type
 							var expression    = Read<ISqlExpression>()!;
 							var isDescending  = ReadBool();
 							var isPositioned  = ReadBool();
-							var nullsPosition = (Sql.NullsPosition)ReadInt();
+							var nullsPosition = ReadEnum<Sql.NullsPosition>();
 
 							obj = new SqlOrderByItem(expression, isDescending, isPositioned, nullsPosition);
 
@@ -3015,7 +3060,7 @@ string.Create(CultureInfo.InvariantCulture, $"TypeIndex or TypeArrayIndex ({Type
 					case QueryElementType.SetOperator :
 						{
 							var sqlQuery     = Read<SelectQuery>()!;
-							var setOperation = (SetOperation)ReadInt();
+							var setOperation = ReadEnum<SetOperation>();
 
 							obj = new SqlSetOperator(sqlQuery, setOperation);
 
@@ -3036,7 +3081,7 @@ string.Create(CultureInfo.InvariantCulture, $"TypeIndex or TypeArrayIndex ({Type
 
 					case QueryElementType.MergeOperationClause:
 						{
-							var operationType = (MergeOperationType)ReadInt();
+							var operationType = ReadEnum<MergeOperationType>();
 							var where         = Read<SqlSearchCondition>()!;
 							var whereDelete   = Read<SqlSearchCondition>()!;
 							var items         = ReadArray<SqlSetExpression>()!;
@@ -3070,7 +3115,7 @@ string.Create(CultureInfo.InvariantCulture, $"TypeIndex or TypeArrayIndex ({Type
 
 					case QueryElementType.MultiInsertStatement :
 						{
-							var insertType   = (MultiInsertType)ReadInt();
+							var insertType   = ReadEnum<MultiInsertType>();
 							var source       = Read<SqlTableLikeSource>()!;
 							var inserts      = ReadList<SqlConditionalInsertClause>()!;
 							var extensions   = ReadList<SqlQueryExtension>();
@@ -3151,7 +3196,7 @@ string.Create(CultureInfo.InvariantCulture, $"TypeIndex or TypeArrayIndex ({Type
 					case QueryElementType.SqlQueryExtension:
 						{
 							var configuration = ReadString();
-							var scope         = (Sql.QueryExtensionScope)ReadInt();
+							var scope         = ReadEnum<Sql.QueryExtensionScope>();
 							var builderType   = ReadType(RemoteTypeRole.Builder);
 							var arguments     = new Dictionary<string,ISqlExpression>(StringComparer.Ordinal);
 
@@ -3199,8 +3244,8 @@ string.Create(CultureInfo.InvariantCulture, $"TypeIndex or TypeArrayIndex ({Type
 					{
 						var dataType   = ReadDbDataType();
 						var value      = Read<ISqlExpression>();
-						var domain     = (SqlIntervalDomain)ReadInt();
-						var resolution = (SqlIntervalUnit)ReadInt();
+						var domain     = ReadEnum<SqlIntervalDomain>();
+						var resolution = ReadEnum<SqlIntervalUnit>();
 						var isSigned   = ReadBool();
 
 						obj = new SqlIntervalExpression(value!, dataType, new SqlIntervalType(domain, resolution, isSigned));
@@ -3213,8 +3258,8 @@ string.Create(CultureInfo.InvariantCulture, $"TypeIndex or TypeArrayIndex ({Type
 						var dataType   = ReadDbDataType();
 						var start      = Read<ISqlExpression>();
 						var end        = Read<ISqlExpression>();
-						var domain     = (SqlIntervalDomain)ReadInt();
-						var resolution = (SqlIntervalUnit)ReadInt();
+						var domain     = ReadEnum<SqlIntervalDomain>();
+						var resolution = ReadEnum<SqlIntervalUnit>();
 						var isSigned   = ReadBool();
 
 						obj = new SqlIntervalDifferenceExpression(start!, end!, dataType, new SqlIntervalType(domain, resolution, isSigned));
@@ -3226,8 +3271,8 @@ string.Create(CultureInfo.InvariantCulture, $"TypeIndex or TypeArrayIndex ({Type
 					{
 						var dataType = ReadDbDataType();
 						var interval = Read<ISqlExpression>();
-						var unit     = (SqlIntervalUnit)ReadInt();
-						var kind     = (SqlIntervalPartKind)ReadInt();
+						var unit     = ReadEnum<SqlIntervalUnit>();
+						var kind     = ReadEnum<SqlIntervalPartKind>();
 						var within   = ReadInt();
 
 						obj = new SqlIntervalPartExpression(interval!, unit, kind, dataType, within < 0 ? null : (SqlIntervalUnit)within);
@@ -3325,10 +3370,10 @@ string.Create(CultureInfo.InvariantCulture, $"TypeIndex or TypeArrayIndex ({Type
 						var partitionBy                 = ReadArray<ISqlExpression>()!;
 						var frame                       = Read<SqlFrameClause>();
 						var keepClause                  = Read<SqlKeepClause>();
-						var nullTreatment               = (Sql.Nulls)ReadInt();
-						var fromPosition                = (Sql.From)ReadInt();
+						var nullTreatment               = ReadEnum<Sql.Nulls>();
+						var fromPosition                = ReadEnum<Sql.From>();
 						var isWindowFunction            = ReadBool();
-						var argumentDomain              = (SqlArgumentDomain)ReadInt();
+						var argumentDomain              = ReadEnum<SqlArgumentDomain>();
 
 						#pragma warning disable LINQ2DB0007 // wire text, checked by RemoteQueryValidator after deserialization
 						obj = new SqlExtendedFunction(functionType, name, arguments, argumentsNullability, withinGroup : withinGroup, partitionBy : partitionBy, orderBy : orderBy,
@@ -3344,7 +3389,7 @@ string.Create(CultureInfo.InvariantCulture, $"TypeIndex or TypeArrayIndex ({Type
 					{
 						var expression = Read<ISqlExpression>()!;
 						var suffix     = Read<ISqlExpression>();
-						var modifier   = (Sql.AggregateModifier)ReadInt();
+						var modifier   = ReadEnum<Sql.AggregateModifier>();
 
 						obj = new SqlFunctionArgument(expression, modifier, suffix);
 
@@ -3355,7 +3400,7 @@ string.Create(CultureInfo.InvariantCulture, $"TypeIndex or TypeArrayIndex ({Type
 					{
 						var expression    = Read<ISqlExpression>()!;
 						var isDescending  = ReadBool();
-						var nullsPosition = (Sql.NullsPosition)ReadInt();
+						var nullsPosition = ReadEnum<Sql.NullsPosition>();
 
 						obj = new SqlWindowOrderItem(expression, isDescending, nullsPosition);
 
@@ -3365,9 +3410,9 @@ string.Create(CultureInfo.InvariantCulture, $"TypeIndex or TypeArrayIndex ({Type
 					case QueryElementType.SqlFrameClause:
 					{
 						var start     = Read<SqlFrameBoundary>()!;
-						var frameType = (SqlFrameClause.FrameTypeKind)ReadInt();
+						var frameType = ReadEnum<SqlFrameClause.FrameTypeKind>();
 						var end       = Read<SqlFrameBoundary>()!;
-						var exclusion = (SqlFrameClause.FrameExclusionKind)ReadInt();
+						var exclusion = ReadEnum<SqlFrameClause.FrameExclusionKind>();
 
 						obj = new SqlFrameClause(frameType, start, end, exclusion);
 
@@ -3377,7 +3422,7 @@ string.Create(CultureInfo.InvariantCulture, $"TypeIndex or TypeArrayIndex ({Type
 					case QueryElementType.SqlFrameBoundary:
 					{
 						var isPreceding  = ReadBool();
-						var boundaryType = (SqlFrameBoundary.FrameBoundaryType)ReadInt();
+						var boundaryType = ReadEnum<SqlFrameBoundary.FrameBoundaryType>();
 						var offset       = Read<ISqlExpression>();
 
 						obj = new SqlFrameBoundary(isPreceding, boundaryType, offset);
@@ -3387,7 +3432,7 @@ string.Create(CultureInfo.InvariantCulture, $"TypeIndex or TypeArrayIndex ({Type
 
 					case QueryElementType.SqlKeepClause:
 					{
-						var keepType = (SqlKeepClause.KeepType)ReadInt();
+						var keepType = ReadEnum<SqlKeepClause.KeepType>();
 						var orderBy  = ReadArray<SqlWindowOrderItem>()!;
 
 						obj = new SqlKeepClause(keepType, orderBy.ToList());
