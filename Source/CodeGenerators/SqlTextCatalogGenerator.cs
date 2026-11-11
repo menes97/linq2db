@@ -86,7 +86,7 @@ namespace CodeGenerators
 
 			foreach (var text in baselines)
 				foreach (var line in (text ?? "").Split('\n'))
-					if (line.TrimEnd('\r') is { Length: > 0 } entry && entry[0] != '#')
+					if (line.TrimEnd() is { Length: > 0 } entry && entry[0] != '#')
 						expected.Add(entry);
 
 			var actual = new HashSet<string>(generated.Select(FormatBaselineLine), StringComparer.Ordinal);
@@ -108,7 +108,8 @@ namespace CodeGenerators
 				context.ReportDiagnostic(Diagnostic.Create(BaselineRule, Location.None, $"{reported - MaxReported} more {BaselineFileName} differences are not listed."));
 		}
 
-		// <kind> TAB <partition or -> TAB <text>, with backslash, tab, CR and LF escaped
+		// <kind> TAB <partition or -> TAB <text>, with backslash, tab, CR and LF escaped. A line never ends in whitespace,
+		// which editors and the build log strip: trailing spaces are written as \s and an empty text as \e.
 		static string FormatBaselineLine(Item item)
 		{
 			var text = item.Text
@@ -116,6 +117,10 @@ namespace CodeGenerators
 				.Replace("\t", "\\t")
 				.Replace("\r", "\\r")
 				.Replace("\n", "\\n");
+
+			var trimmed = text.TrimEnd(' ');
+
+			text = text.Length == 0 ? "\\e" : trimmed + string.Concat(Enumerable.Repeat("\\s", text.Length - trimmed.Length));
 
 			return KindNames[item.Kind] + "\t" + (item.Partition ?? "-") + "\t" + text;
 		}
@@ -229,6 +234,9 @@ namespace CodeGenerators
 			if (model.GetSymbolInfo(attribute).Symbol is not IMethodSymbol constructor)
 				return [];
 
+			if (IsSqlAttribute(constructor.ContainingType, "QueryExtensionAttribute"))
+				return TransformQueryExtension(attribute, constructor, model);
+
 			var attributeKind = GetAttributeKind(constructor.ContainingType);
 
 			if (attributeKind == null)
@@ -241,6 +249,46 @@ namespace CodeGenerators
 				return [];
 
 			return [new Item(attributeKind.Value, text, GetPartition(owner), owner?.ContainingType?.Name, attributeKind == ExpressionKind)];
+		}
+
+		static bool IsSqlAttribute(INamedTypeSymbol? type, string name)
+		{
+			return type is { ContainingType.Name: "Sql" }
+				&& type.ContainingType.ContainingNamespace?.ToDisplayString() == "LinqToDB"
+				&& type.Name == name;
+		}
+
+		/// <summary>
+		/// Catalogues the <c>extensionArgument</c> texts of a <c>[Sql.QueryExtension]</c>, which reach the builder as
+		/// <c>.ExtensionArguments.{n}</c>; a params array is passed as the trailing positional arguments.
+		/// </summary>
+		static ImmutableArray<Item> TransformQueryExtension(AttributeSyntax attribute, IMethodSymbol constructor, SemanticModel model)
+		{
+			if (attribute.ArgumentList == null || constructor.Parameters.IsEmpty)
+				return [];
+
+			var owner  = model.GetDeclaredSymbol(attribute.Parent!.Parent!);
+			var result = ImmutableArray.CreateBuilder<Item>();
+			var last   = constructor.Parameters[constructor.Parameters.Length - 1];
+			var index  = 0;
+
+			foreach (var argument in attribute.ArgumentList.Arguments)
+			{
+				if (argument.NameEquals != null || argument.NameColon != null)
+					continue;
+
+				var parameter = index < constructor.Parameters.Length ? constructor.Parameters[index] : last.IsParams ? last : null;
+
+				index++;
+
+				if (parameter == null || !parameter.Name.StartsWith("extensionArgument", StringComparison.Ordinal))
+					continue;
+
+				if (model.GetConstantValue(argument.Expression) is { HasValue: true, Value: string text })
+					result.Add(new Item(ExtensionArgumentKind, text, GetPartition(owner), owner?.ContainingType?.Name, false));
+			}
+
+			return result.ToImmutable();
 		}
 
 		static int? GetAttributeKind(INamedTypeSymbol? type)

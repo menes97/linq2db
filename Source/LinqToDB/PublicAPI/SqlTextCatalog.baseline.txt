@@ -600,7 +600,10 @@ Expression	Sybase	weekday
 Expression	Sybase	year
 Expression	Ydb	CAST(Re2::Replace({0})(CAST({1} AS String?), '') AS Utf8?)
 Expression	Ydb	Unwrap(CAST({0} AS Int32?))
+ExtensionArgument	-	,\s
+ExtensionArgument	-	\s
 ExtensionArgument	Access	WITH OWNERACCESS OPTION
+ExtensionArgument	ClickHouse	\s
 ExtensionArgument	ClickHouse	ALL
 ExtensionArgument	ClickHouse	ANTI
 ExtensionArgument	ClickHouse	ANY
@@ -616,6 +619,8 @@ ExtensionArgument	ClickHouse	GLOBAL SEMI
 ExtensionArgument	ClickHouse	OUTER
 ExtensionArgument	ClickHouse	SEMI
 ExtensionArgument	ClickHouse	SETTINGS
+ExtensionArgument	MySql	,\s
+ExtensionArgument	MySql	\s
 ExtensionArgument	MySql	BKA
 ExtensionArgument	MySql	BNL
 ExtensionArgument	MySql	DERIVED_CONDITION_PUSHDOWN
@@ -679,6 +684,8 @@ ExtensionArgument	MySql	USE KEY
 ExtensionArgument	MySql	USE KEY FOR GROUP BY
 ExtensionArgument	MySql	USE KEY FOR JOIN
 ExtensionArgument	MySql	USE KEY FOR ORDER BY
+ExtensionArgument	Oracle	,\s
+ExtensionArgument	Oracle	\s
 ExtensionArgument	Oracle	ALL_ROWS
 ExtensionArgument	Oracle	APPEND
 ExtensionArgument	Oracle	APPEND_VALUES
@@ -811,6 +818,7 @@ ExtensionArgument	SqlServer	MERGE UNION
 ExtensionArgument	SqlServer	NO_PERFORMANCE_SPOOL
 ExtensionArgument	SqlServer	NoLock
 ExtensionArgument	SqlServer	NoWait
+ExtensionArgument	SqlServer	OPTIMIZE FOR
 ExtensionArgument	SqlServer	OPTIMIZE FOR UNKNOWN
 ExtensionArgument	SqlServer	ORDER GROUP
 ExtensionArgument	SqlServer	PagLock
@@ -830,10 +838,10 @@ ExtensionArgument	SqlServer	Snapshot
 ExtensionArgument	SqlServer	TabLock
 ExtensionArgument	SqlServer	TabLockX
 ExtensionArgument	SqlServer	UpdLock
+ExtensionArgument	SqlServer	USE HINT
 ExtensionArgument	SqlServer	XLock
 ExtensionArgument	Ydb	distinct
 ExtensionArgument	Ydb	unique
-Fragment	-	
 Fragment	-	!!!
 Fragment	-	({0})
 Fragment	-	(SELECT NULL)
@@ -842,6 +850,7 @@ Fragment	-	{0} NULLS FIRST
 Fragment	-	{0} NULLS LAST
 Fragment	-	{0}, {1}
 Fragment	-	*
+Fragment	-	\e
 Fragment	-	ALL
 Fragment	-	day
 Fragment	-	dayofyear
@@ -891,7 +900,7 @@ Fragment	Oracle	DECLARE\n\tl_value number;\nBEGIN\n\tEXECUTE IMMEDIATE 'SELECT {
 Fragment	Oracle	SYSTIMESTAMP
 Fragment	PostgreSQL	ALL
 Fragment	PostgreSQL	DISTINCT
-Fragment	SapHana	
+Fragment	SapHana	\e
 Fragment	SqlCe	ALTER TABLE {0} ALTER COLUMN {1} IDENTITY(1, 1)
 Fragment	SQLite	UPDATE SQLITE_SEQUENCE SET SEQ=0 WHERE NAME={0}
 Fragment	SqlServer	'BaseType'
@@ -1089,7 +1098,7 @@ Function	-	VAR_POP
 Function	-	VAR_SAMP
 Function	-	VarChar
 Function	-	VARIANCE
-Function	Access	
+Function	Access	\e
 Function	Access	ABS
 Function	Access	CBool
 Function	Access	CDate

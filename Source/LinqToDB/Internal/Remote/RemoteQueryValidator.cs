@@ -60,11 +60,13 @@ namespace LinqToDB.Internal.Remote
 			"+", "-", "*", "/", "%", "&", "|", "^", "||",
 		};
 
-		static readonly string[] _commonKeys = [".MethodName", ".ExtensionArguments.*", "hint"];
+		static readonly string[] _commonKeys = [".MethodName", ".ExtensionArguments.Count", ".ExtensionArguments.*", "hint"];
+
+		const string NoneBuilder = "LinqToDB.SqlQuery.NoneExtensionBuilder";
 
 		static readonly Dictionary<string,string[]> _builderKeys = new(StringComparer.Ordinal)
 		{
-			["LinqToDB.SqlQuery.NoneExtensionBuilder"]                                                 = [],
+			[NoneBuilder]                                                                              = [],
 			["LinqToDB.Internal.SqlProvider.HintExtensionBuilder"]                                     = _commonKeys,
 			["LinqToDB.Internal.SqlProvider.HintWithParameterExtensionBuilder"]                        = [.._commonKeys, "hintParameter"],
 			["LinqToDB.Internal.SqlProvider.HintWithParametersExtensionBuilder"]                       = [.._commonKeys, "hintParameters.Count", "hintParameters.*"],
@@ -292,6 +294,10 @@ namespace LinqToDB.Internal.Remote
 				policy.RejectBuilder(extension.BuilderType?.FullName ?? "<none>");
 				return;
 			}
+
+			// the builder for a hint aimed at another provider renders nothing, so its arguments never reach the SQL
+			if (string.Equals(builderName, NoneBuilder, StringComparison.Ordinal))
+				return;
 
 			foreach (var pair in extension.Arguments)
 			{
