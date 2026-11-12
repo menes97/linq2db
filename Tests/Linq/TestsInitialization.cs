@@ -43,9 +43,9 @@ public class TestsInitialization
 		// this file is linked into the Playground too, so the assembly is whichever one runs the tests
 		Tests.Remote.TestLinqService.RegisterTestAssembly(typeof(TestsInitialization).Assembly);
 
-		// the F# and VB test models reach remote contexts too; the Playground does not reference the VB one
+		// the F# and VB test models and the Identity stores' entities reach remote contexts too; the Playground lacks some of them
 		foreach (var reference in typeof(TestsInitialization).Assembly.GetReferencedAssemblies())
-			if (reference.Name is "linq2db.Tests.FSharp" or "Tests.VisualBasic")
+			if (reference.Name is "linq2db.Tests.FSharp" or "Tests.VisualBasic" or "linq2db.Identity" or "Microsoft.Extensions.Identity.Core" or "Microsoft.Extensions.Identity.Stores")
 				Tests.Remote.TestLinqService.RegisterTestAssembly(Assembly.Load(reference));
 
 #if NET8_0_OR_GREATER
