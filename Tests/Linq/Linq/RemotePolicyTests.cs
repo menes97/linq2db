@@ -349,6 +349,22 @@ namespace Tests.Linq
 		}
 
 		[Test]
+		public void LineCommentQueryHintIsAccepted()
+		{
+			var service = new SQLiteService();
+
+			// a query hint is written on a line of its own, so its comment ends there
+			service.SqlText.Add(SqlTextKind.QueryHint, "-- MARKER comment");
+
+			Assert.Throws<ArgumentException>(() => service.SqlText.Add(SqlTextKind.QueryHint, "-- MARKER {0}"));
+
+			// the same text in a position written inline still leaves the comment open
+			Assert.Throws<ArgumentException>(() => service.SqlText.Add(SqlTextKind.Expression, "-- MARKER comment"));
+
+			service.DumpSqlText().ShouldContain(static e => e.Kind == SqlTextKind.QueryHint && e.State == SqlTextEntryState.Allowed);
+		}
+
+		[Test]
 		public void LoadRefusesQuotedFormatItemAndAppliesNothing()
 		{
 			var service = new SQLiteService();

@@ -53,7 +53,7 @@ namespace LinqToDB.Remote
 		{
 			ArgumentNullException.ThrowIfNull(text);
 
-			if (GetRefusal(text) is { } refusal)
+			if (GetRefusal(kind, text) is { } refusal)
 				throw new ArgumentException(refusal, nameof(text));
 
 			lock (_sync)
@@ -81,19 +81,22 @@ namespace LinqToDB.Remote
 		/// Gets why <paramref name="text"/> can never be a catalog entry, whatever the provider, or <see langword="null"/>.
 		/// Brackets, backticks and dollar quotes depend on the provider and are checked by <see cref="IsRefused"/>.
 		/// </summary>
-		internal static string? GetRefusal(string text)
+		internal static string? GetRefusal(SqlTextKind kind, string text)
 		{
 			// "{}" counts as a format item too: it is how exported text spells a placeholder
-			return SqlTextQuoting.TryFindQuotedToken(text, SqlTextQuoting.Dialect.AlwaysOn, out var index)
+			return SqlTextQuoting.TryFindQuotedToken(AsRendered(kind, text), SqlTextQuoting.Dialect.AlwaysOn, out var index)
 				? string.Create(CultureInfo.InvariantCulture, $"The text has a format item inside a quoted literal or a comment, or leaves one open, at position {index}.")
 				: null;
 		}
 
 		/// <summary>Whether <paramref name="text"/> must not be accepted for a provider with <paramref name="dialect"/>.</summary>
-		internal static bool IsRefused(string text, SqlTextQuoting.Dialect dialect)
+		internal static bool IsRefused(SqlTextKind kind, string text, SqlTextQuoting.Dialect dialect)
 		{
-			return SqlTextQuoting.TryFindQuotedToken(text, dialect, out _);
+			return SqlTextQuoting.TryFindQuotedToken(AsRendered(kind, text), dialect, out _);
 		}
+
+		// each query hint is written on a line of its own (BasicSqlBuilder.ApplyQueryHints), so a line comment ends with it
+		static string AsRendered(SqlTextKind kind, string text) => kind == SqlTextKind.QueryHint ? text + "\n" : text;
 
 		internal RemoteRejectionReason? Check(SqlTextKind kind, string text, SqlTextSources sources, SqlTextQuoting.Dialect dialect)
 		{
@@ -103,7 +106,7 @@ namespace LinqToDB.Remote
 			if (state.Removed.Contains(key) || sources.Removed.ContainsKey(key))
 				return RemoteRejectionReason.TextRemovedFromCatalog;
 
-			if (sources.Allowed.ContainsKey(key) || state.Added.Contains(key) && !IsRefused(key.Item2, dialect))
+			if (sources.Allowed.ContainsKey(key) || state.Added.Contains(key) && !IsRefused(kind, key.Item2, dialect))
 				return null;
 
 			var canonical = key.Item2;
@@ -137,7 +140,7 @@ namespace LinqToDB.Remote
 
 				var entryState =
 					state.Removed.Contains(key) || sources.Removed.ContainsKey(key) ? SqlTextEntryState.Removed :
-					IsRefused(key.Text, dialect)                                    ? SqlTextEntryState.Refused :
+					IsRefused(key.Kind, key.Text, dialect)                          ? SqlTextEntryState.Refused :
 					                                                                  SqlTextEntryState.Allowed;
 
 				entries.Add(new(key.Kind, key.Text, HostSource, null, entryState));
@@ -227,7 +230,7 @@ namespace LinqToDB.Remote
 				if (!_kindNames.Contains(kindName, StringComparer.Ordinal) || !Enum.TryParse<SqlTextKind>(kindName, false, out var kind))
 					throw new FormatException(string.Create(CultureInfo.InvariantCulture, $"SQL text catalog line {number}: unknown kind '{kindName}'."));
 
-				if (add && GetRefusal(text) is { } refusal)
+				if (add && GetRefusal(kind, text) is { } refusal)
 					throw new FormatException(string.Create(CultureInfo.InvariantCulture, $"SQL text catalog line {number}: {refusal}"));
 
 				(add ? adds : removes).Add((kind, Canonicalize(text)));
@@ -309,7 +312,7 @@ namespace LinqToDB.Remote
 				{
 					var canonical = Canonicalize(text);
 
-					if (!item.IsRemoval && GetRefusal(canonical) != null || !seen.Add((item.Kind, canonical, item.IsRemoval)))
+					if (!item.IsRemoval && GetRefusal(item.Kind, canonical) != null || !seen.Add((item.Kind, canonical, item.IsRemoval)))
 						continue;
 
 					entries.Add(new(item.Kind, canonical, source, item.Origin, item.IsRemoval ? SqlTextEntryState.Removed : SqlTextEntryState.Allowed));

@@ -158,7 +158,7 @@ namespace LinqToDB.Internal.Remote
 
 				// a text with a format item in a quoted context of this provider is not accepted, whichever assembly declares it
 				foreach (var pair in entries.Allowed)
-					if (!allowed.ContainsKey(pair.Key) && !SqlTextCatalog.IsRefused(pair.Key.Text, dialect))
+					if (!allowed.ContainsKey(pair.Key) && !SqlTextCatalog.IsRefused(pair.Key.Kind, pair.Key.Text, dialect))
 						allowed.Add(pair.Key, new SqlTextOrigin(source, pair.Value));
 
 				foreach (var pair in entries.Removed)
