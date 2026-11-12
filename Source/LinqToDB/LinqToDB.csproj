@@ -178,4 +178,10 @@
 		<AdditionalFiles Include="PublicAPI/SqlTextCatalog.baseline.txt" />
 		<AdditionalFiles Include="PublicAPI/$(TargetFramework)/SqlTextCatalog.baseline.txt" Condition="Exists('PublicAPI/$(TargetFramework)/SqlTextCatalog.baseline.txt')" />
 	</ItemGroup>
+
+	<ItemGroup>
+		<!-- shared with the catalog generators, which cannot reference this assembly -->
+		<Compile Include="$(MSBuildThisFileDirectory)..\LinqToDB.Analyzers\SqlTextQuoting.cs"   Link="Remote\SqlTextQuoting.cs" />
+		<Compile Include="$(MSBuildThisFileDirectory)..\LinqToDB.Analyzers\SqlTextLineFormat.cs" Link="Remote\SqlTextLineFormat.cs" />
+	</ItemGroup>
 </Project>

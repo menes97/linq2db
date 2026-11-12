@@ -25,6 +25,8 @@
 		     identical cases. The two Roslyn components cannot reference each other, so it is linked rather
 		     than duplicated - the same per-file Include+Link idiom LinqToDB.Compat uses. -->
 		<Compile Include="$(MSBuildThisFileDirectory)..\LinqToDB.Analyzers\ServerSideOnlyContract.cs" Link="ServerSideOnlyContract.cs" />
+		<Compile Include="$(MSBuildThisFileDirectory)..\LinqToDB.Analyzers\SqlTextQuoting.cs"         Link="SqlTextQuoting.cs" />
+		<Compile Include="$(MSBuildThisFileDirectory)..\LinqToDB.Analyzers\SqlTextLineFormat.cs"      Link="SqlTextLineFormat.cs" />
 	</ItemGroup>
 
 </Project>

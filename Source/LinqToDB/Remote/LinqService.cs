@@ -128,7 +128,7 @@ namespace LinqToDB.Remote
 		{
 			using var db = CreateDataContext(configuration);
 
-			return SqlText.Dump(RemoteQueryPolicy.GetTextSources(db, MappingAssemblies));
+			return SqlText.Dump(RemoteQueryPolicy.GetTextSources(db, MappingAssemblies), RemoteQueryPolicy.GetDialect(db));
 		}
 
 		public MappingSchema? MappingSchema

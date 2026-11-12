@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 
+using LinqToDB.Analyzers;
 using LinqToDB.Data;
 using LinqToDB.Internal.SqlQuery;
 using LinqToDB.Mapping;
@@ -43,9 +44,11 @@ namespace LinqToDB.Internal.Remote
 		readonly SqlTextCatalog                                                        _catalog;
 		readonly IReadOnlyDictionary<(SqlTextKind Kind, string Text), SqlTextOrigin> _sources;
 		readonly Assembly                                                              _driverAssembly;
+		readonly SqlTextQuoting.Dialect                                                _dialect;
 
-		RemoteQueryPolicy(MappingSchema schema, IEnumerable<Assembly> nameAssemblies, IEnumerable<Assembly> entityAssemblies, IEnumerable<Assembly> builderAssemblies, string? provider, string? configuration, SqlTextCatalog catalog, IReadOnlyDictionary<(SqlTextKind Kind, string Text), SqlTextOrigin> sources, Assembly driverAssembly)
+		RemoteQueryPolicy(MappingSchema schema, IEnumerable<Assembly> nameAssemblies, IEnumerable<Assembly> entityAssemblies, IEnumerable<Assembly> builderAssemblies, string? provider, string? configuration, SqlTextCatalog catalog, IReadOnlyDictionary<(SqlTextKind Kind, string Text), SqlTextOrigin> sources, Assembly driverAssembly, SqlTextQuoting.Dialect dialect)
 		{
+			_dialect           = dialect;
 			_driverAssembly    = driverAssembly;
 			_catalog           = catalog;
 			_sources           = sources;
@@ -88,8 +91,17 @@ namespace LinqToDB.Internal.Remote
 
 			var builderAssemblies = new List<Assembly>(mapping) { typeof(DataConnection).Assembly, providerAssembly };
 
-			return new RemoteQueryPolicy(connection.MappingSchema, nameAssemblies, mapping, builderAssemblies, connection.DataProvider.Name, configuration, catalog ?? new SqlTextCatalog(), GetTextSources(connection, mapping), connection.DataProvider.DataReaderType.Assembly);
+			return new RemoteQueryPolicy(connection.MappingSchema, nameAssemblies, mapping, builderAssemblies, connection.DataProvider.Name, configuration, catalog ?? new SqlTextCatalog(), GetTextSources(connection, mapping), connection.DataProvider.DataReaderType.Assembly, GetDialect(connection));
 		}
+
+		/// <summary>Gets the quoting contexts of the provider serving <paramref name="connection"/>; all of them for a provider outside the library.</summary>
+		internal static SqlTextQuoting.Dialect GetDialect(DataConnection connection)
+		{
+			return SqlTextQuoting.GetDialect(GetProviderFamily(connection.DataProvider.GetType()));
+		}
+
+		/// <summary>Gets the quoting contexts this policy refuses format items in.</summary>
+		internal SqlTextQuoting.Dialect Dialect => _dialect;
 
 		/// <summary>
 		/// Gets the library, provider and mapping assembly entries of the catalog for requests served by <paramref name="connection"/>.
@@ -99,6 +111,7 @@ namespace LinqToDB.Internal.Remote
 		{
 			var providerAssembly = connection.DataProvider.GetType().Assembly;
 			var sources          = new Dictionary<(SqlTextKind Kind, string Text), SqlTextOrigin>();
+			var dialect          = GetDialect(connection);
 
 			Merge(typeof(DataConnection).Assembly, GetProviderFamily(connection.DataProvider.GetType()));
 
@@ -114,8 +127,9 @@ namespace LinqToDB.Internal.Remote
 			{
 				var source = assembly.GetName().Name ?? assembly.FullName ?? "";
 
+				// a text with a format item in a quoted context of this provider is not accepted, whichever assembly declares it
 				foreach (var pair in SqlTextCatalog.GetAssemblySources(assembly, family))
-					if (!sources.ContainsKey(pair.Key))
+					if (!sources.ContainsKey(pair.Key) && !SqlTextCatalog.IsRefused(pair.Key.Text, dialect))
 						sources.Add(pair.Key, new SqlTextOrigin(source, pair.Value));
 			}
 		}
@@ -285,7 +299,7 @@ namespace LinqToDB.Internal.Remote
 
 		internal void CheckText(SqlTextKind kind, string text, int argumentCount, string node)
 		{
-			var reason = _catalog.Check(kind, text, _sources);
+			var reason = _catalog.Check(kind, text, _sources, _dialect);
 
 			if (reason != null)
 			{

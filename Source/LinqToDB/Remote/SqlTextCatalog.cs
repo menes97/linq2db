@@ -8,6 +8,7 @@ using System.Reflection;
 using System.Text;
 using System.Threading;
 
+using LinqToDB.Analyzers;
 using LinqToDB.Extensions;
 using LinqToDB.Internal.Common;
 using LinqToDB.Internal.Remote;
@@ -28,23 +29,37 @@ namespace LinqToDB.Remote
 
 		readonly Lock _sync = new();
 
-		volatile HashSet<(SqlTextKind Kind, string Text)> _added   = new();
-		volatile HashSet<(SqlTextKind Kind, string Text)> _removed = new();
+		// one snapshot, so a reader never sees the additions of an edit without its removals
+		sealed class State(HashSet<(SqlTextKind Kind, string Text)> added, HashSet<(SqlTextKind Kind, string Text)> removed, int version)
+		{
+			public readonly HashSet<(SqlTextKind Kind, string Text)> Added   = added;
+			public readonly HashSet<(SqlTextKind Kind, string Text)> Removed = removed;
+			public readonly int                                      Version = version;
+		}
 
-		/// <summary>Incremented on every edit, so a host-side report of the catalog can tell it is stale.</summary>
-		internal int Version { get; private set; }
+		volatile State _state = new([], [], 0);
+
+		/// <summary>Incremented on every edit, so cached catalog views and host-side reports can tell they are stale.</summary>
+		internal int Version => _state.Version;
 
 		/// <summary>Allows <paramref name="text"/> for <paramref name="kind"/>.</summary>
 		/// <param name="kind">Position the text may be used at.</param>
 		/// <param name="text">SQL text.</param>
+		/// <exception cref="ArgumentException">
+		/// <paramref name="text"/> has a format item inside a quoted literal or a comment, or leaves one of them open.
+		/// A rendered argument would not be delimited there, so such text is never accepted.
+		/// </exception>
 		public void Add(SqlTextKind kind, string text)
 		{
 			ArgumentNullException.ThrowIfNull(text);
 
+			if (GetRefusal(text) is { } refusal)
+				throw new ArgumentException(refusal, nameof(text));
+
 			lock (_sync)
 			{
-				_added = new(_added) { (kind, Canonicalize(text)) };
-				Version++;
+				var state = _state;
+				_state = new([.. state.Added, (kind, Canonicalize(text))], state.Removed, state.Version + 1);
 			}
 		}
 
@@ -57,43 +72,70 @@ namespace LinqToDB.Remote
 
 			lock (_sync)
 			{
-				_removed = new(_removed) { (kind, Canonicalize(text)) };
-				Version++;
+				var state = _state;
+				_state = new(state.Added, [.. state.Removed, (kind, Canonicalize(text))], state.Version + 1);
 			}
 		}
 
-		internal RemoteRejectionReason? Check(SqlTextKind kind, string text, IReadOnlyDictionary<(SqlTextKind Kind, string Text), SqlTextOrigin> sources)
+		/// <summary>
+		/// Gets why <paramref name="text"/> can never be a catalog entry, whatever the provider, or <see langword="null"/>.
+		/// Brackets, backticks and dollar quotes depend on the provider and are checked by <see cref="IsRefused"/>.
+		/// </summary>
+		internal static string? GetRefusal(string text)
 		{
-			var key = (kind, Canonicalize(text));
+			// "{}" counts as a format item too: it is how exported text spells a placeholder
+			return SqlTextQuoting.TryFindQuotedToken(text, SqlTextQuoting.Dialect.AlwaysOn, out var index)
+				? string.Create(CultureInfo.InvariantCulture, $"The text has a format item inside a quoted literal or a comment, or leaves one open, at position {index}.")
+				: null;
+		}
 
-			if (_removed.Contains(key))
+		/// <summary>Whether <paramref name="text"/> must not be accepted for a provider with <paramref name="dialect"/>.</summary>
+		internal static bool IsRefused(string text, SqlTextQuoting.Dialect dialect)
+		{
+			return SqlTextQuoting.TryFindQuotedToken(text, dialect, out _);
+		}
+
+		internal RemoteRejectionReason? Check(SqlTextKind kind, string text, IReadOnlyDictionary<(SqlTextKind Kind, string Text), SqlTextOrigin> sources, SqlTextQuoting.Dialect dialect)
+		{
+			var state = _state;
+			var key   = (kind, Canonicalize(text));
+
+			if (state.Removed.Contains(key))
 				return RemoteRejectionReason.TextRemovedFromCatalog;
 
-			if (_added.Contains(key) || sources.ContainsKey(key))
+			if (sources.ContainsKey(key) || state.Added.Contains(key) && !IsRefused(key.Item2, dialect))
 				return null;
 
 			var canonical = key.Item2;
 
-			return _added.Concat(sources.Keys).Any(e => e.Kind != kind && string.Equals(e.Text, canonical, StringComparison.Ordinal))
+			return state.Added.Concat(sources.Keys).Any(e => e.Kind != kind && string.Equals(e.Text, canonical, StringComparison.Ordinal))
 				? RemoteRejectionReason.TextAllowedForOtherKind
 				: RemoteRejectionReason.TextNotInCatalog;
 		}
 
 		/// <summary>Lists every entry of the effective catalog over <paramref name="sources"/>, and removals that match nothing.</summary>
-		internal IReadOnlyList<SqlTextEntry> Dump(IReadOnlyDictionary<(SqlTextKind Kind, string Text), SqlTextOrigin> sources)
+		internal IReadOnlyList<SqlTextEntry> Dump(IReadOnlyDictionary<(SqlTextKind Kind, string Text), SqlTextOrigin> sources, SqlTextQuoting.Dialect dialect)
 		{
-			var added   = _added;
-			var removed = _removed;
-			var entries = new List<SqlTextEntry>(sources.Count + added.Count);
+			var state   = _state;
+			var entries = new List<SqlTextEntry>(sources.Count + state.Added.Count);
 
 			foreach (var pair in sources)
-				entries.Add(new(pair.Key.Kind, pair.Key.Text, pair.Value.Source, pair.Value.Origin, removed.Contains(pair.Key) ? SqlTextEntryState.Removed : SqlTextEntryState.Allowed));
+				entries.Add(new(pair.Key.Kind, pair.Key.Text, pair.Value.Source, pair.Value.Origin, state.Removed.Contains(pair.Key) ? SqlTextEntryState.Removed : SqlTextEntryState.Allowed));
 
-			foreach (var key in added)
-				if (!sources.ContainsKey(key))
-					entries.Add(new(key.Kind, key.Text, HostSource, null, removed.Contains(key) ? SqlTextEntryState.Removed : SqlTextEntryState.Allowed));
+			foreach (var key in state.Added)
+			{
+				if (sources.ContainsKey(key))
+					continue;
 
-			foreach (var (kind, text) in GetStaleRemovals(sources))
+				var entryState =
+					state.Removed.Contains(key)   ? SqlTextEntryState.Removed :
+					IsRefused(key.Text, dialect) ? SqlTextEntryState.Refused :
+					                               SqlTextEntryState.Allowed;
+
+				entries.Add(new(key.Kind, key.Text, HostSource, null, entryState));
+			}
+
+			foreach (var (kind, text) in GetStaleRemovals(state, sources))
 				entries.Add(new(kind, text, HostSource, null, SqlTextEntryState.StaleRemoval));
 
 			entries.Sort(static (x, y) => x.Kind != y.Kind ? x.Kind.CompareTo(y.Kind) : string.CompareOrdinal(x.Text, y.Text));
@@ -104,9 +146,12 @@ namespace LinqToDB.Remote
 		/// <summary>Removals that match no entry of <paramref name="sources"/> and no host addition: usually a typo or a text the library no longer produces.</summary>
 		internal IEnumerable<(SqlTextKind Kind, string Text)> GetStaleRemovals(IReadOnlyDictionary<(SqlTextKind Kind, string Text), SqlTextOrigin> sources)
 		{
-			var added = _added;
+			return GetStaleRemovals(_state, sources);
+		}
 
-			return _removed.Where(key => !sources.ContainsKey(key) && !added.Contains(key));
+		static IEnumerable<(SqlTextKind Kind, string Text)> GetStaleRemovals(State state, IReadOnlyDictionary<(SqlTextKind Kind, string Text), SqlTextOrigin> sources)
+		{
+			return state.Removed.Where(key => !sources.ContainsKey(key) && !state.Added.Contains(key));
 		}
 
 		/// <summary>Writes the host's additions and removals in the format <see cref="Load"/> reads.</summary>
@@ -116,15 +161,15 @@ namespace LinqToDB.Remote
 		{
 			ArgumentNullException.ThrowIfNull(writer);
 
-			var removed = _removed;
+			var state = _state;
 
-			Export(writer, _added.Where(key => !removed.Contains(key)).Select(static key => new SqlTextEntry(key.Kind, key.Text, HostSource, null, SqlTextEntryState.Allowed))
-				.Concat(removed.Select(static key => new SqlTextEntry(key.Kind, key.Text, HostSource, null, SqlTextEntryState.Removed))));
+			Export(writer, state.Added.Where(key => !state.Removed.Contains(key)).Select(static key => new SqlTextEntry(key.Kind, key.Text, HostSource, null, SqlTextEntryState.Allowed))
+				.Concat(state.Removed.Select(static key => new SqlTextEntry(key.Kind, key.Text, HostSource, null, SqlTextEntryState.Removed))));
 		}
 
 		static readonly string[] _kindNames = Enum.GetNames<SqlTextKind>();
 
-		const string ExportHeader ="# linq2db SQL text catalog: '+' allows, '-' removes; kind and text are tab-separated";
+		const string ExportHeader = "# linq2db SQL text catalog: '+' allows, '-' removes; kind and text are tab-separated; \\s is a trailing space, \\e an empty text";
 
 		/// <summary>Writes <paramref name="entries"/> in the format <see cref="Load"/> reads: allowed entries as additions, the rest as removals.</summary>
 		/// <param name="writer">Target writer.</param>
@@ -137,18 +182,14 @@ namespace LinqToDB.Remote
 			writer.WriteLine(ExportHeader);
 
 			foreach (var entry in entries)
-			{
-				writer.Write(entry.State == SqlTextEntryState.Allowed ? '+' : '-');
-				writer.Write('\t');
-				writer.Write(entry.Kind.ToString());
-				writer.Write('\t');
-				writer.WriteLine(Escape(entry.Text));
-			}
+				writer.WriteLine(SqlTextLineFormat.FormatEntry(entry.State == SqlTextEntryState.Allowed, entry.Kind.ToString(), entry.Text));
 		}
 
 		/// <summary>Applies additions and removals written by <see cref="Export(TextWriter)"/>.</summary>
 		/// <param name="reader">Source reader.</param>
-		/// <exception cref="FormatException">A line is not a valid entry. Nothing is applied in that case.</exception>
+		/// <exception cref="FormatException">
+		/// A line is not a valid entry, or adds a text <see cref="Add"/> refuses. Nothing is applied in that case.
+		/// </exception>
 		public void Load(TextReader reader)
 		{
 			ArgumentNullException.ThrowIfNull(reader);
@@ -161,66 +202,29 @@ namespace LinqToDB.Remote
 			{
 				number++;
 
-				if (line.Length == 0 || line[0] == '#')
-					continue;
-
-				var parts = line.Split('\t');
-
-				// a kind is matched by declared name only: TryParse alone also accepts numbers outside the enum
-				if (parts.Length != 3
-					|| parts[0] is not ("+" or "-")
-					|| !_kindNames.Contains(parts[1], StringComparer.Ordinal)
-					|| !Enum.TryParse<SqlTextKind>(parts[1], false, out var kind))
+				if (!SqlTextLineFormat.TryParseEntry(line, out var add, out var kindName, out var text, out var error))
 				{
-					throw new FormatException(string.Create(CultureInfo.InvariantCulture, $"SQL text catalog line {number} is not '+' or '-', a kind and a text separated by tabs."));
+					if (error == null)
+						continue;
+
+					throw new FormatException(string.Create(CultureInfo.InvariantCulture, $"SQL text catalog line {number}: {error}."));
 				}
 
-				(string.Equals(parts[0], "+", StringComparison.Ordinal) ? adds : removes).Add((kind, Unescape(parts[2], number)));
+				// a kind is matched by declared name only: TryParse alone also accepts numbers outside the enum
+				if (!_kindNames.Contains(kindName, StringComparer.Ordinal) || !Enum.TryParse<SqlTextKind>(kindName, false, out var kind))
+					throw new FormatException(string.Create(CultureInfo.InvariantCulture, $"SQL text catalog line {number}: unknown kind '{kindName}'."));
+
+				if (add && GetRefusal(text) is { } refusal)
+					throw new FormatException(string.Create(CultureInfo.InvariantCulture, $"SQL text catalog line {number}: {refusal}"));
+
+				(add ? adds : removes).Add((kind, Canonicalize(text)));
 			}
 
 			lock (_sync)
 			{
-				_added   = [.. _added,   .. adds   .Select(static e => (e.Kind, Canonicalize(e.Text)))];
-				_removed = [.. _removed, .. removes.Select(static e => (e.Kind, Canonicalize(e.Text)))];
-				Version++;
+				var state = _state;
+				_state = new([.. state.Added, .. adds], [.. state.Removed, .. removes], state.Version + 1);
 			}
-		}
-
-		static string Escape(string text)
-		{
-			return text
-				.Replace("\\", "\\\\", StringComparison.Ordinal)
-				.Replace("\t", "\\t",  StringComparison.Ordinal)
-				.Replace("\r", "\\r",  StringComparison.Ordinal)
-				.Replace("\n", "\\n",  StringComparison.Ordinal);
-		}
-
-		static string Unescape(string text, int number)
-		{
-			var sb = new StringBuilder(text.Length);
-
-			for (var i = 0; i < text.Length; i++)
-			{
-				if (text[i] != '\\')
-				{
-					sb.Append(text[i]);
-					continue;
-				}
-
-				if (++i == text.Length)
-					throw new FormatException(string.Create(CultureInfo.InvariantCulture, $"SQL text catalog line {number} ends with an escape character."));
-
-				sb.Append(text[i] switch
-				{
-					'\\' => '\\',
-					't'  => '\t',
-					'r'  => '\r',
-					'n'  => '\n',
-					_    => throw new FormatException(string.Create(CultureInfo.InvariantCulture, $"SQL text catalog line {number} has an unknown escape '\\{text[i]}'.")),
-				});
-			}
-
-			return sb.ToString();
 		}
 
 		static readonly ConcurrentDictionary<(Assembly Assembly, string? Family), Dictionary<(SqlTextKind Kind, string Text), string?>> _assemblyCache = new();
