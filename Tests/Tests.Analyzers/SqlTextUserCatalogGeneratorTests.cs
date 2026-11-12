@@ -142,6 +142,7 @@ namespace Tests.Analyzers
 						[Sql.Function]                                            public static int  NamedFn(int x)     => x;
 						[Sql.Function(Name = "NAMED_PROP_FN")]                    public static int  PropFn(int x)      => x;
 						[Sql.Property("USER_PROP")]                               public static int  Prop               => 0;
+						[Sql.Property]                                            public static int  NamedProp          => 0;
 						[Sql.Extension("USER_EXT({value}{_}{sep?})")]             public static int  Ext(int value)     => value;
 						[Sql.TableFunction("USER_TF", Schema = "TF_SCHEMA")]      public static ITable<Row> Tf()        => null;
 						[Sql.TableExpression("{0} {1} USER_TE", Name = "TE_NAME")] public static ITable<Row> Te()       => null;
@@ -159,7 +160,7 @@ namespace Tests.Analyzers
 
 			result.Output.Errors().ShouldBeEmpty();
 
-			result.Texts(SqlTextKind.Expression).ShouldBe(["NamedExpr", "USER_EXPR({0})", "USER_EXT({value}{_}{sep?})", "USER_PROP"], ignoreOrder: true);
+			result.Texts(SqlTextKind.Expression).ShouldBe(["NamedExpr", "NamedProp", "USER_EXPR({0})", "USER_EXT({value}{_}{sep?})", "USER_PROP"], ignoreOrder: true);
 			result.Texts(SqlTextKind.Function).ShouldBe(["NAMED_PROP_FN", "NamedFn", "USER_FN"], ignoreOrder: true);
 			result.Texts(SqlTextKind.TableExpression).ShouldBe(["{0} {1} USER_TE", "USER_TF"], ignoreOrder: true);
 			result.Texts(SqlTextKind.TableName).ShouldBe(["USER_TF", "TF_SCHEMA", "TE_NAME"], ignoreOrder: true);
