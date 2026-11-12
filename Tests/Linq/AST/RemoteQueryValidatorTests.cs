@@ -488,6 +488,26 @@ namespace Tests.AST
 		}
 
 		[Test]
+		public void ValueTypeInMappedAssemblyIsRejectedBeforeConversion()
+		{
+			using var db = CreateConnection();
+
+			var statement = SelectOf(new SqlValue(new DbDataType(typeof(string)), new RecordingValue("x")));
+			var policy    = Untrusted(db, _thisAssembly);
+
+			// the name resolves, so the rejection below comes from the value role, not from an unknown assembly
+			policy.TryResolveName(typeof(RecordingValue).AssemblyQualifiedName!, out var resolved).ShouldBeTrue();
+			resolved.ShouldBe(typeof(RecordingValue));
+
+			RecordingValue.StartCounting();
+
+			var exception = Assert.Throws<RemoteRequestRejectedException>(() => RoundTrip(db, statement, policy))!;
+
+			RecordingValue.Constructed.ShouldBe(0);
+			exception.Rejections[0].Reason.ShouldBe(RemoteRejectionReason.TypeNotAllowed);
+		}
+
+		[Test]
 		public void ValueTypeIsConvertedWhenTrusted()
 		{
 			using var db = CreateConnection();
