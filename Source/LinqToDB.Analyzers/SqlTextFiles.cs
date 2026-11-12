@@ -31,78 +31,34 @@ namespace LinqToDB.Analyzers
 
 			foreach (var line in text.Lines)
 			{
-				var content = line.ToString();
-
-				if (content.Length == 0 || content[0] == '#')
-					continue;
-
 				var location = Location.Create(file.Path, line.Span, text.Lines.GetLinePositionSpan(line.Span));
-				var parts    = content.Split('\t');
-				var number   = (line.LineNumber + 1).ToString(CultureInfo.InvariantCulture);
+				var prefix   = "Line " + (line.LineNumber + 1).ToString(CultureInfo.InvariantCulture) + " of '" + origin + "': ";
 
-				if (parts.Length != 3 || parts[0] is not ("+" or "-") || !collector.Kinds.Contains(parts[1]))
+				// the grammar is SqlTextCatalog.Load's, shared through SqlTextLineFormat; a blank or comment line has no error
+				if (!SqlTextLineFormat.TryParseEntry(line.ToString(), out var add, out var kind, out var value, out var error))
 				{
-					collector.Report(Diagnostic.Create(SqlTextUserCatalogGenerator.MalformedLineRule, location,
-						"Line " + number + " of '" + origin + "' is not '+' or '-', a SqlTextKind name and a text separated by tabs"));
+					if (error != null)
+						collector.Report(Diagnostic.Create(SqlTextUserCatalogGenerator.MalformedLineRule, location, prefix + error));
+
 					continue;
 				}
 
-				if (!TryUnescape(parts[2], out var value, out var error))
+				if (!collector.Kinds.Contains(kind))
 				{
-					collector.Report(Diagnostic.Create(SqlTextUserCatalogGenerator.MalformedLineRule, location, "Line " + number + " of '" + origin + "': " + error));
+					collector.Report(Diagnostic.Create(SqlTextUserCatalogGenerator.MalformedLineRule, location, prefix + "'" + kind + "' is not a SqlTextKind name"));
 					continue;
 				}
 
-				if (string.Equals(parts[0], "-", StringComparison.Ordinal))
+				if (!add)
 				{
 					// GHSA-B-TEMP: removals need the SqlTextItem removal flag; until it lands the line is reported, never dropped silently.
 					collector.Report(Diagnostic.Create(SqlTextUserCatalogGenerator.UnsupportedRule, location,
-						"Line " + number + " of '" + origin + "' removes an entry, which the referenced linq2db cannot express in a generated catalog"));
+						prefix + "removes an entry, which the referenced linq2db cannot express in a generated catalog"));
 					continue;
 				}
 
-				collector.AddFileEntry(parts[1], value, origin);
+				collector.AddFileEntry(kind, value, origin, location);
 			}
-		}
-
-		// GHSA-B-TEMP: replaced by the shared SqlTextLineFormat.cs once it lands.
-		static bool TryUnescape(string text, out string value, out string? error)
-		{
-			var sb = new StringBuilder(text.Length);
-
-			value = "";
-			error = null;
-
-			for (var i = 0; i < text.Length; i++)
-			{
-				if (text[i] != '\\')
-				{
-					sb.Append(text[i]);
-					continue;
-				}
-
-				if (++i == text.Length)
-				{
-					error = "A SQL text line ends with an escape character";
-					return false;
-				}
-
-				switch (text[i])
-				{
-					case '\\': sb.Append('\\'); break;
-					case 't' : sb.Append('\t'); break;
-					case 'r' : sb.Append('\r'); break;
-					case 'n' : sb.Append('\n'); break;
-					case 's' : sb.Append(' ');  break;
-					case 'e' : break;
-					default:
-						error = $"A SQL text line has an unknown escape '\\{text[i]}'";
-						return false;
-				}
-			}
-
-			value = sb.ToString();
-			return true;
 		}
 
 		/// <summary>

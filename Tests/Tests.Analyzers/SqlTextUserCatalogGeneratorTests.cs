@@ -222,6 +222,41 @@ namespace Tests.Analyzers
 
 		#endregion
 
+		#region Quoted format items (TO-21e)
+
+		[Test]
+		public async Task QuotedFormatItem_IsRefused()
+		{
+			var result = await GeneratorVerifier.RunAsync(Usings + """
+				static class Functions
+				{
+					[Sql.Expression("QUOTED('{0}')")]                    public static int Apostrophe(int x)   => x;
+					[Sql.Expression("QUOTED(\"{0}\")")]                  public static int DoubleQuote(int x)  => x;
+					[Sql.Expression("COMMENTED({0}) -- {1}")]            public static int Comment(int x)      => x;
+					[Sql.Extension("NAMED('%{part}', {date})")]          public static int Named(int date)     => date;
+					[Sql.Expression("ARRAY[{0}]")]                       public static int Array(int x)        => x;
+					[Sql.Expression("QUOTED_CONSTANT('{{0}}', {0})")]    public static int Escaped(int x)      => x;
+				}
+				""");
+
+			result.Diagnostics.Count(static d => d.Id == "L2DB1006").ShouldBe(4);
+			result.Texts(SqlTextKind.Expression).ShouldBe(["ARRAY[{0}]", "QUOTED_CONSTANT('{{0}}', {0})"], ignoreOrder: true);
+		}
+
+		[Test]
+		public async Task QuotedFormatItem_InAllowFile_IsRefused()
+		{
+			var result = await GeneratorVerifier.RunAsync("class C { }", files:
+			[
+				new(GeneratorVerifier.ProjectDir + "/allow.txt", "+\tExpression\tALLOW_QUOTED('{0}')\n+\tExpression\tALLOW_PLAIN({0})"),
+			]);
+
+			result.Diagnostics.Single().Id.ShouldBe("L2DB1006");
+			result.Texts(SqlTextKind.Expression).ShouldBe(["ALLOW_PLAIN({0})"]);
+		}
+
+		#endregion
+
 		#region Call sites (TO-21c)
 
 		[Test]

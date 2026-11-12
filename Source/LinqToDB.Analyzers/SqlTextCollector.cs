@@ -32,15 +32,27 @@ namespace LinqToDB.Analyzers
 		/// <summary>Adds a known text; <paramref name="owner"/> names its origin.</summary>
 		public void Add(string kind, string text, ISymbol? owner, Location location)
 		{
-			if (!Kinds.Contains(kind))
-				return;
+			if (Kinds.Contains(kind) && !IsRefused(text, location))
+				AddItem(kind, text, GetOrigin(owner), kind == "Expression" && HasNamedToken(text));
+		}
 
-			// GHSA-B-TEMP: H1 refusal (L2DB1006) through the shared SqlTextQuoting.cs once it lands.
+		// Only the contexts every dialect quotes are refused here; brackets, backticks and dollar quotes depend on the
+		// provider family and are checked by the server against its dialect (a PostgreSQL ARRAY[{0}] is legitimate).
+		bool IsRefused(string text, Location location)
+		{
+			if (!SqlTextQuoting.TryFindQuotedToken(text, SqlTextQuoting.Dialect.AlwaysOn, out _))
+				return false;
 
+			_report(Diagnostic.Create(SqlTextUserCatalogGenerator.QuotedPlaceholderRule, location, text));
+			return true;
+		}
+
+		void AddItem(string kind, string text, string? origin, bool isTemplate)
+		{
 			var key = (kind, text);
 
 			if (!_items.ContainsKey(key))
-				_items.Add(key, new SqlTextItemModel(kind, text, GetOrigin(owner), kind == "Expression" && HasNamedToken(text)));
+				_items.Add(key, new SqlTextItemModel(kind, text, origin, isTemplate));
 		}
 
 		/// <summary>Adds every text <paramref name="value"/> can produce, or reports it as not constant.</summary>
@@ -71,12 +83,11 @@ namespace LinqToDB.Analyzers
 
 		public void Report(Diagnostic diagnostic) => _report(diagnostic);
 
-		public void AddFileEntry(string kind, string text, string origin)
+		/// <summary>Adds an allow-file entry, subject to the same quoting refusal as text in code.</summary>
+		public void AddFileEntry(string kind, string text, string origin, Location location)
 		{
-			var key = (kind, text);
-
-			if (!_items.ContainsKey(key))
-				_items.Add(key, new SqlTextItemModel(kind, text, origin, false));
+			if (!IsRefused(text, location))
+				AddItem(kind, text, origin, false);
 		}
 
 		static string Describe(IOperation value)
