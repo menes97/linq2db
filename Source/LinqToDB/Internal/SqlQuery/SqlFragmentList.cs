@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 
 namespace LinqToDB.Internal.SqlQuery
@@ -9,11 +8,11 @@ namespace LinqToDB.Internal.SqlQuery
 	/// </summary>
 	static class SqlFragmentList
 	{
-		/// <summary>Renders <c>item0, item1, …</c>.</summary>
+		/// <summary>Renders <c>item0, item1, …</c>, or nothing for an empty list.</summary>
 		public static ISqlExpression Join(IReadOnlyList<ISqlExpression> items)
 		{
 			if (items.Count == 0)
-				throw new ArgumentException("List must have at least one item.", nameof(items));
+				return new SqlFragment("");
 
 			var result = items[items.Count - 1];
 

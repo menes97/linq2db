@@ -126,7 +126,8 @@ namespace LinqToDB.Internal.Remote
 
 		// \z, not $: $ also matches before a final line feed
 		static readonly Regex _identifier = new(@"^[A-Za-z_][A-Za-z0-9_]*\z", RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture, TimeSpan.FromSeconds(1));
-		static readonly Regex _dbType     = new(@"^(?<name>[A-Za-z_][A-Za-z0-9_ ]*?)\s*(\(\s*[0-9]+(\s*,\s*[0-9]+)?\s*\))?\z", RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture, TimeSpan.FromSeconds(1));
+		// name, an optional size (digits or max) with an optional scale, then any number of [] array suffixes
+		static readonly Regex _dbType     = new(@"^(?<name>[A-Za-z_][A-Za-z0-9_ ]*?)\s*(\(\s*([0-9]+|[Mm][Aa][Xx])(\s*,\s*[0-9]+)?\s*\))?(\s*\[\s*\])*\z", RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture, TimeSpan.FromSeconds(1));
 
 		/// <summary>Gets a value indicating whether a query element type has an explicit disposition.</summary>
 		/// <param name="type">Query element type.</param>
@@ -136,16 +137,22 @@ namespace LinqToDB.Internal.Remote
 			return _textFree.Contains(type) || _checked.Contains(type);
 		}
 
-		internal static void CheckDbType(RemoteQueryPolicy policy, string? dbType)
+		/// <summary>
+		/// A DbType is rendered as written (casts, DDL), so it must be one the server's mapping defines, fit the closed type
+		/// grammar, or be catalogued as <see cref="SqlTextKind.DbType"/> text.
+		/// </summary>
+		static void CheckDbType(RemoteQueryPolicy policy, string dbType, HashSet<string> mappedDbTypes)
 		{
-			if (dbType == null)
+			if (mappedDbTypes.Contains(dbType))
 				return;
 
 			var match = _dbType.Match(dbType);
 			var name  = match.Success ? match.Groups["name"].Value.Trim() : null;
 
-			if (name == null || (name.Contains(' ', StringComparison.Ordinal) && !_multiWordTypes.Contains(name)))
-				policy.RejectIdentifier(dbType, "DbType");
+			if (name != null && (!name.Contains(' ', StringComparison.Ordinal) || _multiWordTypes.Contains(name)))
+				return;
+
+			policy.CheckText(SqlTextKind.DbType, dbType, 0, "DbType");
 		}
 
 		internal static void Validate(RemoteQueryPolicy policy, IEnumerable<object> objects, SqlStatement statement, IReadOnlyCollection<string>? queryHints)
@@ -154,8 +161,9 @@ namespace LinqToDB.Internal.Remote
 				foreach (var hint in queryHints)
 					policy.CheckText(SqlTextKind.QueryHint, hint, 0, "QueryHints");
 
-			var elements    = objects.OfType<IQueryElement>().ToList();
-			var mappedNames = new HashSet<string>(StringComparer.Ordinal);
+			var elements      = objects.OfType<IQueryElement>().ToList();
+			var mappedNames   = new HashSet<string>(StringComparer.Ordinal);
+			var mappedDbTypes = new HashSet<string>(policy.GetScalarDbTypes(), StringComparer.Ordinal);
 
 			foreach (var table in elements.OfType<SqlTable>())
 			{
@@ -165,12 +173,20 @@ namespace LinqToDB.Internal.Remote
 				{
 					// a table of an inheritance hierarchy also carries the columns its sibling types map
 					foreach (var column in descriptor.Columns.Concat(descriptor.InheritanceSiblingColumns))
+					{
 						mappedNames.Add(column.ColumnName);
+
+						if (column.DbType != null)
+							mappedDbTypes.Add(column.DbType);
+					}
 				}
 			}
 
 			foreach (var element in elements)
 				Check(policy, element, mappedNames);
+
+			foreach (var dbType in policy.DeferredDbTypes)
+				CheckDbType(policy, dbType, mappedDbTypes);
 
 			statement.Tag = null;
 
@@ -243,7 +259,8 @@ namespace LinqToDB.Internal.Remote
 					break;
 
 				case SqlDataType e:
-					CheckDbType(policy, e.Type.DbType);
+					if (e.Type.DbType != null)
+						policy.DeferDbType(e.Type.DbType);
 					break;
 
 				case SqlMergeStatement e:

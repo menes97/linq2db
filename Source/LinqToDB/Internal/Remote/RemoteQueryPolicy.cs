@@ -449,6 +449,21 @@ namespace LinqToDB.Internal.Remote
 			return fieldType;
 		}
 
+		readonly HashSet<string> _dbTypes = new(StringComparer.Ordinal);
+
+		/// <summary>Records a DbType read from the request; checked once the request's tables are known.</summary>
+		internal void DeferDbType(string dbType) => _dbTypes.Add(dbType);
+
+		internal IEnumerable<string> DeferredDbTypes => _dbTypes;
+
+		/// <summary>Gets the DbTypes the server schema defines for its registered scalar types.</summary>
+		internal IEnumerable<string> GetScalarDbTypes()
+		{
+			foreach (var type in _schema.GetRegisteredScalarTypes())
+				if (_schema.GetDbDataType(type).DbType is { } dbType)
+					yield return dbType;
+		}
+
 		internal bool HasRejections => _rejections.Count > 0;
 
 		internal void ThrowIfRejected(Exception? innerException = null)

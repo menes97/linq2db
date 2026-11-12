@@ -318,8 +318,9 @@ namespace LinqToDB.Internal.Remote
 				var precision  = ReadNullableInt();
 				var scale      = ReadNullableInt();
 
-				if (Policy != null)
-					RemoteQueryValidator.CheckDbType(Policy, dbType);
+				// checked in Validate, against the mapping of the request's own tables
+				if (Policy != null && dbType != null)
+					Policy.DeferDbType(dbType);
 
 				return new DbDataType(systemType, dataType, dbType, length, precision, scale);
 			}

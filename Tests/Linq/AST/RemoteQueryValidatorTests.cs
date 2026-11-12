@@ -300,11 +300,50 @@ namespace Tests.AST
 
 			var rejection = RejectedSingle(db, statement);
 
-			rejection.Reason.ShouldBe(RemoteRejectionReason.IdentifierNotMapped);
+			rejection.Reason.ShouldBe(RemoteRejectionReason.TextNotInCatalog);
+			rejection.Kind.ShouldBe(SqlTextKind.DbType);
+		}
+
+		const string MappedDbType = "MARKER TYPE(1 UNIT)";
+
+		sealed class DbTypeEntity
+		{
+			[Column(DbType = MappedDbType)] public string? Value { get; set; }
 		}
 
 		[Test]
-		public void DbTypeInShapeIsAccepted([Values("int", "varchar(10)", "decimal(18, 4)", "double precision")] string dbType)
+		public void DbTypeOfTheRequestTablesMappingIsAccepted()
+		{
+			using var db = CreateConnection();
+
+			var table = new SqlTable(db.MappingSchema.GetEntityDescriptor(typeof(DbTypeEntity)));
+			var value = new SqlValue(new DbDataType(typeof(string), DataType.NVarChar, MappedDbType), "MARKER");
+
+			// control: without the mapped table in the request, the same type is neither mapped nor in the grammar
+			Rejected(db, SelectOf(value)).Rejections.ShouldContain(static r => r.Kind == SqlTextKind.DbType && r.Text == MappedDbType);
+
+			var query = new SelectQuery();
+
+			query.From.Tables.Add(new SqlTableSource(table, "t"));
+			query.Select.Add(value);
+
+			RoundTrip(db, new SqlSelectStatement(query), RemoteQueryPolicy.Create(db, [_thisAssembly], null));
+		}
+
+		[Test]
+		public void CataloguedDbTypeIsAccepted()
+		{
+			using var db = CreateConnection();
+
+			var catalog = new SqlTextCatalog();
+
+			catalog.Add(SqlTextKind.DbType, MappedDbType);
+
+			RoundTrip(db, SelectOf(new SqlValue(new DbDataType(typeof(string), DataType.NVarChar, MappedDbType), "MARKER")), RemoteQueryPolicy.Create(db, [], null, catalog));
+		}
+
+		[Test]
+		public void DbTypeInShapeIsAccepted([Values("int", "varchar(10)", "decimal(18, 4)", "double precision", "nvarchar(max)", "varchar(MAX)", "text[]", "int [ ] [ ]")] string dbType)
 		{
 			using var db = CreateConnection();
 
