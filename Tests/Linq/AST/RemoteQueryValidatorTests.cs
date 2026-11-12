@@ -568,6 +568,38 @@ namespace Tests.AST
 		}
 
 		[Test]
+		public void FSharpOptionOfAllowedTypeResolves()
+		{
+			using var db = CreateConnection();
+
+			var policy = Untrusted(db);
+
+			policy.TryResolveName(typeof(Microsoft.FSharp.Core.FSharpOption<int>).AssemblyQualifiedName!, out var option).ShouldBeTrue();
+			option.ShouldBe(typeof(Microsoft.FSharp.Core.FSharpOption<int>));
+
+			policy.TryResolveName(typeof(Microsoft.FSharp.Core.FSharpValueOption<string>).AssemblyQualifiedName!, out _).ShouldBeTrue();
+
+			// the serializer writes a generic type's full name, which qualifies only its arguments
+			policy.TryResolveName(typeof(Microsoft.FSharp.Core.FSharpOption<int>).FullName!, out _).ShouldBeTrue();
+		}
+
+		[Test]
+		public void FSharpOptionOfUnmappedTypeIsNotResolved()
+		{
+			using var db = CreateConnection();
+
+			Untrusted(db).TryResolveName(typeof(Microsoft.FSharp.Core.FSharpOption<LocalEntity>).AssemblyQualifiedName!, out _).ShouldBeFalse();
+		}
+
+		[Test]
+		public void OtherFSharpCoreTypeIsNotResolved()
+		{
+			using var db = CreateConnection();
+
+			Untrusted(db).TryResolveName(typeof(Microsoft.FSharp.Collections.FSharpList<int>).AssemblyQualifiedName!, out _).ShouldBeFalse();
+		}
+
+		[Test]
 		public void ValueTypeIsConvertedWhenTrusted()
 		{
 			using var db = CreateConnection();
@@ -994,12 +1026,37 @@ namespace Tests.AST
 		}
 
 		[Test]
-		public void IdentifierOutsideShapeIsRejected([Values("TableSourceAlias", "TableAlias", "ColumnAlias", "ParameterName")] string position)
+		public void TableAliasOutsideShapeIsRejected()
 		{
 			using var db = CreateConnection();
 
-			Rejected(db, WithIdentifier(db, position, "not a name")).Rejections
+			Rejected(db, WithIdentifier(db, "TableAlias", "not a name")).Rejections
 				.ShouldContain(static r => r.Reason == RemoteRejectionReason.IdentifierNotMapped && r.Text == "not a name");
+		}
+
+		// compiler-generated (VB closures, F# primary constructors) and non-ASCII parameter names are renamed, not rejected
+		[TestCase("$VB$Local_id",  "VBLocal_id")]
+		[TestCase("<Parameter>P",  "ParameterP")]
+		[TestCase("параметр",      "p")]
+		[TestCase("1 not a name",  "notaname")]
+		public void ParameterNameOutsideShapeIsRenamed(string name, string expected)
+		{
+			using var db = CreateConnection();
+
+			var query = RoundTrip(db, WithIdentifier(db, "ParameterName", name), RemoteQueryPolicy.Create(db, [_thisAssembly], null));
+
+			((SqlSelectStatement)query.Statement).SelectQuery.Select.Columns[0].Expression.ShouldBeOfType<SqlParameter>().Name.ShouldBe(expected);
+		}
+
+		[Test]
+		public void AliasOutsideShapeIsDropped([Values("TableSourceAlias", "ColumnAlias")] string position, [Values("$VB$It", "not a name")] string name)
+		{
+			using var db = CreateConnection();
+
+			var query  = RoundTrip(db, WithIdentifier(db, position, name), RemoteQueryPolicy.Create(db, [_thisAssembly], null));
+			var select = ((SqlSelectStatement)query.Statement).SelectQuery;
+
+			(position == "TableSourceAlias" ? select.From.Tables[0].Alias : select.Select.Columns[0].Alias).ShouldNotBe(name);
 		}
 
 		[Test]
@@ -1597,8 +1654,8 @@ namespace Tests.AST
 			"LinqToDB.Internal.SqlQuery.SqlCaseExpression._dataType: backs Type",
 			"LinqToDB.Internal.SqlQuery.SqlCastExpression.ToType: DbDataType, DbType shape in ReadDbDataType",
 			"LinqToDB.Internal.SqlQuery.SqlCastExpression.Type: DbDataType, DbType shape in ReadDbDataType",
-			"LinqToDB.Internal.SqlQuery.SqlColumn.Alias: identifier shape, * admitted",
-			"LinqToDB.Internal.SqlQuery.SqlColumn.RawAlias: identifier shape, * admitted",
+			"LinqToDB.Internal.SqlQuery.SqlColumn.Alias: identifier shape, else dropped; * admitted",
+			"LinqToDB.Internal.SqlQuery.SqlColumn.RawAlias: identifier shape, else dropped; * admitted",
 			"LinqToDB.Internal.SqlQuery.SqlComment.Lines: only SqlStatement.Tag holds a comment, and it is dropped",
 			"LinqToDB.Internal.SqlQuery.SqlCreateTableStatement.StatementFooter: StatementFooter catalog text",
 			"LinqToDB.Internal.SqlQuery.SqlCreateTableStatement.StatementHeader: StatementHeader catalog text",
@@ -1624,7 +1681,7 @@ namespace Tests.AST
 			"LinqToDB.Internal.SqlQuery.SqlIntervalPartExpression.Type: DbDataType, DbType shape in ReadDbDataType",
 			"LinqToDB.Internal.SqlQuery.SqlMergeStatement.Hint: MergeHint catalog text",
 			"LinqToDB.Internal.SqlQuery.SqlObjectNameExpression.Name: element not on the wire",
-			"LinqToDB.Internal.SqlQuery.SqlParameter.Name: identifier shape",
+			"LinqToDB.Internal.SqlQuery.SqlParameter.Name: identifier shape, else renamed to it",
 			"LinqToDB.Internal.SqlQuery.SqlParameter.Type: DbDataType, DbType shape in ReadDbDataType",
 			"LinqToDB.Internal.SqlQuery.SqlParameterizedExpressionBase.ExprOrName: base of SqlExpression.Expr and SqlFunction.Name",
 			"LinqToDB.Internal.SqlQuery.SqlParameterizedExpressionBase.Type: DbDataType, DbType shape in ReadDbDataType",
@@ -1642,8 +1699,8 @@ namespace Tests.AST
 			"LinqToDB.Internal.SqlQuery.SqlTable.TableName: each part differing from the mapping is TableName catalog text",
 			"LinqToDB.Internal.SqlQuery.SqlTable._fieldsLookup: lookup over the checked fields",
 			"LinqToDB.Internal.SqlQuery.SqlTableLikeSource.Name: derived, not on the wire",
-			"LinqToDB.Internal.SqlQuery.SqlTableSource.Alias: identifier shape",
-			"LinqToDB.Internal.SqlQuery.SqlTableSource.RawAlias: identifier shape, $ and $F admitted",
+			"LinqToDB.Internal.SqlQuery.SqlTableSource.Alias: identifier shape, else dropped",
+			"LinqToDB.Internal.SqlQuery.SqlTableSource.RawAlias: identifier shape, else dropped; $ and $F admitted",
 			"LinqToDB.Internal.SqlQuery.SqlTableSource._alias: backs Alias",
 			"LinqToDB.Internal.SqlQuery.SqlTemporalArithmeticExpression.Type: DbDataType, DbType shape in ReadDbDataType",
 			"LinqToDB.Internal.SqlQuery.SqlUnaryExpression.Type: DbDataType, DbType shape in ReadDbDataType",

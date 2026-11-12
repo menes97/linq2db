@@ -28,6 +28,15 @@ namespace LinqToDB.Internal.Remote
 			"mscorlib", "netstandard", "System.Private.CoreLib", "System.Runtime",
 		};
 
+		// LinqToDB.FSharp maps F# options as nullable columns. Only these generic definitions of FSharp.Core are accepted; their
+		// type argument resolves through the same rules, as an array element does.
+		const string FSharpCoreName = "FSharp.Core";
+
+		static readonly HashSet<string> _optionTypeNames = new(StringComparer.Ordinal)
+		{
+			"Microsoft.FSharp.Core.FSharpOption`1", "Microsoft.FSharp.Core.FSharpValueOption`1",
+		};
+
 		sealed class UnresolvedType(string name)
 		{
 			public string Name { get; } = name;
@@ -48,7 +57,8 @@ namespace LinqToDB.Internal.Remote
 			Assembly                                                        DriverAssembly,
 			SqlTextQuoting.Dialect                                          Dialect,
 			Type                                                            ProviderType,
-			Dictionary<Type, (string Key, SqlExtensionArgumentRole Role)[]> BuilderRoles);
+			Dictionary<Type, (string Key, SqlExtensionArgumentRole Role)[]> BuilderRoles,
+			Assembly?                                                       OptionAssembly);
 
 		readonly MappingSchema              _schema;
 		readonly Dictionary<string,Assembly> _nameAssemblies;
@@ -68,9 +78,11 @@ namespace LinqToDB.Internal.Remote
 		readonly Type                                                                  _providerType;
 
 		readonly Dictionary<Type, (string Key, SqlExtensionArgumentRole Role)[]>       _builderRoles;
+		readonly Assembly?                                                             _optionAssembly;
 
 		RemoteQueryPolicy(Shared shared, string? configuration, SqlTextCatalog catalog)
 		{
+			_optionAssembly    = shared.OptionAssembly;
 			_builderRoles      = shared.BuilderRoles;
 			_providerType      = shared.ProviderType;
 			_dialect           = shared.Dialect;
@@ -137,7 +149,9 @@ namespace LinqToDB.Internal.Remote
 				DriverAssembly    : connection.DataProvider.DataReaderType.Assembly,
 				Dialect           : GetDialect(connection),
 				ProviderType      : connection.DataProvider.GetType(),
-				BuilderRoles      : builderRoles);
+				BuilderRoles      : builderRoles,
+				// only an already loaded FSharp.Core: a server that maps F# options has loaded it, and nothing is loaded here
+				OptionAssembly    : AppDomain.CurrentDomain.GetAssemblies().FirstOrDefault(static a => string.Equals(a.GetName().Name, FSharpCoreName, StringComparison.Ordinal)));
 		}
 
 		/// <summary>Gets the argument roles the provider or a mapping assembly declares for one of its own extension builders.</summary>
@@ -319,11 +333,17 @@ namespace LinqToDB.Internal.Remote
 			if (_coreLibraryNames.Contains(name.Name))
 				return typeof(object).Assembly;
 
-			return _nameAssemblies.TryGetValue(name.Name, out var assembly) ? assembly : null;
+			if (_nameAssemblies.TryGetValue(name.Name, out var assembly))
+				return assembly;
+
+			return _optionAssembly != null && string.Equals(name.Name, FSharpCoreName, StringComparison.Ordinal) ? _optionAssembly : null;
 		}
 
 		Type? ResolveTypeInAssembly(Assembly? assembly, string name, bool ignoreCase)
 		{
+			if (assembly != null && assembly == _optionAssembly && !_nameAssemblies.ContainsValue(assembly))
+				return _optionTypeNames.Contains(name) ? assembly.GetType(name, false, false) : null;
+
 			if (assembly != null)
 				return assembly.GetType(name, false, ignoreCase);
 
@@ -334,7 +354,8 @@ namespace LinqToDB.Internal.Remote
 					return type;
 			}
 
-			return null;
+			// the wire names a generic type by its full name, without its assembly
+			return _optionAssembly != null && _optionTypeNames.Contains(name) ? _optionAssembly.GetType(name, false, false) : null;
 		}
 
 		internal Type? CheckUse(object? entry, RemoteTypeRole role)

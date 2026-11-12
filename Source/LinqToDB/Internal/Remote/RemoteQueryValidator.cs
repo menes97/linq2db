@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Text.RegularExpressions;
 
 using LinqToDB.Internal.SqlQuery;
@@ -221,8 +222,12 @@ namespace LinqToDB.Internal.Remote
 					CheckIdentifier(policy, e.Name, "CteClause.Name", mappedNames);
 					break;
 
+				// Compiler-generated and non-ASCII names ($VB$Local_id, <Parameter>P, $VB$It) carry no meaning on the wire, so they
+				// are replaced rather than rejected: a parameter is renamed the way the provider's normalizer would, and an alias is
+				// dropped for the builder to generate one.
 				case SqlParameter e:
-					CheckIdentifier(policy, e.Name, "SqlParameter.Name", mappedNames);
+					if (!IsIdentifier(e.Name, mappedNames))
+						e.Name = ToIdentifier(e.Name!);
 					break;
 
 				case SelectQuery e:
@@ -230,13 +235,13 @@ namespace LinqToDB.Internal.Remote
 					break;
 
 				case SqlColumn e:
-					if (!string.Equals(e.RawAlias, "*", StringComparison.Ordinal))
-						CheckIdentifier(policy, e.RawAlias, "SqlColumn.Alias", mappedNames);
+					if (!string.Equals(e.RawAlias, "*", StringComparison.Ordinal) && !IsIdentifier(e.RawAlias, mappedNames))
+						e.RawAlias = null;
 					break;
 
 				case SqlTableSource e:
-					if (e.RawAlias is not ("$" or "$F"))
-						CheckIdentifier(policy, e.RawAlias, "SqlTableSource.Alias", mappedNames);
+					if (e.RawAlias is not ("$" or "$F") && !IsIdentifier(e.RawAlias, mappedNames))
+						e.Alias = null;
 					break;
 
 				case SqlDataType e:
@@ -336,11 +341,30 @@ namespace LinqToDB.Internal.Remote
 
 		static void CheckIdentifier(RemoteQueryPolicy policy, string? name, string position, HashSet<string> mappedNames)
 		{
-			if (name == null)
-				return;
+			if (!IsIdentifier(name, mappedNames))
+				policy.RejectIdentifier(name!, position);
+		}
 
-			if (name.Length > MaxIdentifierLength || (!_identifier.IsMatch(name) && !mappedNames.Contains(name)))
-				policy.RejectIdentifier(name, position);
+		static bool IsIdentifier(string? name, HashSet<string> mappedNames)
+		{
+			return name == null || name.Length <= MaxIdentifierLength && (_identifier.IsMatch(name) || mappedNames.Contains(name));
+		}
+
+		// keeps the characters of the identifier shape, as UniqueParametersNormalizer does
+		static string ToIdentifier(string name)
+		{
+			var result = new StringBuilder(Math.Min(name.Length, MaxIdentifierLength));
+
+			foreach (var c in name)
+			{
+				if (result.Length == MaxIdentifierLength)
+					break;
+
+				if (c == '_' || c.IsAsciiLetter() || result.Length > 0 && c.IsAsciiDigit())
+					result.Append(c);
+			}
+
+			return result.Length == 0 ? "p" : result.ToString();
 		}
 
 		static void CheckExtension(RemoteQueryPolicy policy, SqlQueryExtension extension, HashSet<string> mappedNames)
