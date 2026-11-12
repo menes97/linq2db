@@ -262,7 +262,8 @@ namespace Tests.Linq
 			service.DumpSqlText().ShouldNotContain(static e => e.Text == HostText);
 		}
 
-		[Test]
+		// NonParallelizable: swaps the process-global DataConnection.WriteTraceLine
+		[Test, NonParallelizable]
 		public void StaleRemovalIsReportedInDumpAndTrace()
 		{
 			var service = new SQLiteService();

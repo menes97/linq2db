@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Threading;
 
 using LinqToDB.Data;
 using LinqToDB.Mapping;
@@ -37,40 +39,48 @@ namespace Tests.Remote
 		/// <summary>Whether remote test hosts run with <see cref="LinqService.TrustedClient"/> off.</summary>
 		internal static bool IsUntrusted => _untrustedLog != null;
 
-		static readonly List<RemoteRejection> _rejections = new();
+		// Keyed by provider: a provider's remote tests run one at a time on its lane, but providers run concurrently.
+		static readonly ConcurrentDictionary<string, List<RemoteRejection>> _rejections = new(StringComparer.OrdinalIgnoreCase);
+
+		// the provider of the current server request, set in CreateDataContext before the request is validated
+		static readonly AsyncLocal<string?> _requestProvider = new();
+
+		static readonly object _logLock = new();
 
 		/// <summary>
-		/// Rejections recorded since the last <see cref="ClearRejections"/>. The client sees only the transport's text,
-		/// so <see cref="RejectedWhenUntrustedAttribute"/> reads the typed rejections here. Remote tests run one at a time.
+		/// Rejections recorded for <paramref name="provider"/> since the last <see cref="ClearRejections"/>. The client sees
+		/// only the transport's text, so <see cref="RejectedWhenUntrustedAttribute"/> reads the typed rejections here.
 		/// </summary>
-		internal static RemoteRejection[] GetRejections()
+		internal static RemoteRejection[] GetRejections(string provider)
 		{
-			lock (_rejections)
-				return _rejections.ToArray();
+			if (!_rejections.TryGetValue(provider, out var list))
+				return [];
+
+			lock (list)
+				return list.ToArray();
 		}
 
-		internal static void ClearRejections()
-		{
-			lock (_rejections)
-				_rejections.Clear();
-		}
+		internal static void ClearRejections(string provider) => _rejections.TryRemove(provider, out _);
 
 		protected override void HandleException(Exception exception)
 		{
 			if (_untrustedLog != null && exception is RemoteRequestRejectedException rejected)
 			{
-				lock (_rejections)
-				{
-					_rejections.AddRange(rejected.Rejections);
+				var list = _rejections.GetOrAdd(_requestProvider.Value ?? string.Empty, static _ => new());
 
+				lock (list)
+					list.AddRange(rejected.Rejections);
+
+				lock (_logLock)
 					foreach (var r in rejected.Rejections)
 						System.IO.File.AppendAllText(_untrustedLog, $"{r.Reason}\t{r.Kind}\t{r.NodeType}\t{r.Text.Replace("\n", "\\n").Replace("\r", "\\r").Replace("\t", "\\t")}{Environment.NewLine}");
-				}
 			}
 		}
 
 		public override DataConnection CreateDataContext(string? configuration)
 		{
+			_requestProvider.Value = configuration?.StripRemote();
+
 			// Tie this server request to the originating remote test (by provider) so its query
 			// trace/baseline logging resolves that test's context, not whatever remote test is
 			// currently active. AsyncLocal flows through the request's async query execution.

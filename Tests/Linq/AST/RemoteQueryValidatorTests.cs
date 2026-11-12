@@ -2,7 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
+using System.Threading;
 using System.Threading.Tasks;
 
 using LinqToDB;
@@ -33,13 +35,20 @@ namespace Tests.AST
 	{
 		sealed class RecordingValue
 		{
-			public static int Constructed;
+			// per test: tests run in parallel and the deserializer constructs instances on the test's flow
+			static readonly AsyncLocal<StrongBox<int>?> _constructed = new();
+
+			public static int Constructed => _constructed.Value?.Value ?? 0;
+
+			public static void StartCounting() => _constructed.Value = new StrongBox<int>();
 
 			readonly string _value;
 
 			public RecordingValue(string value)
 			{
-				Constructed++;
+				if (_constructed.Value is { } counter)
+					Interlocked.Increment(ref counter.Value);
+
 				_value = value;
 			}
 
@@ -470,7 +479,7 @@ namespace Tests.AST
 
 			var statement = SelectOf(new SqlValue(new DbDataType(typeof(string)), new RecordingValue("x")));
 
-			RecordingValue.Constructed = 0;
+			RecordingValue.StartCounting();
 
 			var exception = Assert.Throws<RemoteRequestRejectedException>(() => RoundTrip(db, statement, Untrusted(db)))!;
 
@@ -485,7 +494,7 @@ namespace Tests.AST
 
 			var statement = SelectOf(new SqlValue(new DbDataType(typeof(string)), new RecordingValue("x")));
 
-			RecordingValue.Constructed = 0;
+			RecordingValue.StartCounting();
 
 			RoundTrip(db, statement, null);
 
@@ -1617,7 +1626,8 @@ namespace Tests.AST
 			}
 		}
 
-		[Test]
+		// NonParallelizable: AssemblyResolve is process-global, so another test's resolution would be counted
+		[Test, NonParallelizable]
 		public void NameInUnknownAssemblyIsNotLoaded()
 		{
 			using var db = CreateConnection();

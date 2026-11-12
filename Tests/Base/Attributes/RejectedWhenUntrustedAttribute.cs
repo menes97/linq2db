@@ -45,14 +45,15 @@ namespace Tests
 
 		bool Matches(RemoteRejection rejection) => rejection.Reason == Reason && rejection.Kind == Kind;
 
-		bool Governs(ITest test)
+		// the provider whose rejections the test reads, or null when the attribute does not govern the test
+		string? GovernedProvider(ITest test)
 		{
 			if (!TestLinqService.IsUntrusted)
-				return false;
+				return null;
 
 			var context = test.Arguments.OfType<string>().FirstOrDefault(static a => a.EndsWith(TestBase.LinqServiceSuffix, StringComparison.Ordinal));
 
-			return context != null && (Context == null || context.Contains(Context));
+			return context != null && (Context == null || context.Contains(Context)) ? context.StripRemote() : null;
 		}
 
 		sealed class RejectedWhenUntrustedCommand : DelegatingTestCommand
@@ -67,7 +68,7 @@ namespace Tests
 
 			public override TestResult Execute(TestExecutionContext context)
 			{
-				if (!_attribute.Governs(context.CurrentTest))
+				if (_attribute.GovernedProvider(context.CurrentTest) is not { } provider)
 					return innerCommand.Execute(context);
 
 				// Same deferral as ThrowsWhenAttribute: the heartbeat must count the rewritten result, not the raw one.
@@ -79,11 +80,11 @@ namespace Tests
 
 				try
 				{
-					TestLinqService.ClearRejections();
+					TestLinqService.ClearRejections(provider);
 
 					testResult = innerCommand.Execute(context);
 
-					var rejections = TestLinqService.GetRejections();
+					var rejections = TestLinqService.GetRejections(provider);
 					var expected   = $"{_attribute.Reason}{(_attribute.Kind is { } kind ? $" [{kind}]" : null)}";
 
 					if (rejections.Any(_attribute.Matches))
