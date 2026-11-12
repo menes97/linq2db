@@ -218,7 +218,9 @@ namespace LinqToDB.Analyzers
 					switch (child)
 					{
 						case IObjectCreationOperation creation:
-							SqlTextAttributeSources.Collect(creation, collector);
+							foreach (var (kind, value) in SqlTextAttributeSources.GetTextValues(creation))
+								collector.AddResolved(kind, value, value.Syntax.GetLocation());
+
 							SqlTextCallSites.Collect(creation, collector);
 							break;
 
@@ -276,7 +278,9 @@ namespace LinqToDB.Analyzers
 			{
 				if (data.ApplicationSyntaxReference?.GetSyntax(cancellationToken) == attribute)
 				{
-					SqlTextAttributeSources.Collect(data, owner, collector, attribute.GetLocation());
+					// a user catalog is never partitioned, so the attribute's configuration is not used
+					foreach (var (kind, text, _) in SqlTextAttributeSources.GetTexts(data, owner))
+						collector.Add(kind, text, owner, attribute.GetLocation());
 					break;
 				}
 			}

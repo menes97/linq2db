@@ -162,7 +162,8 @@ namespace Tests.Analyzers
 
 			result.Texts(SqlTextKind.Expression).ShouldBe(["NamedExpr", "NamedProp", "USER_EXPR({0})", "USER_EXT({value}{_}{sep?})", "USER_PROP"], ignoreOrder: true);
 			result.Texts(SqlTextKind.Function).ShouldBe(["NAMED_PROP_FN", "NamedFn", "USER_FN"], ignoreOrder: true);
-			result.Texts(SqlTextKind.TableExpression).ShouldBe(["{0} {1} USER_TE", "USER_TF"], ignoreOrder: true);
+			// a table function's Expression may only repeat its name, so the name is TableName text only
+			result.Texts(SqlTextKind.TableExpression).ShouldBe(["{0} {1} USER_TE"]);
 			result.Texts(SqlTextKind.TableName).ShouldBe(["USER_TF", "TF_SCHEMA", "TE_NAME"], ignoreOrder: true);
 
 			result.Items.Single(i => i.Text == "USER_EXT({value}{_}{sep?})").IsTemplate.ShouldBeTrue();
@@ -189,7 +190,8 @@ namespace Tests.Analyzers
 
 			result.Diagnostics.ShouldNotContain(static d => d.Id == "CS8785");
 			result.Output.Errors().ShouldBeEmpty();
-			result.Texts(SqlTextKind.TableExpression).ShouldBe(["TF_ARGS", "{0} {1} TE_ARGS"], ignoreOrder: true);
+			result.Texts(SqlTextKind.TableExpression).ShouldBe(["{0} {1} TE_ARGS"]);
+			result.Texts(SqlTextKind.TableName).ShouldContain("TF_ARGS");
 			result.Texts(SqlTextKind.Function).ShouldContain("FN_ARGS");
 			result.Texts(SqlTextKind.Expression).ShouldContain("EXPR_ARGS({0})");
 		}
