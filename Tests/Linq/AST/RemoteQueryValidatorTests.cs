@@ -1026,15 +1026,6 @@ namespace Tests.AST
 			return new SqlSelectStatement(query);
 		}
 
-		[Test]
-		public void TableAliasOutsideShapeIsRejected()
-		{
-			using var db = CreateConnection();
-
-			Rejected(db, WithIdentifier(db, "TableAlias", "not a name")).Rejections
-				.ShouldContain(static r => r.Reason == RemoteRejectionReason.IdentifierNotMapped && r.Text == "not a name");
-		}
-
 		// compiler-generated (VB closures, F# primary constructors) and non-ASCII parameter names are renamed, not rejected
 		[TestCase("$VB$Local_id",  "VBLocal_id")]
 		[TestCase("<Parameter>P",  "ParameterP")]
@@ -1050,14 +1041,21 @@ namespace Tests.AST
 		}
 
 		[Test]
-		public void AliasOutsideShapeIsDropped([Values("TableSourceAlias", "ColumnAlias")] string position, [Values("$VB$It", "not a name")] string name)
+		public void AliasOutsideShapeIsDropped([Values("TableSourceAlias", "TableAlias", "ColumnAlias")] string position, [Values("$VB$It", "not a name", "тбл")] string name)
 		{
 			using var db = CreateConnection();
 
 			var query  = RoundTrip(db, WithIdentifier(db, position, name), RemoteQueryPolicy.Create(db, [_thisAssembly], null));
 			var select = ((SqlSelectStatement)query.Statement).SelectQuery;
 
-			(position == "TableSourceAlias" ? select.From.Tables[0].Alias : select.Select.Columns[0].Alias).ShouldNotBe(name);
+			var alias = position switch
+			{
+				"TableSourceAlias" => select.From.Tables[0].Alias,
+				"TableAlias"       => ((SqlTable)select.From.Tables[0].Source).Alias,
+				_                  => select.Select.Columns[0].Alias,
+			};
+
+			alias.ShouldNotBe(name);
 		}
 
 		[Test]
@@ -1693,7 +1691,7 @@ namespace Tests.AST
 			"LinqToDB.Internal.SqlQuery.SqlRawSqlTable.SqlText: computed, not on the wire",
 			"LinqToDB.Internal.SqlQuery.SqlStatement.DebugSqlText: computed, not on the wire",
 			"LinqToDB.Internal.SqlQuery.SqlStatement.SqlText: computed, not on the wire",
-			"LinqToDB.Internal.SqlQuery.SqlTable.Alias: identifier shape",
+			"LinqToDB.Internal.SqlQuery.SqlTable.Alias: identifier shape, else dropped",
 			"LinqToDB.Internal.SqlQuery.SqlTable.Expression: TableExpression catalog text",
 			"LinqToDB.Internal.SqlQuery.SqlTable.ID: matched by table hints, never rendered",
 			"LinqToDB.Internal.SqlQuery.SqlTable.NameForLogging: computed, not on the wire",

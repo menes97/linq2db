@@ -271,7 +271,9 @@ namespace LinqToDB.Internal.Remote
 
 		static void CheckTable(RemoteQueryPolicy policy, SqlTable table, HashSet<string> mappedNames)
 		{
-			CheckIdentifier(policy, table.Alias, "SqlTable.Alias", mappedNames);
+			// an alias set by .As() carries no meaning on the wire: one outside the shape is dropped for the builder to generate one
+			if (!IsIdentifier(table.Alias, mappedNames))
+				table.Alias = null;
 
 			// the builder renders Expression only for SqlTableType.Expression; it renders the name for every type, also as the
 			// qualifier of an alias-less field of an expression table
