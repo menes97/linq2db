@@ -12,6 +12,7 @@ using System.Threading.Tasks;
 
 using LinqToDB.Common;
 using LinqToDB.Data;
+using LinqToDB.DataProvider;
 using LinqToDB.Interceptors;
 using LinqToDB.Internal.Common;
 using LinqToDB.Internal.DataProvider;
@@ -60,7 +61,10 @@ namespace LinqToDB.Remote
 		/// (<see cref="ISqlExtensionBuilderRoles"/>). A value type must still be a scalar type of the server schema.
 		/// Not applied when <see cref="TrustedClient"/> is <see langword="true"/>.
 		/// </summary>
-		public ICollection<Assembly> MappingAssemblies { get; } = new HashSet<Assembly>();
+		public ICollection<Assembly> MappingAssemblies => _mappingAssemblies;
+
+		readonly VersionedSet<Assembly> _mappingAssemblies = new();
+		readonly VersionedSet<Assembly> _sqlTextAssemblies = new();
 
 		/// <summary>
 		/// Gets assemblies whose <see cref="SqlTextCatalogAttribute"/> catalogs are read, typically a client assembly's generated
@@ -69,7 +73,7 @@ namespace LinqToDB.Remote
 		/// and load the file into <see cref="SqlText"/> instead.
 		/// Not applied when <see cref="TrustedClient"/> is <see langword="true"/>.
 		/// </summary>
-		public ICollection<Assembly> SqlTextAssemblies { get; } = new HashSet<Assembly>();
+		public ICollection<Assembly> SqlTextAssemblies => _sqlTextAssemblies;
 
 		/// <summary>
 		/// Gets host-maintained SQL text accepted from untrusted clients.
@@ -104,12 +108,41 @@ namespace LinqToDB.Remote
 			if (TrustedClient)
 				return null;
 
-			var policy = RemoteQueryPolicy.Create(db, MappingAssemblies, configuration, SqlText, SqlTextAssemblies);
+			var policy = RemoteQueryPolicy.Create(GetSharedPolicy(db), configuration, SqlText);
 
 			ReportStaleRemovals(configuration, policy);
 
 			return policy;
 		}
+
+		// the request-independent part of a policy is costly to build (the merged catalog alone has thousands of entries), and
+		// depends only on the provider instance, the schema configuration and the two assembly lists
+		readonly ConcurrentDictionary<(IDataProvider Provider, int SchemaID, int MappingVersion, int SqlTextVersion), RemoteQueryPolicy.Shared> _sharedPolicies = new();
+
+		// a host that builds a schema per request would otherwise add an entry per request for the life of the service
+		const int MaxSharedPolicies = 64;
+
+		RemoteQueryPolicy.Shared GetSharedPolicy(DataConnection db)
+		{
+			var schemaID = ((IConfigurationID)db.MappingSchema).ConfigurationID;
+
+			// a schema without a stable identity cannot be matched to a cached entry
+			if (schemaID == -1)
+				return RemoteQueryPolicy.CreateShared(db, MappingAssemblies, SqlTextAssemblies);
+
+			var key = (db.DataProvider, schemaID, _mappingAssemblies.Version, _sqlTextAssemblies.Version);
+
+			if (_sharedPolicies.TryGetValue(key, out var shared))
+				return shared;
+
+			if (_sharedPolicies.Count >= MaxSharedPolicies)
+				_sharedPolicies.Clear();
+
+			return _sharedPolicies.GetOrAdd(key, _ => RemoteQueryPolicy.CreateShared(db, MappingAssemblies, SqlTextAssemblies));
+		}
+
+		/// <summary>Gets the number of cached request-independent policy parts. For tests.</summary>
+		internal int SharedPolicyCount => _sharedPolicies.Count;
 
 		readonly ConcurrentDictionary<(string? Configuration, int Version), bool> _staleRemovalsReported = new();
 

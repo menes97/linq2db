@@ -33,8 +33,25 @@ namespace LinqToDB.Internal.Remote
 			public string Name { get; } = name;
 		}
 
+		/// <summary>
+		/// The part of a policy that depends only on the provider, the mapping schema and the service's assemblies, not on the
+		/// request. Built once and shared by every request with the same inputs.
+		/// </summary>
+		internal sealed record Shared(
+			MappingSchema                                                   Schema,
+			Dictionary<string,Assembly>                                     NameAssemblies,
+			HashSet<Assembly>                                               EntityAssemblies,
+			HashSet<Assembly>                                               BuilderAssemblies,
+			HashSet<Type>                                                   DefinedTypes,
+			string?                                                         Provider,
+			SqlTextSources                                                  Sources,
+			Assembly                                                        DriverAssembly,
+			SqlTextQuoting.Dialect                                          Dialect,
+			Type                                                            ProviderType,
+			Dictionary<Type, (string Key, SqlExtensionArgumentRole Role)[]> BuilderRoles);
+
 		readonly MappingSchema              _schema;
-		readonly Dictionary<string,Assembly> _nameAssemblies = new(StringComparer.OrdinalIgnoreCase);
+		readonly Dictionary<string,Assembly> _nameAssemblies;
 		readonly HashSet<Assembly>          _entityAssemblies;
 		readonly HashSet<Assembly>          _builderAssemblies;
 		readonly HashSet<Type>              _definedTypes;
@@ -52,27 +69,21 @@ namespace LinqToDB.Internal.Remote
 
 		readonly Dictionary<Type, (string Key, SqlExtensionArgumentRole Role)[]>       _builderRoles;
 
-		RemoteQueryPolicy(Dictionary<Type, (string Key, SqlExtensionArgumentRole Role)[]> builderRoles, MappingSchema schema, IEnumerable<Assembly> nameAssemblies, IEnumerable<Assembly> entityAssemblies, IEnumerable<Assembly> builderAssemblies, string? provider, string? configuration, SqlTextCatalog catalog, SqlTextSources sources, Assembly driverAssembly, SqlTextQuoting.Dialect dialect, Type providerType)
+		RemoteQueryPolicy(Shared shared, string? configuration, SqlTextCatalog catalog)
 		{
-			_builderRoles      = builderRoles;
-			_providerType      = providerType;
-			_dialect           = dialect;
-			_driverAssembly    = driverAssembly;
+			_builderRoles      = shared.BuilderRoles;
+			_providerType      = shared.ProviderType;
+			_dialect           = shared.Dialect;
+			_driverAssembly    = shared.DriverAssembly;
+			_sources           = shared.Sources;
+			_schema            = shared.Schema;
+			_entityAssemblies  = shared.EntityAssemblies;
+			_builderAssemblies = shared.BuilderAssemblies;
+			_definedTypes      = shared.DefinedTypes;
+			_provider          = shared.Provider;
+			_nameAssemblies    = shared.NameAssemblies;
 			_catalog           = catalog;
-			_sources           = sources;
-			_schema            = schema;
-			_entityAssemblies  = [.. entityAssemblies];
-			_builderAssemblies = [.. builderAssemblies];
-			_definedTypes      = [.. schema.GetDefinedTypes()];
-			_provider          = provider;
 			_configuration     = configuration;
-
-			foreach (var assembly in nameAssemblies)
-			{
-				var name = assembly.GetName().Name;
-				if (name != null && !_nameAssemblies.ContainsKey(name))
-					_nameAssemblies.Add(name, assembly);
-			}
 		}
 
 		/// <summary>Creates the policy for a request served by <paramref name="connection"/>.</summary>
@@ -84,30 +95,49 @@ namespace LinqToDB.Internal.Remote
 		/// <returns>Policy instance. An instance collects the violations of a single request.</returns>
 		public static RemoteQueryPolicy Create(DataConnection connection, IEnumerable<Assembly> mappingAssemblies, string? configuration, SqlTextCatalog? catalog = null, IEnumerable<Assembly>? sqlTextAssemblies = null)
 		{
+			return new RemoteQueryPolicy(CreateShared(connection, mappingAssemblies, sqlTextAssemblies), configuration, catalog ?? new SqlTextCatalog());
+		}
+
+		/// <summary>Creates the policy for one request from a <see cref="Shared"/> part built for the same provider, schema and assemblies.</summary>
+		internal static RemoteQueryPolicy Create(Shared shared, string? configuration, SqlTextCatalog catalog)
+		{
+			return new RemoteQueryPolicy(shared, configuration, catalog);
+		}
+
+		internal static Shared CreateShared(DataConnection connection, IEnumerable<Assembly> mappingAssemblies, IEnumerable<Assembly>? sqlTextAssemblies)
+		{
 			var mapping          = mappingAssemblies.ToList();
 			var providerAssembly = connection.DataProvider.GetType().Assembly;
 
-			var nameAssemblies = new List<Assembly>
+			var nameAssemblies = new Dictionary<string,Assembly>(StringComparer.OrdinalIgnoreCase);
+
+			foreach (var assembly in new[] { typeof(object).Assembly, typeof(DataConnection).Assembly, providerAssembly, connection.DataProvider.DataReaderType.Assembly }
+				.Concat(mapping)
+				.Concat(connection.MappingSchema.GetRegisteredScalarTypes().Select(static t => t.Assembly)))
 			{
-				typeof(object).Assembly,
-				typeof(DataConnection).Assembly,
-				providerAssembly,
-				connection.DataProvider.DataReaderType.Assembly,
-			};
-
-			nameAssemblies.AddRange(mapping);
-			nameAssemblies.AddRange(connection.MappingSchema.GetRegisteredScalarTypes().Select(static t => t.Assembly));
-
-			var builderAssemblies = new List<Assembly>(mapping) { typeof(DataConnection).Assembly, providerAssembly };
+				if (assembly.GetName().Name is { } name)
+					nameAssemblies.TryAdd(name, assembly);
+			}
 
 			// a catalog-only assembly supplies text, never builder roles
 			var builderRoles = new Dictionary<Type, (string Key, SqlExtensionArgumentRole Role)[]>();
 
-			foreach (var assembly in mapping.Prepend(providerAssembly))
+			foreach (var assembly in new[] { providerAssembly }.Concat(mapping))
 				foreach (var pair in SqlTextCatalog.GetBuilderRoles(assembly))
 					builderRoles.TryAdd(pair.Key, pair.Value);
 
-			return new RemoteQueryPolicy(builderRoles,connection.MappingSchema, nameAssemblies, mapping, builderAssemblies, connection.DataProvider.Name, configuration, catalog ?? new SqlTextCatalog(), GetTextSources(connection, mapping, sqlTextAssemblies), connection.DataProvider.DataReaderType.Assembly, GetDialect(connection), connection.DataProvider.GetType());
+			return new Shared(
+				Schema            : connection.MappingSchema,
+				NameAssemblies    : nameAssemblies,
+				EntityAssemblies  : [.. mapping],
+				BuilderAssemblies : [.. mapping, typeof(DataConnection).Assembly, providerAssembly],
+				DefinedTypes      : [.. connection.MappingSchema.GetDefinedTypes()],
+				Provider          : connection.DataProvider.Name,
+				Sources           : GetTextSources(connection, mapping, sqlTextAssemblies),
+				DriverAssembly    : connection.DataProvider.DataReaderType.Assembly,
+				Dialect           : GetDialect(connection),
+				ProviderType      : connection.DataProvider.GetType(),
+				BuilderRoles      : builderRoles);
 		}
 
 		/// <summary>Gets the argument roles the provider or a mapping assembly declares for one of its own extension builders.</summary>

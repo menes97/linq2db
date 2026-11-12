@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.ExceptionServices;
+using System.Threading.Tasks;
 
 using LinqToDB;
 using LinqToDB.Common;
@@ -1312,6 +1313,96 @@ namespace Tests.AST
 
 			ProbeResult.Constructed.ShouldBe(constructed);
 		}
+
+		sealed class SchemaService(MappingSchema? schema) : LinqService
+		{
+			public MappingSchema? Schema { get; set; } = schema;
+
+			public override DataConnection CreateDataContext(string? configuration) => CreateConnection(Schema);
+		}
+
+		static string Serialize(SqlStatement statement)
+		{
+			using var db = CreateConnection();
+
+			var (serialize, _, schema) = GetSerializer();
+
+			return (string)serialize.Invoke(null, [schema, statement, null, null, db.Options])!;
+		}
+
+		// the request is either rejected by the policy, or accepted and then fails in SQLite, which does not matter here
+		static async Task<bool> IsRejected(LinqService service, string data)
+		{
+			try
+			{
+				await service.ExecuteScalarAsync(null, data);
+				return false;
+			}
+			catch (RemoteRequestRejectedException)
+			{
+				return true;
+			}
+			catch (Exception)
+			{
+				return false;
+			}
+		}
+
+		[Test]
+		public async Task MappingAssemblyAddedAfterARequestTakesEffect()
+		{
+			var service = new SchemaService(null);
+			var data    = Serialize(SelectOf(new SqlExpression(new DbDataType(typeof(int)), MappingAssemblyText, One)));
+
+			(await IsRejected(service, data)).ShouldBeTrue();
+
+			service.MappingAssemblies.Add(_thisAssembly);
+
+			(await IsRejected(service, data)).ShouldBeFalse();
+
+			service.MappingAssemblies.Remove(_thisAssembly);
+
+			(await IsRejected(service, data)).ShouldBeTrue();
+		}
+
+		[Test]
+		public async Task ScalarTypeRegisteredAfterARequestTakesEffect()
+		{
+			var schema  = new MappingSchema();
+			var service = new SchemaService(schema);
+			var data    = Serialize(SelectOf(new SqlValue(new DbDataType(typeof(int)), new UnregisteredStruct())));
+
+			service.MappingAssemblies.Add(_thisAssembly);
+
+			(await IsRejected(service, data)).ShouldBeTrue();
+
+			schema.AddScalarType(typeof(UnregisteredStruct));
+
+			(await IsRejected(service, data)).ShouldBeFalse();
+		}
+
+		[Test]
+		public async Task SharedPolicyCacheIsBounded()
+		{
+			var service = new SchemaService(null);
+			var data    = Serialize(SelectOf(One));
+			var count   = typeof(LinqService).GetProperty("SharedPolicyCount", BindingFlags.Instance | BindingFlags.NonPublic)!;
+
+			// a schema per request, as some hosts build them
+			for (var i = 0; i < 100; i++)
+			{
+				var schema = new MappingSchema();
+
+				schema.SetConvertExpression<int, MarkerScalar>(v => new MarkerScalar());
+				service.Schema = schema;
+
+				await IsRejected(service, data);
+			}
+
+			((int)count.GetValue(service)!).ShouldBeLessThanOrEqualTo(64);
+		}
+
+		sealed class MarkerScalar;
 
 		static string NestedListName(int depth) => string.Concat(Enumerable.Repeat("System.Collections.Generic.List`1[[", depth)) + "System.Int32" + string.Concat(Enumerable.Repeat("]]", depth));
 
