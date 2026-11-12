@@ -30,9 +30,9 @@ namespace Tests.Remote
 		internal TestLinqService(Func<string?, MappingSchema?, DataConnection> connectionFactory)
 		{
 			_connectionFactory = connectionFactory;
-			TrustedClient      = _untrustedLog == null;
+			TrustedClient      = !IsUntrusted;
 
-			if (_untrustedLog != null)
+			if (IsUntrusted)
 			{
 				MappingAssemblies.Add(typeof(TestLinqService).Assembly);
 				MappingAssemblies.Add(typeof(Tests.Model.Person).Assembly);
@@ -49,10 +49,14 @@ namespace Tests.Remote
 			}
 		}
 
+		// optional: a file that receives every rejection, one line each, for a census of a run
 		static readonly string? _untrustedLog = Environment.GetEnvironmentVariable("LINQ2DB_TESTS_UNTRUSTED_REMOTE_LOG");
 
-		/// <summary>Whether remote test hosts run with <see cref="LinqService.TrustedClient"/> off.</summary>
-		internal static bool IsUntrusted => _untrustedLog != null;
+		/// <summary>
+		/// Whether remote test hosts run with <see cref="LinqService.TrustedClient"/> off: the default, so the remote suite
+		/// exercises the untrusted-client policy. <c>LINQ2DB_TESTS_TRUSTED_REMOTE=1</c> runs them trusted.
+		/// </summary>
+		internal static bool IsUntrusted { get; } = Environment.GetEnvironmentVariable("LINQ2DB_TESTS_TRUSTED_REMOTE") != "1";
 
 		// Keyed by provider: a provider's remote tests run one at a time on its lane, but providers run concurrently.
 		static readonly ConcurrentDictionary<string, List<RemoteRejection>> _rejections = new(StringComparer.OrdinalIgnoreCase);
@@ -79,16 +83,17 @@ namespace Tests.Remote
 
 		protected override void HandleException(Exception exception)
 		{
-			if (_untrustedLog != null && exception is RemoteRequestRejectedException rejected)
+			if (IsUntrusted && exception is RemoteRequestRejectedException rejected)
 			{
 				var list = _rejections.GetOrAdd(_requestProvider.Value ?? string.Empty, static _ => new());
 
 				lock (list)
 					list.AddRange(rejected.Rejections);
 
-				lock (_logLock)
-					foreach (var r in rejected.Rejections)
-						System.IO.File.AppendAllText(_untrustedLog, $"{r.Reason}\t{r.Kind}\t{r.NodeType}\t{r.Text.Replace("\n", "\\n").Replace("\r", "\\r").Replace("\t", "\\t")}{Environment.NewLine}");
+				if (_untrustedLog != null)
+					lock (_logLock)
+						foreach (var r in rejected.Rejections)
+							System.IO.File.AppendAllText(_untrustedLog, $"{r.Reason}\t{r.Kind}\t{r.NodeType}\t{r.Text.Replace("\n", "\\n").Replace("\r", "\\r").Replace("\t", "\\t")}{Environment.NewLine}");
 			}
 		}
 

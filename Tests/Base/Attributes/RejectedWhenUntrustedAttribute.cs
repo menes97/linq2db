@@ -14,7 +14,7 @@ namespace Tests
 {
 	/// <summary>
 	/// Marks a test whose remote cases are rejected by design when remote test hosts run untrusted
-	/// (<c>LINQ2DB_TESTS_UNTRUSTED_REMOTE_LOG</c>): it sends text or types the library cannot vouch for.
+	/// (the default; <c>LINQ2DB_TESTS_TRUSTED_REMOTE=1</c> turns it off): it sends text or types the library cannot vouch for.
 	/// In that mode a remote case passes only if the host recorded a rejection with the expected
 	/// <see cref="Reason"/> and <see cref="Kind"/>, and fails if the query was accepted, so a stale mark is reported.
 	/// Outside that mode, and for direct cases, the attribute does nothing.
