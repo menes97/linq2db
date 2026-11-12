@@ -15,7 +15,6 @@ namespace Tests.Extensions
 	public class QueryHintsTests : TestBase
 	{
 		[Test]
-		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.QueryHint)]
 		public void Comment([DataSources(TestProvName.AllAccess, TestProvName.AllMySql)] string context)
 		{
 			using var db = GetDataContext(context);
