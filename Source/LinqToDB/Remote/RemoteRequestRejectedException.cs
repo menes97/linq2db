@@ -9,12 +9,15 @@ namespace LinqToDB.Remote
 	/// Thrown when <see cref="LinqService"/> rejects a request from an untrusted client.
 	/// </summary>
 	/// <remarks>
-	/// <see cref="Exception.Message"/> may be forwarded to clients by a transport, so it contains only text the client sent.
+	/// <see cref="Exception.Message"/> may be forwarded to clients by a transport, so it contains only text the client sent,
+	/// escaped and truncated, and says nothing about the catalog: a text not in the catalog, removed from it or allowed for
+	/// another kind is reported alike. <see cref="Rejections"/> carries the exact reason and remedy for the host's log.
 	/// Add a catalog entry or a mapping assembly only when the rejected text or type comes from your own code.
 	/// </remarks>
 	public sealed class RemoteRequestRejectedException : LinqToDBException
 	{
-		const int MaxTextLength = 512;
+		const int    MaxTextLength = 512;
+		const string TextRemedy    = "The service does not accept this text from clients; the host log has the reason.";
 
 		/// <summary>Creates the exception.</summary>
 		/// <param name="rejections">All violations found, up to the reporting limit.</param>
@@ -49,20 +52,24 @@ namespace LinqToDB.Remote
 		{
 			var sb = new StringBuilder();
 
-			sb.Append(CultureInfo.InvariantCulture, $"Request rejected by the service policy (provider '{provider}', configuration '{configuration}').");
+			// the configuration is client text too
+			sb.Append(CultureInfo.InvariantCulture, $"Request rejected by the service policy (provider '{Escape(provider ?? "")}', configuration '{Escape(configuration ?? "")}').");
 
 			foreach (var rejection in rejections)
 			{
+				// which catalog texts the host removed or allows elsewhere is the host's business: one reason and remedy for all three
+				var isText = rejection.Reason is RemoteRejectionReason.TextNotInCatalog or RemoteRejectionReason.TextRemovedFromCatalog or RemoteRejectionReason.TextAllowedForOtherKind;
+
 				sb.AppendLine();
-				sb.Append(CultureInfo.InvariantCulture, $"{rejection.Reason}");
+				sb.Append(isText ? "TextNotAccepted" : rejection.Reason.ToString());
 
 				if (rejection.Kind != null)
 					sb.Append(CultureInfo.InvariantCulture, $" [{rejection.Kind}]");
 
 				if (rejection.NodeType != null)
-					sb.Append(CultureInfo.InvariantCulture, $" at {rejection.NodeType}");
+					sb.Append(CultureInfo.InvariantCulture, $" at {Escape(rejection.NodeType)}");
 
-				sb.Append(CultureInfo.InvariantCulture, $": '{Escape(rejection.Text)}'. {rejection.Remedy}");
+				sb.Append(CultureInfo.InvariantCulture, $": '{Escape(rejection.Text)}'. {(isText ? TextRemedy : rejection.Remedy)}");
 			}
 
 			if (isTruncated)

@@ -8,6 +8,7 @@ using LinqToDB;
 using LinqToDB.Common;
 using LinqToDB.Data;
 using LinqToDB.DataProvider.SQLite;
+using LinqToDB.DataProvider.SqlServer;
 using LinqToDB.Internal.Remote;
 using LinqToDB.Internal.SqlProvider;
 using LinqToDB.Internal.SqlQuery;
@@ -545,7 +546,8 @@ namespace Tests.AST
 
 			var table = MappedTable(db);
 
-			table.Expression = TableExpression;
+			table.SqlTableType = SqlTableType.Expression;
+			table.Expression   = TableExpression;
 
 			RoundTrip(db, SelectFrom(table), RemoteQueryPolicy.Create(db, [_thisAssembly], null, catalog));
 		}
@@ -562,8 +564,9 @@ namespace Tests.AST
 			var table = MappedTable(db);
 
 			// the expression renders the table name into {0}, so an unmapped name must not ride along with a catalogued expression
-			table.Expression = TableExpression;
-			table.TableName  = new SqlObjectName("NOT_A_MAPPED_NAME");
+			table.SqlTableType = SqlTableType.Expression;
+			table.Expression   = TableExpression;
+			table.TableName    = new SqlObjectName("NOT_A_MAPPED_NAME");
 
 			var exception = Assert.Throws<RemoteRequestRejectedException>(() => RoundTrip(db, SelectFrom(table), RemoteQueryPolicy.Create(db, [_thisAssembly], null, catalog)))!;
 
@@ -910,7 +913,7 @@ namespace Tests.AST
 		static IEnumerable<string> BuilderNames()           => _builders.Select(static b => b.Builder);
 		static IEnumerable<string> BuildersWithIdentifier() => _builders.Where(static b => b.IdentifierKey != null).Select(static b => b.Builder);
 
-		static SqlSelectStatement WithExtension(string builder, string key, ISqlExpression value)
+		static SqlSelectStatement WithExtension(string builder, string key, ISqlExpression value, Sql.QueryExtensionScope scope = Sql.QueryExtensionScope.QueryHint)
 		{
 			var statement = SelectOf(One);
 
@@ -918,7 +921,7 @@ namespace Tests.AST
 			[
 				new SqlQueryExtension
 				{
-					Scope       = Sql.QueryExtensionScope.QueryHint,
+					Scope       = scope,
 					BuilderType = typeof(DataOptions).Assembly.GetType(builder, throwOnError: true),
 					Arguments   = new(StringComparer.Ordinal) { [key] = value },
 				},
@@ -962,6 +965,270 @@ namespace Tests.AST
 
 			// renders nothing, so even text outside the catalog never reaches the SQL
 			RoundTrip(db, WithExtension("LinqToDB.SqlQuery.NoneExtensionBuilder", "hint", new SqlValue(InertText)), RemoteQueryPolicy.Create(db, [_thisAssembly], null));
+		}
+
+		static Sql.SqlID MarkerID => new(Sql.SqlIDType.TableAlias, "MARKER");
+
+		[Test]
+		public void NonStringHintValueIsRejected([ValueSource(nameof(BuilderNames))] string builder)
+		{
+			using var db = CreateConnection();
+
+			// a table ID renders as its type and text through ToString wherever a builder writes the hint as is
+			Rejected(db, WithExtension(builder, "hint", new SqlValue(MarkerID))).Rejections
+				.ShouldContain(r => r.Reason == RemoteRejectionReason.NodeNotAllowed && r.Text == builder + ":hint value");
+		}
+
+		[Test]
+		public void HintTextFromAnotherElementIsRejected()
+		{
+			using var db = CreateConnection();
+
+			Rejected(db, WithExtension("LinqToDB.Internal.SqlProvider.HintExtensionBuilder", "hint", new SqlExpression(new DbDataType(typeof(string)), "{0}", new SqlValue("MARKER")))).Rejections
+				.ShouldContain(static r => r.Reason == RemoteRejectionReason.NodeNotAllowed && r.Text.EndsWith(":hint value", StringComparison.Ordinal));
+		}
+
+		[Test]
+		public void NumericIdentifierArgumentIsAccepted([ValueSource(nameof(BuildersWithIdentifier))] string builder)
+		{
+			var key = _builders.Single(b => b.Builder == builder).IdentifierKey!;
+
+			using var db = CreateConnection();
+
+			RoundTrip(db, WithExtension(builder, key, new SqlValue(10)), RemoteQueryPolicy.Create(db, [_thisAssembly], null));
+		}
+
+		[Test]
+		public void TableIdIsAcceptedOnlyWhereTheBuilderResolvesIt()
+		{
+			using var db = CreateConnection();
+
+			RoundTrip(db, WithExtension("LinqToDB.Internal.SqlProvider.HintWithParameterExtensionBuilder", "hintParameter", new SqlValue(MarkerID)), RemoteQueryPolicy.Create(db, [_thisAssembly], null));
+
+			// TableSpecHintExtensionBuilder writes its parameters as is, without BuildSqlID
+			Rejected(db, WithExtension("LinqToDB.Internal.DataProvider.TableSpecHintExtensionBuilder", "hintParameter", new SqlValue(MarkerID))).Rejections
+				.ShouldContain(static r => r.Reason == RemoteRejectionReason.NodeNotAllowed && r.Text.EndsWith(":hintParameter value", StringComparison.Ordinal));
+		}
+
+		[Test]
+		public void CountArgumentMustBeAnInteger()
+		{
+			using var db = CreateConnection();
+
+			Rejected(db, WithExtension("LinqToDB.Internal.SqlProvider.HintWithParametersExtensionBuilder", "hintParameters.Count", new SqlValue("1"))).Rejections
+				.ShouldContain(static r => r.Reason == RemoteRejectionReason.NodeNotAllowed && r.Text.EndsWith(":hintParameters.Count value", StringComparison.Ordinal));
+		}
+
+		[Test]
+		public void IdentifierWithTrailingLineFeedIsRejected()
+		{
+			using var db = CreateConnection();
+
+			Rejected(db, WithExtension("LinqToDB.Internal.SqlProvider.HintWithParameterExtensionBuilder", "hintParameter", new SqlValue("IX_user_chosen_1\n"))).Rejections
+				.ShouldContain(static r => r.Reason == RemoteRejectionReason.IdentifierNotMapped);
+		}
+
+		static DataConnection CreateSqlServerConnection()
+		{
+			// never opened: a request is only deserialized and validated
+			return new DataConnection(new DataOptions().UseSqlServer("Server=localhost", SqlServerVersion.v2022, SqlServerProvider.MicrosoftDataSqlClient));
+		}
+
+		static SqlSelectStatement WithJoinHint(string hint)
+		{
+			return WithExtension(NoneBuilderName, "hint", new SqlValue(hint), Sql.QueryExtensionScope.JoinHint);
+		}
+
+		const string NoneBuilderName = "LinqToDB.SqlQuery.NoneExtensionBuilder";
+
+		[Test]
+		public void JoinHintTextIsCheckedWhereTheSqlBuilderRendersIt()
+		{
+			using (var db = CreateSqlServerConnection())
+			{
+				Assert.Throws<RemoteRequestRejectedException>(() => RoundTrip(db, WithJoinHint(InertText), RemoteQueryPolicy.Create(db, [], null)))!
+					.Rejections.ShouldContain(static r => r.Kind == SqlTextKind.ExtensionArgument && r.Text == InertText);
+
+				// control: the library's own join hint is catalogued
+				RoundTrip(db, WithJoinHint(SqlServerHints.Join.Loop), RemoteQueryPolicy.Create(db, [], null));
+			}
+
+			// the SQLite builder never renders a join hint, so its text stays unchecked
+			using (var db = CreateConnection())
+				RoundTrip(db, WithJoinHint(InertText), RemoteQueryPolicy.Create(db, [], null));
+		}
+
+		[Test]
+		public void TableTypeWithExpressionIsRejected()
+		{
+			using var db = CreateConnection();
+
+			const string expression = "NOT_THE_NAME({2}) {1}";
+
+			var catalog = new SqlTextCatalog();
+
+			catalog.Add(SqlTextKind.TableExpression, expression);
+
+			var table = MappedTable(db);
+
+			// the builder renders the name of a plain table and ignores the expression, so the pair is never library output
+			table.Expression     = expression;
+			table.TableName      = new SqlObjectName("NOT_A_MAPPED_NAME");
+			table.TableArguments = [One];
+
+			var exception = Assert.Throws<RemoteRequestRejectedException>(() => RoundTrip(db, SelectFrom(table), RemoteQueryPolicy.Create(db, [_thisAssembly], null, catalog)))!;
+
+			exception.Rejections.ShouldContain(static r => r.Reason == RemoteRejectionReason.NodeNotAllowed && r.Text == "SqlTable.Expression");
+			exception.Rejections.ShouldContain(static r => r.Kind == SqlTextKind.TableName && r.Text == "NOT_A_MAPPED_NAME");
+		}
+
+		[Test]
+		public void NameOfExpressionTableWithoutNamePlaceholderMustBeIdentifierShaped()
+		{
+			using var db = CreateConnection();
+
+			const string expression = "NOT_THE_NAME({2}) {1}";
+
+			var catalog = new SqlTextCatalog();
+
+			catalog.Add(SqlTextKind.TableExpression, expression);
+
+			var table = MappedTable(db);
+
+			// the name still qualifies fields that have no table alias
+			table.SqlTableType   = SqlTableType.Expression;
+			table.Expression     = expression;
+			table.TableName      = new SqlObjectName("NOT A NAME");
+			table.TableArguments = [One];
+
+			var exception = Assert.Throws<RemoteRequestRejectedException>(() => RoundTrip(db, SelectFrom(table), RemoteQueryPolicy.Create(db, [_thisAssembly], null, catalog)))!;
+
+			exception.Rejections.ShouldContain(static r => r.Reason == RemoteRejectionReason.IdentifierNotMapped && r.Text == "NOT A NAME");
+		}
+
+		static SqlTable FunctionTable(DataConnection db, string expression, string name)
+		{
+			var table = MappedTable(db);
+
+			table.SqlTableType = SqlTableType.Function;
+			table.Expression   = expression;
+			table.TableName    = new SqlObjectName(name);
+
+			return table;
+		}
+
+		[Test]
+		public void TableFunctionExpressionMayOnlyRepeatItsName()
+		{
+			using var db = CreateConnection();
+
+			Assert.Throws<RemoteRequestRejectedException>(() => RoundTrip(db, SelectFrom(FunctionTable(db, "MARKER_OTHER", "MARKER_FUNCTION")), RemoteQueryPolicy.Create(db, [_thisAssembly], null)))!
+				.Rejections.ShouldContain(static r => r.Reason == RemoteRejectionReason.NodeNotAllowed && r.Text == "SqlTable.Expression");
+		}
+
+		[Test]
+		public void TableFunctionNameIsCheckedAsTableName()
+		{
+			using var db = CreateConnection();
+
+			var table = FunctionTable(db, "MARKER_FUNCTION", "MARKER_FUNCTION");
+
+			Assert.Throws<RemoteRequestRejectedException>(() => RoundTrip(db, SelectFrom(table), RemoteQueryPolicy.Create(db, [_thisAssembly], null)))!
+				.Rejections.ShouldContain(static r => r.Kind == SqlTextKind.TableName && r.Text == "MARKER_FUNCTION");
+
+			var catalog = new SqlTextCatalog();
+
+			catalog.Add(SqlTextKind.TableName, "MARKER_FUNCTION");
+
+			RoundTrip(db, SelectFrom(FunctionTable(db, "MARKER_FUNCTION", "MARKER_FUNCTION")), RemoteQueryPolicy.Create(db, [_thisAssembly], null, catalog));
+		}
+
+		/// <summary>A test-owned type a reader could build from a database string; records whether it ever was.</summary>
+		public sealed class ProbeResult
+		{
+			public static int Constructed;
+
+			public ProbeResult(string value)
+			{
+				Constructed++;
+				Value = value;
+			}
+
+			public string Value { get; }
+		}
+
+		sealed class SQLiteService : LinqService
+		{
+			public override DataConnection CreateDataContext(string? configuration) => CreateConnection();
+		}
+
+		// Characterization, not red-to-green: on this path the reader is built for the column type that was validated (the int
+		// of the first branch), so the folded branch's type never reaches it, and LinqService's check at the reader is a second
+		// line behind validation. The assertion that matters is that the folded branch's type is never constructed.
+		[Test, NonParallelizable]
+		public void FoldedResultColumnNeverBuildsTheFoldedBranchType()
+		{
+			var service = new SQLiteService();
+
+			service.MappingAssemblies.Add(_thisAssembly);
+
+			var column = new SqlConditionExpression(SqlPredicate.False, new SqlValue(1), new SqlValue(new DbDataType(typeof(ProbeResult)), "MARKER"));
+
+			using var db = CreateConnection();
+
+			var (serialize, _, schema) = GetSerializer();
+			var data                   = (string)serialize.Invoke(null, [schema, SelectOf(column), null, null, db.Options])!;
+			var constructed            = ProbeResult.Constructed;
+
+			Assert.CatchAsync<LinqToDBException>(async () => await service.ExecuteReaderAsync(null, data));
+
+			ProbeResult.Constructed.ShouldBe(constructed);
+		}
+
+		static string NestedListName(int depth) => string.Concat(Enumerable.Repeat("System.Collections.Generic.List`1[[", depth)) + "System.Int32" + string.Concat(Enumerable.Repeat("]]", depth));
+
+		[Test]
+		public void DeeplyNestedTypeNameIsNotResolved()
+		{
+			using var db = CreateConnection();
+
+			var policy = RemoteQueryPolicy.Create(db, [], null);
+
+			// control: the same shape, shallower, resolves
+			policy.TryResolveName(NestedListName(2), out _).ShouldBeTrue();
+
+			policy.TryResolveName(NestedListName(9), out _).ShouldBeFalse();
+		}
+
+		[Test, NonParallelizable]
+		public void OverlongTypeNameNeverReachesTypeResolver()
+		{
+			using var db = CreateConnection();
+
+			var seen  = new List<string>();
+			var saved = LinqService.TypeResolver;
+
+			try
+			{
+				LinqService.TypeResolver = name =>
+				{
+					lock (seen)
+						seen.Add(name);
+					return null;
+				};
+
+				var policy = RemoteQueryPolicy.Create(db, [], null);
+
+				// control: an unresolved name of ordinary length is offered to the host's resolver
+				policy.TryResolveName("MARKER_TYPE", out _).ShouldBeFalse();
+				policy.TryResolveName(new string('A', 2000), out _).ShouldBeFalse();
+			}
+			finally
+			{
+				LinqService.TypeResolver = saved;
+			}
+
+			seen.ShouldBe(["MARKER_TYPE"]);
 		}
 
 		const string MappingAssemblyText = "MAPPING_ASSEMBLY_TEXT({0})";

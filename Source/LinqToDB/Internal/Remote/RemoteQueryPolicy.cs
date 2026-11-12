@@ -4,9 +4,12 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Threading.Tasks;
 
 using LinqToDB.Analyzers;
+using LinqToDB.Common;
 using LinqToDB.Data;
+using LinqToDB.Internal.Extensions;
 using LinqToDB.Internal.SqlQuery;
 using LinqToDB.Mapping;
 using LinqToDB.Remote;
@@ -45,9 +48,11 @@ namespace LinqToDB.Internal.Remote
 		readonly SqlTextSources                                                        _sources;
 		readonly Assembly                                                              _driverAssembly;
 		readonly SqlTextQuoting.Dialect                                                _dialect;
+		readonly Type                                                                  _providerType;
 
-		RemoteQueryPolicy(MappingSchema schema, IEnumerable<Assembly> nameAssemblies, IEnumerable<Assembly> entityAssemblies, IEnumerable<Assembly> builderAssemblies, string? provider, string? configuration, SqlTextCatalog catalog, SqlTextSources sources, Assembly driverAssembly, SqlTextQuoting.Dialect dialect)
+		RemoteQueryPolicy(MappingSchema schema, IEnumerable<Assembly> nameAssemblies, IEnumerable<Assembly> entityAssemblies, IEnumerable<Assembly> builderAssemblies, string? provider, string? configuration, SqlTextCatalog catalog, SqlTextSources sources, Assembly driverAssembly, SqlTextQuoting.Dialect dialect, Type providerType)
 		{
+			_providerType      = providerType;
 			_dialect           = dialect;
 			_driverAssembly    = driverAssembly;
 			_catalog           = catalog;
@@ -92,7 +97,17 @@ namespace LinqToDB.Internal.Remote
 
 			var builderAssemblies = new List<Assembly>(mapping) { typeof(DataConnection).Assembly, providerAssembly };
 
-			return new RemoteQueryPolicy(connection.MappingSchema, nameAssemblies, mapping, builderAssemblies, connection.DataProvider.Name, configuration, catalog ?? new SqlTextCatalog(), GetTextSources(connection, mapping, sqlTextAssemblies), connection.DataProvider.DataReaderType.Assembly, GetDialect(connection));
+			return new RemoteQueryPolicy(connection.MappingSchema, nameAssemblies, mapping, builderAssemblies, connection.DataProvider.Name, configuration, catalog ?? new SqlTextCatalog(), GetTextSources(connection, mapping, sqlTextAssemblies), connection.DataProvider.DataReaderType.Assembly, GetDialect(connection), connection.DataProvider.GetType());
+		}
+
+		/// <summary>
+		/// Whether the SQL builder of this provider may render a join hint itself, whatever the hint's builder: one of
+		/// <paramref name="families"/>, or any provider type the library does not declare, whose builder may override that.
+		/// </summary>
+		internal bool MayRenderJoinHint(HashSet<string> families)
+		{
+			return _providerType.Assembly != typeof(DataConnection).Assembly
+				|| GetProviderFamily(_providerType) is { } family && families.Contains(family);
 		}
 
 		/// <summary>Gets the quoting contexts of the provider serving <paramref name="connection"/>; all of them for a provider outside the library.</summary>
@@ -190,6 +205,11 @@ namespace LinqToDB.Internal.Remote
 			if (name == null)
 				return null;
 
+			// checked before any resolver runs: generic and array types nest without bound otherwise. The role still decides
+			// what an unresolved name means, so an Object-role name is nulled, not rejected.
+			if (name.Length > MaxTypeNameLength || GetNestingDepth(name) > MaxTypeNesting)
+				return new UnresolvedType(name);
+
 			Type? type;
 
 			try
@@ -208,11 +228,41 @@ namespace LinqToDB.Internal.Remote
 		{
 			return element switch
 			{
-				null               => null,
-				Type type          => makeArray(type),
-				UnresolvedType unk => new UnresolvedType(unk.Name + "[]"),
-				_                  => throw new InvalidOperationException(),
+				null                                                  => null,
+				Type type when GetArrayDepth(type) >= MaxTypeNesting => new UnresolvedType((type.FullName ?? type.Name) + "[]"),
+				Type type                                             => makeArray(type),
+				UnresolvedType unk                                    => new UnresolvedType(unk.Name + "[]"),
+				_                                                     => throw new InvalidOperationException(),
 			};
+		}
+
+		const int MaxTypeNameLength = 1024;
+		const int MaxTypeNesting    = 8;
+
+		// deepest bracket nesting: generic argument lists and array ranks both open one
+		static int GetNestingDepth(string name)
+		{
+			int depth = 0, max = 0;
+
+			foreach (var c in name)
+			{
+				if (c == '[')
+					max = Math.Max(max, ++depth);
+				else if (c == ']')
+					depth--;
+			}
+
+			return max;
+		}
+
+		static int GetArrayDepth(Type type)
+		{
+			var depth = 0;
+
+			for (var t = type; t.IsArray; t = t.GetElementType()!)
+				depth++;
+
+			return depth;
 		}
 
 		Assembly? ResolveAssembly(AssemblyName name)
@@ -352,10 +402,51 @@ namespace LinqToDB.Internal.Remote
 			Add(new RemoteRejection(RemoteRejectionReason.BuilderNotAllowed, null, name, nameof(RemoteTypeRole.Builder), "This builder has no argument table. Set LinqService.TrustedClient if your clients are trusted."));
 		}
 
+		/// <summary>Rejects a result column type the server would build a reader for, unless it is a value type of the server schema.</summary>
+		/// <param name="type">Type from <see cref="GetResultFieldType(MappingSchema, ISqlExpression)"/>.</param>
 		internal void CheckResultType(Type type)
 		{
+			// read as the raw provider value, with no conversion
+			if (type == typeof(object))
+				return;
+
 			if (!IsValueType(type))
 				Add(new RemoteRejection(RemoteRejectionReason.TypeNotAllowed, null, type.FullName ?? type.Name, "ResultColumn", "Register the type with MappingSchema.AddScalarType on the server schema if it is your own value type."));
+		}
+
+		/// <summary>
+		/// Gets the type the service reads a result column as: the expression's type, or the provider type its value converter
+		/// expects, without <see cref="Task{TResult}"/>, and an enum's string or default mapping type.
+		/// </summary>
+		internal Type? GetResultFieldType(ISqlExpression expression) => GetResultFieldType(_schema, expression);
+
+		internal static Type? GetResultFieldType(MappingSchema schema, ISqlExpression expression)
+		{
+			var fieldType = expression.SystemType;
+
+			if (fieldType == null)
+				return null;
+
+			// value converter applied on client side for both directions
+			// here on read we need to prepare expected by converter type
+			if (QueryHelper.GetValueConverter(expression) is { } valueConverter)
+				fieldType = valueConverter.FromProviderExpression.Parameters[0].Type;
+
+			// async compiled query support
+			if (fieldType.IsGenericType && fieldType.GetGenericTypeDefinition() == typeof(Task<>))
+				fieldType = fieldType.GetGenericArguments()[0];
+
+			if (fieldType.IsEnum || (fieldType.IsNullableType && fieldType.UnwrapNullableType().IsEnum))
+			{
+				var stringConverter = schema.GetConverter(new DbDataType(typeof(string)), new DbDataType(fieldType), false, ConversionType.Common);
+
+				if (stringConverter != null)
+					fieldType = typeof(string);
+				else if (Converter.GetDefaultMappingFromEnumType(schema, fieldType) is { } type)
+					fieldType = type;
+			}
+
+			return fieldType;
 		}
 
 		internal bool HasRejections => _rejections.Count > 0;

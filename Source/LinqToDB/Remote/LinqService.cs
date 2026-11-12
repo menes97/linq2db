@@ -189,6 +189,22 @@ namespace LinqToDB.Remote
 
 		#region ILinqService Members
 
+		// transports call through the interface, so the configuration check holds even for an override that skips base
+		async Task<LinqServiceInfo> ILinqService.GetInfoAsync(string? configuration, CancellationToken cancellationToken)
+		{
+			try
+			{
+				CheckConfiguration(configuration);
+
+				return await GetInfoAsync(configuration, cancellationToken).ConfigureAwait(false);
+			}
+			catch (Exception exception)
+			{
+				HandleException(exception);
+				throw;
+			}
+		}
+
 		[SuppressMessage("AsyncUsage", "AsyncFixer04:Fire-and-forget async call inside an using block", Justification = "False positive")]
 		public virtual Task<LinqServiceInfo> GetInfoAsync(string? configuration, CancellationToken cancellationToken = default)
 		{
@@ -322,7 +338,8 @@ namespace LinqToDB.Remote
 				var db = CreateDataContext(configuration);
 				await using var _1 = db.ConfigureAwait(false);
 
-				var query = LinqServiceSerializer.Deserialize(SerializationMappingSchema, db.MappingSchema, db.Options, queryData, CreatePolicy(db, configuration));
+				var policy = CreatePolicy(db, configuration);
+				var query  = LinqServiceSerializer.Deserialize(SerializationMappingSchema, db.MappingSchema, db.Options, queryData, policy);
 
 				ValidateQuery(query);
 
@@ -339,7 +356,7 @@ namespace LinqToDB.Remote
 
 				await using var _3 = rd.ConfigureAwait(false);
 
-				var ret = ProcessDataReaderWrapper(query, db, rd);
+				var ret = ProcessDataReaderWrapper(query, db, rd, policy);
 
 				return LinqServiceSerializer.Serialize(SerializationMappingSchema, ret);
 			}
@@ -392,7 +409,7 @@ namespace LinqToDB.Remote
 
 		#endregion
 
-		private LinqServiceResult ProcessDataReaderWrapper(LinqServiceQuery query, DataConnection db, DataReaderWrapper rd)
+		private LinqServiceResult ProcessDataReaderWrapper(LinqServiceQuery query, DataConnection db, DataReaderWrapper rd, RemoteQueryPolicy? policy)
 		{
 			DbDataReader reader;
 
@@ -444,36 +461,16 @@ namespace LinqToDB.Remote
 				// ugh...
 				// still if it fails here due to empty columns - it is a bug in columns generation
 
-				var fieldType      = selectExpressions[i].SystemType!;
-				var valueConverter = QueryHelper.GetValueConverter(selectExpressions[i]);
-				if (valueConverter != null)
-				{
-					// value converter applied on client side for both directions
-					// here on read we need to prepare expected by converter type
-					fieldType = valueConverter.FromProviderExpression.Parameters[0].Type;
-				}
+				var fieldType = RemoteQueryPolicy.GetResultFieldType(db.MappingSchema, selectExpressions[i])!;
 
-				// async compiled query support
-				if (fieldType.IsGenericType && fieldType.GetGenericTypeDefinition() == typeof(Task<>))
-					fieldType = fieldType.GetGenericArguments()[0];
-
-				if (fieldType.IsEnum || (fieldType.IsNullableType && fieldType.UnwrapNullableType().IsEnum))
-				{
-					var stringConverter = db.MappingSchema.GetConverter(new DbDataType(typeof(string)), new DbDataType(fieldType), false, ConversionType.Common);
-					if (stringConverter != null)
-						fieldType = typeof(string);
-					else
-					{
-						var type = Converter.GetDefaultMappingFromEnumType(db.MappingSchema, fieldType);
-						if (type != null)
-						{
-							fieldType = type;
-						}
-					}
-				}
+				// the type is checked here, where the reader is built for it: the server optimizer may have replaced the
+				// column's expression since the request was validated
+				policy?.CheckResultType(fieldType);
 
 				ret.FieldTypes[i] = fieldType;
 			}
+
+			policy?.ThrowIfRejected();
 
 			var columnReaders = new ConvertFromDataReaderExpression.ColumnReader[rd.DataReader!.FieldCount];
 

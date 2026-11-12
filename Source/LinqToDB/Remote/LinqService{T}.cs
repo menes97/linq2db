@@ -11,7 +11,9 @@ namespace LinqToDB.Remote
 		{
 			_dataContextFactory = dataContextFactory;
 
-			MappingAssemblies.Add(typeof(T).Assembly);
+			// with T = DataConnection itself, registering its assembly would let clients name any library type as an entity
+			if (typeof(T).Assembly != typeof(DataConnection).Assembly)
+				MappingAssemblies.Add(typeof(T).Assembly);
 		}
 
 		public override DataConnection CreateDataContext(string? configuration)

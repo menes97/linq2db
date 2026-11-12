@@ -5,9 +5,11 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Runtime.Serialization;
 using System.Text;
 
+using LinqToDB.Common;
 using LinqToDB.Internal.Common;
 using LinqToDB.Internal.Extensions;
 using LinqToDB.Internal.SqlQuery;
@@ -356,7 +358,7 @@ namespace LinqToDB.Internal.Remote
 				if (Policy != null && !EnumValues<T>.IsDefined(value))
 					Policy.RejectEnum(typeof(T), value);
 
-				return (T)Enum.ToObject(typeof(T), value);
+				return EnumValues<T>.FromInt(value);
 			}
 
 			/// <summary>Reads a nullable enum value; under a policy, a value the enum does not define is rejected.</summary>
@@ -371,10 +373,10 @@ namespace LinqToDB.Internal.Remote
 				if (Policy != null && !EnumValues<T>.IsDefined(value.Value))
 					Policy.RejectEnum(typeof(T), value.Value);
 
-				return (T)Enum.ToObject(typeof(T), value.Value);
+				return EnumValues<T>.FromInt(value.Value);
 			}
 
-			static class EnumValues<T>
+			protected static class EnumValues<T>
 				where T : struct, Enum
 			{
 				static readonly bool          _isFlags = typeof(T).IsDefined(typeof(FlagsAttribute), false);
@@ -383,6 +385,22 @@ namespace LinqToDB.Internal.Remote
 
 				// a flags value is defined when it sets no bit outside the declared members
 				public static bool IsDefined(int value) => _isFlags ? (value & ~_mask) == 0 : _values.Contains(value);
+
+				// a plain cast, without the boxing of Enum.ToObject on every read
+				public static readonly Func<int, T> FromInt = CreateFromInt();
+
+				static Func<int, T> CreateFromInt()
+				{
+					var value = Expression.Parameter(typeof(int), "value");
+
+					return Expression.Lambda<Func<int, T>>(Expression.Convert(value, typeof(T)), value).CompileExpression();
+				}
+			}
+
+			/// <summary>Reads a count of the elements that follow, bounded by the rest of the request like <see cref="ReadCount"/>.</summary>
+			protected int ReadElementCount()
+			{
+				return ReadCount() ?? throw new LinqToDBException("Malformed remote request: element count is missing.");
 			}
 
 			protected int? ReadNullableInt()
@@ -453,7 +471,7 @@ namespace LinqToDB.Internal.Remote
 
 			protected List<string> ReadStringList()
 			{
-				var size = ReadInt();
+				var size = ReadElementCount();
 				var list = new List<string>(size);
 
 				for (var i = 0; i < size; i++)
@@ -2146,7 +2164,7 @@ string.Create(CultureInfo.InvariantCulture, $"TypeIndex or TypeArrayIndex ({Type
 				//
 				List<string>? queryHints = null;
 
-				var queryHintCount = ReadInt();
+				var queryHintCount = ReadElementCount();
 
 				NextLine();
 
@@ -2840,12 +2858,15 @@ string.Create(CultureInfo.InvariantCulture, $"TypeIndex or TypeArrayIndex ({Type
 
 							var c = new CteClause(body, fields, objectType, isRecursive, name);
 
-							var annotationCount = ReadInt();
+							var annotationCount = ReadElementCount();
 							for (var i = 0; i < annotationCount; i++)
 							{
 								var annName  = ReadString()!;
+								var rejected = Policy?.Rejections.Count ?? 0;
 								var annType  = ReadType(RemoteTypeRole.Value);
-								var annValue = annType == null ? null : ReadValue(annType);
+
+								// a null type on the wire means no value follows; a rejected type still has its value to skip
+								var annValue = annType != null || (Policy?.Rejections.Count ?? 0) > rejected ? ReadValue(annType) : null;
 								c.Annotations.SetAnnotation(annName, annValue);
 							}
 
@@ -3143,7 +3164,7 @@ string.Create(CultureInfo.InvariantCulture, $"TypeIndex or TypeArrayIndex ({Type
 						{
 							var fields    = ReadArray<SqlField>()!;
 
-							var rowsCount = ReadInt();
+							var rowsCount = ReadElementCount();
 							var rows      = new List<List<ISqlExpression>>(rowsCount);
 
 							for (var i = 0; i < rowsCount; i++)
@@ -3200,7 +3221,7 @@ string.Create(CultureInfo.InvariantCulture, $"TypeIndex or TypeArrayIndex ({Type
 							var builderType   = ReadType(RemoteTypeRole.Builder);
 							var arguments     = new Dictionary<string,ISqlExpression>(StringComparer.Ordinal);
 
-							var cnt = ReadInt();
+							var cnt = ReadElementCount();
 
 							for (var j = 0; j < cnt; j++)
 							{
@@ -3275,6 +3296,9 @@ string.Create(CultureInfo.InvariantCulture, $"TypeIndex or TypeArrayIndex ({Type
 						var kind     = ReadEnum<SqlIntervalPartKind>();
 						var within   = ReadInt();
 
+						if (within >= 0 && Policy != null && !EnumValues<SqlIntervalUnit>.IsDefined(within))
+							Policy.RejectEnum(typeof(SqlIntervalUnit), within);
+
 						obj = new SqlIntervalPartExpression(interval!, unit, kind, dataType, within < 0 ? null : (SqlIntervalUnit)within);
 
 						break;
@@ -3306,7 +3330,7 @@ string.Create(CultureInfo.InvariantCulture, $"TypeIndex or TypeArrayIndex ({Type
 					case QueryElementType.SqlCase:
 					{
 						var dbDataType = ReadDbDataType();
-						var casesCount = ReadInt();
+						var casesCount = ReadElementCount();
 
 						var cases = new List<SqlCaseExpression.CaseItem>(casesCount);
 
@@ -3591,7 +3615,7 @@ string.Create(CultureInfo.InvariantCulture, $"TypeIndex or TypeArrayIndex ({Type
 			{
 				Str = str;
 
-				var data = new string[ReadInt()];
+				var data = new string[ReadElementCount()];
 
 				for (var i = 0; i < data.Length; i++)
 					data[i] = ReadString()!;

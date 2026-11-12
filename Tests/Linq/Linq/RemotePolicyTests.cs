@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
+using System.Threading;
 using System.Threading.Tasks;
 
 using LinqToDB;
@@ -90,6 +91,71 @@ namespace Tests.Linq
 			Assert.ThrowsAsync<InvalidOperationException>(async () => await Call(service, "Reader", "Allowed"));
 
 			service.Created.ShouldBe(1);
+		}
+
+		[Test]
+		public void ConfigurationNameIsEscapedInMessage()
+		{
+			var service = new CountingService();
+
+			var exception = Assert.ThrowsAsync<RemoteRequestRejectedException>(async () => await Call(service, "Reader", "MARKER\r\nFORGED LINE"))!;
+
+			// the message has a line per rejection; none may start with text the client chose
+			exception.Message.Split('\n').ShouldNotContain(static line => line.TrimStart().StartsWith("FORGED", StringComparison.Ordinal));
+			exception.Message.ShouldContain("\\u000d\\u000aFORGED LINE");
+		}
+
+		sealed class GetInfoOverride : LinqService
+		{
+			public readonly List<Exception> Handled = new();
+
+			// an override that never calls base, so never runs the check in the base method
+			public override Task<LinqServiceInfo> GetInfoAsync(string? configuration, CancellationToken cancellationToken = default)
+			{
+				return Task.FromResult(new LinqServiceInfo());
+			}
+
+			protected override void HandleException(Exception exception)
+			{
+				Handled.Add(exception);
+			}
+		}
+
+		[Test]
+		public void GetInfoGateHoldsForAnOverrideThatSkipsBase()
+		{
+			var service = new GetInfoOverride();
+
+			// control: the override itself runs no check
+			Assert.DoesNotThrowAsync(async () => await service.GetInfoAsync(Blocked));
+
+			Assert.ThrowsAsync<RemoteRequestRejectedException>(async () => await ((ILinqService)service).GetInfoAsync(Blocked));
+
+			service.Handled.ShouldHaveSingleItem().ShouldBeOfType<RemoteRequestRejectedException>();
+		}
+
+		[Test]
+		public void OversizedElementCountIsRejectedBeforeAllocation([Values(true, false)] bool trusted)
+		{
+			var service = new SQLiteService { TrustedClient = trusted };
+
+			// the batch path reads a count of request strings before anything else; the count is bounded by the request length
+			var exception = Assert.CatchAsync<LinqToDBException>(async () => await service.ExecuteBatchAsync(null, " 2000000000 "))!;
+
+			exception.Message.ShouldContain("element count");
+		}
+
+		sealed class ConnectionFactory : IDataContextFactory<DataConnection>
+		{
+			public DataConnection CreateDataContext(string? configuration) => throw new InvalidOperationException();
+		}
+
+		[Test]
+		public void GenericServiceDoesNotRegisterTheLibraryAssembly()
+		{
+			var service = new LinqService<DataConnection>(new ConnectionFactory());
+
+			service.MappingAssemblies.ShouldNotContain(typeof(DataConnection).Assembly);
 		}
 
 		[Test]
