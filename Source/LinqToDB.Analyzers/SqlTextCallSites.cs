@@ -299,7 +299,7 @@ namespace LinqToDB.Analyzers
 			if (value == null)
 				return;
 
-			if (invocation.TargetMethod.Name == "AddRange")
+			if (string.Equals(invocation.TargetMethod.Name, "AddRange", StringComparison.Ordinal))
 			{
 				if (Unwrap(value) is IArrayCreationOperation { Initializer: { } initializer })
 					foreach (var element in initializer.ElementValues)

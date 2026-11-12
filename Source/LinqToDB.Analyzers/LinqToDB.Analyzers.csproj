@@ -10,8 +10,6 @@
 		(Shared Roslyn-component settings + polyfills live in ..\Analyzers.Common.props.)
 		-->
 		<IsPackable>false</IsPackable>
-		<!-- GHSA-B-TEMP: the linked SqlTextFlow.cs has three MA0006 sites, fixed upstream; remove after the rebase. -->
-		<NoWarn>$(NoWarn);MA0006</NoWarn>
 	</PropertyGroup>
 
 	<ItemGroup>

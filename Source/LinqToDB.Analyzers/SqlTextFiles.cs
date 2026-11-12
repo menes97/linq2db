@@ -115,10 +115,10 @@ namespace LinqToDB.Analyzers
 			{
 				var part = parts[i];
 
-				if (part == "." || (part.Length == 0 && i > 0 && i < parts.Length - 1))
+				if (string.Equals(part, ".", StringComparison.Ordinal) || (part.Length == 0 && i > 0 && i < parts.Length - 1))
 					continue;
 
-				if (part == ".." && segments.Count > 1)
+				if (string.Equals(part, "..", StringComparison.Ordinal) && segments.Count > 1)
 				{
 					segments.RemoveAt(segments.Count - 1);
 					continue;

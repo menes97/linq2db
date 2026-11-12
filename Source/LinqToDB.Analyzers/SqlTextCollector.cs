@@ -33,7 +33,7 @@ namespace LinqToDB.Analyzers
 		public void Add(string kind, string text, ISymbol? owner, Location location)
 		{
 			if (Kinds.Contains(kind) && !IsRefused(text, location))
-				AddItem(kind, text, GetOrigin(owner), kind == "Expression" && HasNamedToken(text));
+				AddItem(kind, text, GetOrigin(owner), string.Equals(kind, "Expression", StringComparison.Ordinal) && HasNamedToken(text));
 		}
 
 		// Only the contexts every dialect quotes are refused here; brackets, backticks and dollar quotes depend on the

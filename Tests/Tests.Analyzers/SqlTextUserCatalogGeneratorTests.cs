@@ -170,6 +170,29 @@ namespace Tests.Analyzers
 			result.Items.Single(i => i.Text == "USER_FN").Origin.ShouldBe("App.DataProvider.Reports.Functions");
 		}
 
+		// TypedConstant.Value throws for an array argument; Tests/Linq's own mappings crashed the generator (CS8785) this way
+		[Test]
+		public async Task ArrayValuedAttributeArguments_AreSkipped()
+		{
+			var result = await GeneratorVerifier.RunAsync(Usings + """
+				static class Functions
+				{
+					[Sql.TableFunction("TF_ARGS", ArgIndices = new[] { 0 })]             public static ITable<Row> Tf(int x)      => null;
+					[Sql.TableExpression("{0} {1} TE_ARGS", ArgIndices = new[] { 0 })]  public static ITable<Row> Te(int x)      => null;
+					[Sql.Function("FN_ARGS", 1, 0)]                                      public static int Fn(int a, int b)       => a;
+					[Sql.Expression("EXPR_ARGS({0})", ArgIndices = new[] { 0 })]         public static int Expr(int a)            => a;
+				}
+
+				[Table] class Row { [Column] public int Id { get; set; } }
+				""");
+
+			result.Diagnostics.ShouldNotContain(static d => d.Id == "CS8785");
+			result.Output.Errors().ShouldBeEmpty();
+			result.Texts(SqlTextKind.TableExpression).ShouldBe(["TF_ARGS", "{0} {1} TE_ARGS"], ignoreOrder: true);
+			result.Texts(SqlTextKind.Function).ShouldContain("FN_ARGS");
+			result.Texts(SqlTextKind.Expression).ShouldContain("EXPR_ARGS({0})");
+		}
+
 		[Test]
 		public async Task QueryExtensionArguments()
 		{
