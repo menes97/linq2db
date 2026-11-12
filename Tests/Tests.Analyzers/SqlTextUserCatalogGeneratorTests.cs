@@ -380,6 +380,21 @@ namespace Tests.Analyzers
 
 		#endregion
 
+		// A target-typed new(...) spells no type name, so the member filter binds it regardless (Tests/Linq's ClickHouse
+		// Enum8/Enum16 DbType texts were dropped without that).
+		[Test]
+		public async Task TargetTypedCreation_IsFound()
+		{
+			var result = await GeneratorVerifier.RunAsync(Usings + """
+				static class Host
+				{
+					static DbDataType Target() => new(typeof(string), "TARGET_TYPED_DBTYPE");
+				}
+				""");
+
+			result.Texts(SqlTextKind.DbType).ShouldContain("TARGET_TYPED_DBTYPE");
+		}
+
 		#region Not constant (TO-21d)
 
 		[Test]

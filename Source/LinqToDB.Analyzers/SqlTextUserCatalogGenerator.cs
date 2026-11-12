@@ -137,11 +137,12 @@ namespace LinqToDB.Analyzers
 			OnWalk?.Invoke(compilation);
 
 			var collector = new SqlTextCollector(new SqlTextKinds(kindType), context.ReportDiagnostic) { SupportsRemoval = supportsRemoval };
+			var names     = SqlTextCallSites.GetSiteNames(compilation, context.CancellationToken);
 
 			foreach (var tree in compilation.SyntaxTrees)
 			{
 				context.CancellationToken.ThrowIfCancellationRequested();
-				Walk(tree, compilation.GetSemanticModel(tree), collector, context.CancellationToken);
+				Walk(tree, compilation.GetSemanticModel(tree), collector, names, context.CancellationToken);
 			}
 
 			foreach (var file in files)
@@ -184,35 +185,86 @@ namespace LinqToDB.Analyzers
 			return result;
 		}
 
-		static void Walk(SyntaxTree tree, SemanticModel model, SqlTextCollector collector, CancellationToken cancellationToken)
+		static void Walk(SyntaxTree tree, SemanticModel model, SqlTextCollector collector, HashSet<string> names, CancellationToken cancellationToken)
 		{
 			collector.Model = model;
 
-			foreach (var node in tree.GetRoot(cancellationToken).DescendantNodes())
+			var root = tree.GetRoot(cancellationToken);
+
+			foreach (var node in root.DescendantNodesAndSelf())
 			{
-				switch (node)
+				if (node is AttributeSyntax attribute)
 				{
-					case AttributeSyntax attribute:
-						CollectAttribute(attribute, model, collector, cancellationToken);
-						break;
+					CollectAttribute(attribute, model, collector, cancellationToken);
+					continue;
+				}
 
-					case InvocationExpressionSyntax or ObjectCreationExpressionSyntax or ImplicitObjectCreationExpressionSyntax or AssignmentExpressionSyntax:
+				if (!IsOperationRoot(node) || !MentionsSite(node, names))
+					continue;
+
+				cancellationToken.ThrowIfCancellationRequested();
+
+				// One operation tree per member, and only for a member that names a site: binding is the whole cost (asking
+				// for each invocation separately re-bound the enclosing lambdas every time, minutes on a large project).
+				var operation = model.GetOperation(node, cancellationToken);
+
+				if (operation == null)
+					continue;
+
+				collector.Containing = model.GetEnclosingSymbol(node.SpanStart, cancellationToken);
+
+				foreach (var child in operation.DescendantsAndSelf())
+				{
+					switch (child)
 					{
-						var operation = model.GetOperation(node, cancellationToken);
-
-						if (operation == null)
+						case IObjectCreationOperation creation:
+							SqlTextAttributeSources.Collect(creation, collector);
+							SqlTextCallSites.Collect(creation, collector);
 							break;
 
-						collector.Containing = model.GetEnclosingSymbol(node.SpanStart, cancellationToken);
-
-						if (operation is IObjectCreationOperation creation)
-							SqlTextAttributeSources.Collect(creation, collector);
-
-						SqlTextCallSites.Collect(operation, collector);
-						break;
+						case IInvocationOperation or ISimpleAssignmentOperation:
+							SqlTextCallSites.Collect(child, collector);
+							break;
 					}
 				}
 			}
+		}
+
+		// The syntax whose operation tree covers a member's executable code exactly once: bodies and expression bodies of
+		// methods, constructors, operators and accessors, field and property initializers, a primary constructor's base
+		// call and top-level statements. Local functions and lambdas are inside their member's tree.
+		// A member that never spells a site's name cannot reach one, so it is not bound. Calls that name no type are bound
+		// regardless: a target-typed new(...) and a ': base(...)' / ': this(...)' initializer. A type alias is not followed.
+		// A site the filter misses is a false rejection at run time, never an admitted text.
+		static bool MentionsSite(SyntaxNode node, HashSet<string> names)
+		{
+			foreach (var token in node.DescendantTokens())
+			{
+				switch (token.Kind())
+				{
+					case SyntaxKind.IdentifierToken when names.Contains(token.ValueText):
+					case SyntaxKind.NewKeyword when token.Parent is ImplicitObjectCreationExpressionSyntax:
+					case SyntaxKind.BaseKeyword or SyntaxKind.ThisKeyword when token.Parent is ConstructorInitializerSyntax:
+						return true;
+				}
+			}
+
+			return false;
+		}
+
+		static bool IsOperationRoot(SyntaxNode node)
+		{
+			return node switch
+			{
+				BaseMethodDeclarationSyntax                                          => true,
+				AccessorDeclarationSyntax                                            => true,
+				ArrowExpressionClauseSyntax { Parent: PropertyDeclarationSyntax or IndexerDeclarationSyntax } => true,
+				EqualsValueClauseSyntax { Parent: VariableDeclaratorSyntax { Parent.Parent: FieldDeclarationSyntax } } => true,
+				EqualsValueClauseSyntax { Parent: PropertyDeclarationSyntax }        => true,
+				PrimaryConstructorBaseTypeSyntax                                     => true,
+				CompilationUnitSyntax unit                                           => unit.Members.Any(static m => m is GlobalStatementSyntax),
+				_                                                                    => false,
+			};
 		}
 
 		static void CollectAttribute(AttributeSyntax attribute, SemanticModel model, SqlTextCollector collector, CancellationToken cancellationToken)

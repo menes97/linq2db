@@ -94,6 +94,115 @@ namespace LinqToDB.Analyzers
 			return names;
 		}
 
+		static readonly string[] _attributeTypeNames =
+		[
+			"ExpressionAttribute", "FunctionAttribute", "PropertyAttribute", "ExtensionAttribute", "TableFunctionAttribute", "TableExpressionAttribute",
+		];
+
+		/// <summary>
+		/// The identifiers a member has to spell to contain a site: the rows, option properties, hint lists and attribute
+		/// types above, every linq2db method or property marked <c>[Sql.QueryExtension]</c> or <c>[SqlText]</c>, and source
+		/// methods declaring either attribute. Read once per compilation from declarations only.
+		/// </summary>
+		internal static HashSet<string> GetSiteNames(Compilation compilation, System.Threading.CancellationToken cancellationToken)
+		{
+			var names = new HashSet<string>(_hintLists, StringComparer.Ordinal);
+
+			names.UnionWith(_attributeTypeNames);
+
+			foreach (var pair in _properties)
+			{
+				names.Add(pair.Key.Substring(pair.Key.LastIndexOf('.') + 1));
+				names.UnionWith(pair.Value.Keys);
+			}
+
+			foreach (var row in _rows)
+			{
+				if (row.Method is { } method)
+				{
+					names.Add(string.Equals(method, ".ctor", StringComparison.Ordinal) ? row.Type.Substring(row.Type.LastIndexOf('.') + 1) : method);
+					continue;
+				}
+
+				// a type-wide row: every method of the type taking the parameter
+				foreach (var type in GetTypes(compilation, row.Type))
+					foreach (var member in type.GetMembers().OfType<IMethodSymbol>())
+						if (member.Parameters.Any(p => string.Equals(p.Name, row.Parameter, StringComparison.Ordinal)))
+							names.Add(member.MethodKind == MethodKind.Constructor ? type.Name : member.Name);
+			}
+
+			if (compilation.GetTypeByMetadataName("LinqToDB.Sql") is { } sql)
+				AddAnnotatedMembers(sql.ContainingAssembly.GlobalNamespace, names, cancellationToken);
+
+			foreach (var tree in compilation.SyntaxTrees)
+			{
+				foreach (var attribute in tree.GetRoot(cancellationToken).DescendantNodes().OfType<AttributeSyntax>())
+				{
+					var name = attribute.Name is QualifiedNameSyntax qualified ? qualified.Right.Identifier.ValueText : attribute.Name.ToString();
+
+					if (name is not ("QueryExtension" or "QueryExtensionAttribute" or "SqlText" or "SqlTextAttribute"))
+						continue;
+
+					switch (attribute.FirstAncestorOrSelf<MemberDeclarationSyntax>())
+					{
+						case MethodDeclarationSyntax m      : names.Add(m.Identifier.ValueText); break;
+						case PropertyDeclarationSyntax p    : names.Add(p.Identifier.ValueText); break;
+						case ConstructorDeclarationSyntax c : names.Add(c.Identifier.ValueText); break;
+					}
+				}
+			}
+
+			return names;
+		}
+
+		static IEnumerable<INamedTypeSymbol> GetTypes(Compilation compilation, string typeName)
+		{
+			foreach (var type in compilation.GetTypesByMetadataName(typeName))
+				yield return type;
+
+			// a generic row type is keyed without its type arguments: TempTable<T> is "LinqToDB.TempTable"
+			foreach (var type in compilation.GetTypesByMetadataName(typeName + "`1"))
+				yield return type;
+		}
+
+		static void AddAnnotatedMembers(INamespaceSymbol ns, HashSet<string> names, System.Threading.CancellationToken cancellationToken)
+		{
+			foreach (var member in ns.GetMembers())
+			{
+				cancellationToken.ThrowIfCancellationRequested();
+
+				if (member is INamespaceSymbol child)
+					AddAnnotatedMembers(child, names, cancellationToken);
+				else if (member is INamedTypeSymbol type)
+					AddAnnotatedMembers(type, names);
+			}
+		}
+
+		static void AddAnnotatedMembers(INamedTypeSymbol type, HashSet<string> names)
+		{
+			if (type.DeclaredAccessibility is not (Accessibility.Public or Accessibility.Protected or Accessibility.ProtectedOrInternal))
+				return;
+
+			foreach (var member in type.GetMembers())
+			{
+				switch (member)
+				{
+					case INamedTypeSymbol nested:
+						AddAnnotatedMembers(nested, names);
+						break;
+
+					case IMethodSymbol method when method.GetAttributes().Any(static a => string.Equals(a.AttributeClass?.ToDisplayString(), QueryExtensionAttribute, StringComparison.Ordinal))
+						|| method.Parameters.Any(static p => CodeGenerators.SqlTextFlow.TryGetKind(p, out _)):
+						names.Add(method.MethodKind == MethodKind.Constructor ? type.Name : method.Name);
+						break;
+
+					case IPropertySymbol property when CodeGenerators.SqlTextFlow.TryGetKind(property, out _):
+						names.Add(property.Name);
+						break;
+				}
+			}
+		}
+
 		/// <summary>Adds the text one operation sends. Child operations are visited by the caller.</summary>
 		public static void Collect(IOperation operation, SqlTextCollector collector)
 		{
