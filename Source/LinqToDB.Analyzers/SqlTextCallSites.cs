@@ -60,6 +60,9 @@ namespace LinqToDB.Analyzers
 			new("LinqToDB.TempTable",             null,                  "databaseName",    "TableName",       Shape.Verbatim),
 			new("LinqToDB.TempTable",             null,                  "serverName",      "TableName",       Shape.Verbatim),
 			new("LinqToDB.MergeDefinition",       ".ctor",               "hint",            "MergeHint",       Shape.Verbatim),
+			new("LinqToDB.DbDataType",            ".ctor",               "dbType",          "DbType",          Shape.Verbatim),
+			new("LinqToDB.DbDataType",            "WithDbType",          "dbName",          "DbType",          Shape.Verbatim),
+			new("LinqToDB.Mapping.PropertyMappingBuilder", "HasDbType",  "dbType",          "DbType",          Shape.Verbatim),
 		];
 
 		// Option records: properties set by assignment, object initializer, init or with, and the same-named constructor arguments.

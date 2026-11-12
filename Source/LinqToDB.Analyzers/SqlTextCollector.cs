@@ -1,20 +1,17 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using System.Text;
-using System.Threading;
 
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Operations;
-using Microsoft.CodeAnalysis.Text;
 
 namespace LinqToDB.Analyzers
 {
 	/// <summary>Collects entries and reports the sites whose text cannot be resolved.</summary>
 	sealed class SqlTextCollector
 	{
-		readonly Dictionary<(string Kind, string Text), SqlTextItemModel> _items = new();
+		readonly Dictionary<(string Kind, string Text), SqlTextItemModel> _items    = new();
+		readonly Dictionary<(string Kind, string Text), SqlTextItemModel> _removals = new();
 		readonly Action<Diagnostic>                                        _report;
 
 		public SqlTextCollector(SqlTextKinds kinds, Action<Diagnostic> report)
@@ -23,11 +20,24 @@ namespace LinqToDB.Analyzers
 			_report = report;
 		}
 
-		public SqlTextKinds  Kinds      { get; }
-		public SemanticModel Model      { get; set; } = null!;
-		public ISymbol?      Containing { get; set; }
+		public SqlTextKinds  Kinds           { get; }
+		public SemanticModel Model           { get; set; } = null!;
+		public ISymbol?      Containing      { get; set; }
+		public bool          SupportsRemoval { get; set; }
 
-		public IEnumerable<SqlTextItemModel> Items => _items.Values;
+		public IEnumerable<SqlTextItemModel> Items => _items.Values.Concat(_removals.Values);
+
+		/// <summary>
+		/// Adds a deny-file removal. It only ever narrows what clients may send, so it is not subject to the quoting refusal;
+		/// the runtime applies it to every source of the service, LinqToDB included.
+		/// </summary>
+		public void AddRemoval(string kind, string text, string origin)
+		{
+			var key = (kind, text);
+
+			if (!_removals.ContainsKey(key))
+				_removals.Add(key, new SqlTextItemModel(kind, text, origin, false, IsRemoval: true));
+		}
 
 		/// <summary>Adds a known text; <paramref name="owner"/> names its origin.</summary>
 		public void Add(string kind, string text, ISymbol? owner, Location location)

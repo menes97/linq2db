@@ -49,15 +49,14 @@ namespace LinqToDB.Analyzers
 					continue;
 				}
 
-				if (!add)
-				{
-					// GHSA-B-TEMP: removals need the SqlTextItem removal flag; until it lands the line is reported, never dropped silently.
+				if (add)
+					collector.AddFileEntry(kind, value, origin, location);
+				else if (collector.SupportsRemoval)
+					collector.AddRemoval(kind, value, origin);
+				else
+					// a linq2db without SqlTextItem.IsRemoval cannot carry the removal; reported, never dropped silently
 					collector.Report(Diagnostic.Create(SqlTextUserCatalogGenerator.UnsupportedRule, location,
 						prefix + "removes an entry, which the referenced linq2db cannot express in a generated catalog"));
-					continue;
-				}
-
-				collector.AddFileEntry(kind, value, origin, location);
 			}
 		}
 

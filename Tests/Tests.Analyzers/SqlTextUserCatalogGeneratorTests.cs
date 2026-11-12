@@ -460,11 +460,76 @@ namespace Tests.Analyzers
 		}
 
 		[Test]
-		public async Task DenyLine_IsReported_UntilRemovalsAreSupported()
+		public async Task DenyLine_EmitsRemoval()
 		{
-			var result = await GeneratorVerifier.RunAsync("class C { }", files: [new(GeneratorVerifier.ProjectDir + "/deny.txt", "-\tQueryHint\tDENIED")]);
+			var result = await GeneratorVerifier.RunAsync("class C { }", files:
+			[
+				new(GeneratorVerifier.ProjectDir + "/deny.txt", "-\tFunction\tSUBSTRING\n-\tQueryHint\tDENIED_QUOTED('{0}')\n+\tQueryHint\tALSO_ALLOWED"),
+			]);
+
+			result.Diagnostics.ShouldBeEmpty();
+			result.Output.Errors().ShouldBeEmpty();
+
+			// a removal only narrows, so even a text the quoting rule would refuse as an addition is carried
+			result.Items.Where(static i => i.IsRemoval).Select(static i => (i.Kind, i.Text)).ShouldBe(
+				[(SqlTextKind.Function, "SUBSTRING"), (SqlTextKind.QueryHint, "DENIED_QUOTED('{0}')")],
+				ignoreOrder: true);
+			result.Items.Single(static i => i.IsRemoval && i.Text == "SUBSTRING").Origin.ShouldBe("deny.txt");
+			result.Items.Single(static i => i.Text == "ALSO_ALLOWED").IsRemoval.ShouldBeFalse();
+		}
+
+		// The catalog contract of a linq2db that predates SqlTextItem.IsRemoval, declared in source.
+		const string CatalogWithoutRemovals = """
+			namespace LinqToDB.Remote
+			{
+				public enum SqlTextKind { Expression, QueryHint }
+				public interface ISqlTextCatalog { System.Collections.Generic.IReadOnlyList<SqlTextItem> Items { get; } }
+				[System.AttributeUsage(System.AttributeTargets.Assembly, AllowMultiple = true)]
+				public sealed class SqlTextCatalogAttribute : System.Attribute { public SqlTextCatalogAttribute(System.Type type) { } }
+				public sealed class SqlTextItem { public SqlTextItem(SqlTextKind kind, string text, string partition, string origin, bool isTemplate) { } }
+			}
+			""";
+
+		[Test]
+		public async Task DenyLine_WithoutRemovalSupport_ReportsL2DB1009()
+		{
+			var result = await GeneratorVerifier.RunAsync(CatalogWithoutRemovals, withLinqToDB: false, files:
+			[
+				new(GeneratorVerifier.ProjectDir + "/deny.txt", "-\tQueryHint\tDENIED\n+\tQueryHint\tALLOWED"),
+			]);
 
 			result.Diagnostics.Single().Id.ShouldBe("L2DB1009");
+			result.Output.Errors().ShouldBeEmpty();
+			result.GeneratedSource!.ShouldContain("\"ALLOWED\"");
+			result.GeneratedSource!.ShouldNotContain("\"DENIED\"");
+		}
+
+		[Test]
+		public async Task DbType()
+		{
+			var result = await GeneratorVerifier.RunAsync(Usings + """
+				[Table]
+				class Row
+				{
+					[Column(DbType = "COLUMN_DBTYPE(10)")] public string A { get; set; }
+					[DataType("DATATYPE_DBTYPE")]          public string B { get; set; }
+					[Column]                               public string C { get; set; }
+				}
+
+				static class Host
+				{
+					static void M(FluentMappingBuilder builder)
+					{
+						builder.Entity<Row>().Property(r => r.C).HasDbType("FLUENT_DBTYPE");
+						var t = new DbDataType(typeof(string), "CTOR_DBTYPE").WithDbType("WITH_DBTYPE");
+					}
+				}
+				""");
+
+			result.Output.Errors().ShouldBeEmpty();
+			result.Texts(SqlTextKind.DbType).ShouldBe(
+				["COLUMN_DBTYPE(10)", "DATATYPE_DBTYPE", "FLUENT_DBTYPE", "CTOR_DBTYPE", "WITH_DBTYPE"],
+				ignoreOrder: true);
 		}
 
 		#endregion

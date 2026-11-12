@@ -128,7 +128,7 @@ namespace LinqToDB.Analyzers
 			if (compilation.GetTypeByMetadataName(CatalogAttributeName) == null
 				|| compilation.GetTypeByMetadataName(CatalogInterfaceName) == null
 				|| kindType == null
-				|| !HasItemConstructor(compilation.GetTypeByMetadataName(ItemTypeName), kindType))
+				|| GetItemConstructor(compilation.GetTypeByMetadataName(ItemTypeName), kindType) is not { } supportsRemoval)
 			{
 				context.ReportDiagnostic(Diagnostic.Create(UnsupportedRule, Location.None, "LinqToDBSqlTextCatalog is enabled, but the referenced linq2db has no SqlTextCatalogAttribute, ISqlTextCatalog or SqlTextItem(SqlTextKind, string, string, string, bool), so no SQL text catalog is generated"));
 				return;
@@ -136,7 +136,7 @@ namespace LinqToDB.Analyzers
 
 			OnWalk?.Invoke(compilation);
 
-			var collector = new SqlTextCollector(new SqlTextKinds(kindType), context.ReportDiagnostic);
+			var collector = new SqlTextCollector(new SqlTextKinds(kindType), context.ReportDiagnostic) { SupportsRemoval = supportsRemoval };
 
 			foreach (var tree in compilation.SyntaxTrees)
 			{
@@ -150,15 +150,38 @@ namespace LinqToDB.Analyzers
 			context.AddSource("LinqToDBSqlTextCatalog.g.cs", SourceText.From(Emit(compilation.AssemblyName, collector.Items), Encoding.UTF8));
 		}
 
-		static bool HasItemConstructor(INamedTypeSymbol? itemType, INamedTypeSymbol kindType)
+		/// <summary>
+		/// <see langword="null"/> when <c>SqlTextItem</c> has no <c>(SqlTextKind, string, string, string, bool, ...)</c>
+		/// constructor; otherwise whether it takes the trailing <c>bool IsRemoval</c> that removals need.
+		/// </summary>
+		static bool? GetItemConstructor(INamedTypeSymbol? itemType, INamedTypeSymbol kindType)
 		{
-			return itemType != null && itemType.InstanceConstructors.Any(c =>
-				c.Parameters.Length == 5
-				&& SymbolEqualityComparer.Default.Equals(c.Parameters[0].Type, kindType)
-				&& c.Parameters[1].Type.SpecialType == SpecialType.System_String
-				&& c.Parameters[2].Type.SpecialType == SpecialType.System_String
-				&& c.Parameters[3].Type.SpecialType == SpecialType.System_String
-				&& c.Parameters[4].Type.SpecialType == SpecialType.System_Boolean);
+			if (itemType == null)
+				return null;
+
+			bool? result = null;
+
+			foreach (var c in itemType.InstanceConstructors)
+			{
+				var p = c.Parameters;
+
+				if (p.Length < 5
+					|| !SymbolEqualityComparer.Default.Equals(p[0].Type, kindType)
+					|| p[1].Type.SpecialType != SpecialType.System_String
+					|| p[2].Type.SpecialType != SpecialType.System_String
+					|| p[3].Type.SpecialType != SpecialType.System_String
+					|| p[4].Type.SpecialType != SpecialType.System_Boolean
+					|| p.Skip(5).Any(static x => !x.HasExplicitDefaultValue))
+				{
+					continue;
+				}
+
+				var removal = p.Length > 5 && p[5].Type.SpecialType == SpecialType.System_Boolean && string.Equals(p[5].Name, "IsRemoval", StringComparison.Ordinal);
+
+				result = result == true || removal;
+			}
+
+			return result;
 		}
 
 		static void Walk(SyntaxTree tree, SemanticModel model, SqlTextCollector collector, CancellationToken cancellationToken)
@@ -228,7 +251,9 @@ namespace LinqToDB.Analyzers
 				sb.Append("\t\t\tnew global::LinqToDB.Remote.SqlTextItem(global::LinqToDB.Remote.SqlTextKind.").Append(item.Kind).Append(", ")
 					.Append(SymbolDisplay.FormatLiteral(item.Text, true)).Append(", null, ")
 					.Append(item.Origin == null ? "null" : SymbolDisplay.FormatLiteral(item.Origin, true)).Append(", ")
-					.Append(item.IsTemplate ? "true" : "false").AppendLine("),");
+					.Append(item.IsTemplate ? "true" : "false")
+					.Append(item.IsRemoval ? ", true" : "")
+					.AppendLine("),");
 			}
 
 			sb.AppendLine("\t\t};");
