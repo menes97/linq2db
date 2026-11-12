@@ -1,9 +1,13 @@
-using System.Text;
+using System.Linq;
 
 using LinqToDB;
-using LinqToDB.Internal.SqlProvider;
-using LinqToDB.Internal.SqlQuery;
-using LinqToDB.SqlQuery;
+using LinqToDB.Data;
+using LinqToDB.DataProvider.ClickHouse;
+using LinqToDB.DataProvider.MySql;
+using LinqToDB.DataProvider.PostgreSQL;
+using LinqToDB.DataProvider.SapHana;
+using LinqToDB.DataProvider.SqlServer;
+using LinqToDB.Mapping;
 
 using NUnit.Framework;
 
@@ -13,92 +17,137 @@ namespace Tests.AST
 {
 	/// <summary>
 	/// List-shaped SQL is built from nested fixed fragments so every text is an exact catalog entry for untrusted remote
-	/// clients. These tests pin that the nesting renders the same text as the flat format string it replaced.
+	/// clients. Each test drives one production site end to end and pins the flat text the nesting must render. The
+	/// connections are never opened: SQL generation needs only the provider and its mapping schema.
 	/// </summary>
 	[TestFixture]
 	public class SqlFragmentRenderTests : TestBase
 	{
-		static string Render(IDataContext db, ISqlExpression expr)
+		[Table("ListRow")]
+		sealed class ListRow
 		{
-			var sb = new StringBuilder();
-			((ISqlBuilder)db.CreateSqlBuilder()).BuildExpression(sb, expr, false);
-			return sb.ToString();
+			[Column] public int     Id      { get; set; }
+			[Column] public int     GroupId { get; set; }
+			[Column] public int?    Value   { get; set; }
+			[Column] public string? Name    { get; set; }
+			[Column] public string? Note    { get; set; }
 		}
 
-		static ISqlExpression[] Items() =>
-		[
-			new SqlValue(1),
-			new SqlBinaryExpression(typeof(int), new SqlValue(2), "+", new SqlValue(3), Precedence.Additive),
-			new SqlFunction(new DbDataType(typeof(int)), "ABS", new SqlValue(4)),
-		];
+		static string SqlOf<T>(IQueryable<T> query) => query.ToSqlQuery().Sql;
 
-		static ISqlExpression List(params ISqlExpression[] items)
-		{
-			var result = items[items.Length - 1];
+		static IQueryable<string?> OrderedAggregate(DataConnection db) =>
+			db.GetTable<ListRow>()
+				.GroupBy(r => r.GroupId)
+				.Select(g => g.StringAggregate(", ", r => r.Name).OrderBy(r => r.Value).ThenByDescending(r => r.Id).ToValue());
 
-			for (var i = items.Length - 2; i >= 0; i--)
-				result = new SqlFragment("{0}, {1}", items[i], result);
-
-			return result;
-		}
-
+		// StringMemberTranslatorBase.BuildAggregateNullsOrderBy; the second item nests NULLS FIRST around DESC
 		[Test]
-		public void OrderByListMatchesFlatText([DataSources(false)] string context)
+		public void AggregateOrderByWithNullsPosition()
 		{
-			using var db = GetDataContext(context);
+			using var db = new DataConnection(new DataOptions()
+				.UsePostgreSQL("Server=offline", PostgreSQLVersion.v15)
+				.UseDefaultNullsPosition(Sql.NullsPosition.First));
 
-			var i = Items();
-
-			var flat   = new SqlFragment("ORDER BY {0}, {1} DESC NULLS FIRST, {2} NULLS LAST", i[0], i[1], i[2]);
-			var nested = new SqlFragment("ORDER BY {0}", List(
-				i[0],
-				new SqlFragment("{0} NULLS FIRST", new SqlFragment("{0} DESC", i[1])),
-				new SqlFragment("{0} NULLS LAST", i[2])));
-
-			// the lower-precedence item must be parenthesised in both forms, or the comparison proves nothing about nesting
-			Render(db, flat).ShouldContain("(2 + 3) DESC");
-			Render(db, nested).ShouldBe(Render(db, flat));
+			SqlOf(OrderedAggregate(db)).ShouldContain("STRING_AGG(g_1.\"Name\", ', ' ORDER BY g_1.\"Value\" NULLS FIRST, g_1.\"Id\" DESC NULLS FIRST)");
 		}
 
+		// MySqlMemberTranslator: the NULLS emulation key ({0} IS NULL) is a list item of its own
 		[Test]
-		public void TupleMatchesFlatText([DataSources(false)] string context)
+		public void AggregateOrderByWithEmulatedNullsPosition()
 		{
-			using var db = GetDataContext(context);
+			using var db = new DataConnection(new DataOptions()
+				.UseMySql("Server=offline", MySqlVersion.MySql80, MySqlProvider.MySqlConnector)
+				.UseDefaultNullsPosition(Sql.NullsPosition.Last));
 
-			var i = Items();
-
-			var flat   = new SqlFragment("({0}, {1}, {2})", i[0], i[1], i[2]);
-			var nested = new SqlFragment("({0})", List(i[0], i[1], i[2]));
-
-			Render(db, nested).ShouldBe(Render(db, flat));
+			SqlOf(OrderedAggregate(db)).ShouldContain("GROUP_CONCAT(`g_1`.`Name` ORDER BY (`g_1`.`Value` IS NULL), `g_1`.`Value`, `g_1`.`Id` DESC SEPARATOR ', ')");
 		}
 
+		// ClickHouseMemberTranslator: the aggregated tuple and the arraySort key tuple
 		[Test]
-		public void SingleItemListMatchesFlatText([DataSources(false)] string context)
+		public void AggregateOrderByAsClickHouseTuples()
 		{
-			using var db = GetDataContext(context);
+			using var db = new DataConnection(new DataOptions().UseClickHouse("Host=offline", ClickHouseProvider.ClickHouseDriver));
 
-			var i = Items();
+			var sql = SqlOf(OrderedAggregate(db));
 
-			var flat   = new SqlFragment("ORDER BY {0} DESC", i[1]);
-			var nested = new SqlFragment("ORDER BY {0}", new SqlFragment("{0} DESC", i[1]));
-
-			Render(db, nested).ShouldBe(Render(db, flat));
+			sql.ShouldContain("arraySort((t) -> (if(isNull(t.1), 0, 1), t.1, if(isNull(t.2), 1, 0), negate(t.2)), groupArray((g_1.Value, g_1.Id, toString(g_1.Name))))");
 		}
 
+		// YdbMemberTranslator: the aggregated tuple and the ListSort key tuple
 		[Test]
-		public void RowNumberOrderByMatchesFlatText([DataSources(false)] string context)
+		public void AggregateOrderByAsYdbTuples()
 		{
-			using var db = GetDataContext(context);
+			using var db = new DataConnection(new DataOptions().UseYdb("Endpoint=grpc://offline:2136;Database=/local"));
 
-			var i    = Items();
-			var type = db.MappingSchema.GetDbDataType(typeof(long));
+			var sql = SqlOf(OrderedAggregate(db));
 
-			var flat   = new SqlExpression(type, "ROW_NUMBER() OVER (ORDER BY {0}, {1} DESC, {2})", Precedence.Primary, SqlFlags.IsWindowFunction, ParametersNullabilityType.NotNullable, i[0], i[1], i[2]);
-			var nested = new SqlExpression(type, "ROW_NUMBER() OVER (ORDER BY {0})", Precedence.Primary, SqlFlags.IsWindowFunction, ParametersNullabilityType.NotNullable,
-				List(i[0], new SqlFragment("{0} DESC", i[1]), i[2]));
+			sql.ShouldContain("ListSort(AGGREGATE_LIST((g_1.`Value`, g_1.Id, g_1.Name)), ($t) -> { return (if($t.0 IS NULL, 0, 1), $t.0, if($t.1 IS NULL, 1, 0), (-$t.1)) })");
+		}
 
-			Render(db, nested).ShouldBe(Render(db, flat));
+		// BasicSqlOptimizer: paging without OFFSET becomes ROW_NUMBER() OVER (ORDER BY {0})
+		[Test]
+		public void RowNumberPagingOrderBy()
+		{
+			using var db = new DataConnection(new DataOptions().UseSqlServer("Server=offline", SqlServerVersion.v2008, SqlServerProvider.MicrosoftDataSqlClient));
+
+			var query = db.GetTable<ListRow>().OrderBy(r => r.Value).ThenByDescending(r => r.Id).Skip(1).Take(2);
+
+			SqlOf(query).ShouldContain("ROW_NUMBER() OVER (ORDER BY [t1].[Value], [t1].[Id] DESC) as [RN]");
+		}
+
+		// Sql.FieldsExpr: the column list of a full-text table function
+		[Test]
+		public void FieldsExprColumnList()
+		{
+			using var db = new DataConnection(new DataOptions().UseSqlServer("Server=offline", SqlServerVersion.v2022, SqlServerProvider.MicrosoftDataSqlClient));
+
+			var query = Sql.Ext.SqlServer().FreeTextTable<ListRow, int>(db.GetTable<ListRow>(), r => new { r.Name, r.Note }, "term");
+
+			SqlOf(query).ShouldContain("FREETEXTTABLE([ListRow], ([Name], [Note]), @term)");
+		}
+
+		// SqlFn.PropertyBuilder: the property name is a VarChar literal, so it is catalogued as rendered
+		[Test]
+		public void PropertyNameRendersAsVarCharLiteral()
+		{
+			using var db = new DataConnection(new DataOptions().UseSqlServer("Server=offline", SqlServerVersion.v2022, SqlServerProvider.MicrosoftDataSqlClient));
+
+			var query = db.GetTable<ListRow>().Select(r => SqlFn.DatabasePropertyEx(r.Name!, SqlFn.DatabasePropertyName.Collation));
+
+			SqlOf(query).ShouldContain("DATABASEPROPERTYEX([r].[Name], 'Collation')");
+		}
+
+		// ClickHouseSqlExpressionConvertVisitor.OrNullAggregateName: a fixed name per aggregate
+		[Test]
+		public void StandardCompatibleAggregateName()
+		{
+			using var db = new DataConnection(new DataOptions().UseClickHouse("Host=offline", ClickHouseProvider.ClickHouseDriver, o => o with { UseStandardCompatibleAggregates = true }));
+
+			var query = db.GetTable<ListRow>().GroupBy(r => r.GroupId).Select(g => g.Max(r => r.Value));
+
+			SqlOf(query).ShouldContain("maxOrNull(g_1.Value)");
+		}
+
+		sealed class CalculationViews : DataConnection
+		{
+			public CalculationViews(DataOptions options) : base(options)
+			{
+			}
+
+			[CalculationViewInputParametersExpression]
+			public ITable<ListRow> ListView([SqlQueryDependent] int first, [SqlQueryDependent] string? second, [SqlQueryDependent] string third)
+			{
+				return this.TableFromExpression(() => ListView(first, second, third));
+			}
+		}
+
+		// CalculationViewInputParametersExpressionAttribute: the PLACEHOLDER list skips null arguments
+		[Test]
+		public void CalculationViewInputParameterList()
+		{
+			using var db = new CalculationViews(new DataOptions().UseSapHana("Driver=offline", SapHanaProvider.ODBC));
+
+			SqlOf(db.ListView(1, null, "x")).ShouldContain("('PLACEHOLDER' = ('$$first$$', '1', '$$third$$', 'x'))");
 		}
 	}
 }
