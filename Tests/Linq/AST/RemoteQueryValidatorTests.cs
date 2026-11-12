@@ -140,10 +140,20 @@ namespace Tests.AST
 			return RemoteQueryPolicy.Create(db, mappingAssemblies, null);
 		}
 
+		// TO-15: what an untrusted client is refused, a trusted client (no policy) still sends
+		static RemoteRequestRejectedException RejectedUnlessTrusted(DataConnection db, SqlStatement statement, RemoteQueryPolicy policy)
+		{
+			var exception = Assert.Throws<RemoteRequestRejectedException>(() => RoundTrip(db, statement, policy))!;
+
+			RoundTrip(db, statement, null);
+
+			return exception;
+		}
+
 		static RemoteRejection RejectedSingle(DataConnection db, SqlStatement statement, SqlTextCatalog? catalog = null)
 		{
 			var policy    = RemoteQueryPolicy.Create(db, [], null, catalog);
-			var exception = Assert.Throws<RemoteRequestRejectedException>(() => RoundTrip(db, statement, policy))!;
+			var exception = RejectedUnlessTrusted(db, statement, policy)!;
 
 			return exception.Rejections[0];
 		}
@@ -469,7 +479,7 @@ namespace Tests.AST
 			var statement = SelectOf(new SqlExpression(new DbDataType(typeof(LocalEntity)), InertText, One));
 
 			var policy    = RemoteQueryPolicy.Create(db, [_thisAssembly], null, catalog);
-			var exception = Assert.Throws<RemoteRequestRejectedException>(() => RoundTrip(db, statement, policy))!;
+			var exception = RejectedUnlessTrusted(db, statement, policy)!;
 
 			exception.Rejections[0].NodeType.ShouldBe("ResultColumn");
 		}
@@ -483,6 +493,7 @@ namespace Tests.AST
 
 			RecordingValue.StartCounting();
 
+			// not RejectedUnlessTrusted: its trusted run constructs the value; ValueTypeIsConvertedWhenTrusted is the control
 			var exception = Assert.Throws<RemoteRequestRejectedException>(() => RoundTrip(db, statement, Untrusted(db)))!;
 
 			RecordingValue.Constructed.ShouldBe(0);
@@ -503,6 +514,7 @@ namespace Tests.AST
 
 			RecordingValue.StartCounting();
 
+			// not RejectedUnlessTrusted: its trusted run constructs the value; ValueTypeIsConvertedWhenTrusted is the control
 			var exception = Assert.Throws<RemoteRequestRejectedException>(() => RoundTrip(db, statement, policy))!;
 
 			RecordingValue.Constructed.ShouldBe(0);
@@ -548,6 +560,8 @@ namespace Tests.AST
 			using var db = CreateConnection();
 
 			var statement = SelectOf(new SqlValue(new DbDataType(typeof(XElement), DataType.Xml), new XElement("r", "inert")));
+
+			// not RejectedUnlessTrusted: a trusted server cannot read an XElement value back either
 			var exception = Assert.Throws<RemoteRequestRejectedException>(() => RoundTrip(db, statement, Untrusted(db)))!;
 
 			exception.Rejections[0].Reason.ShouldBe(RemoteRejectionReason.TypeNotAllowed);
@@ -600,7 +614,7 @@ namespace Tests.AST
 
 			statement.SelectQuery!.SqlQueryExtensions = [new SqlQueryExtension { Scope = Sql.QueryExtensionScope.QueryHint, BuilderType = typeof(LocalBuilder), Arguments = new(StringComparer.Ordinal) }];
 
-			var exception = Assert.Throws<RemoteRequestRejectedException>(() => RoundTrip(db, statement, Untrusted(db)))!;
+			var exception = RejectedUnlessTrusted(db, statement, Untrusted(db))!;
 
 			exception.Rejections[0].Reason.ShouldBe(RemoteRejectionReason.BuilderNotAllowed);
 		}
@@ -612,6 +626,7 @@ namespace Tests.AST
 
 			var statement = SelectOf(new SqlValue(new DbDataType(typeof(int)), new LocalEntity()));
 
+			// not RejectedUnlessTrusted: a trusted server cannot convert an entity value from its text either
 			var exception = Assert.Throws<RemoteRequestRejectedException>(() => RoundTrip(db, statement, Untrusted(db, _thisAssembly)))!;
 
 			exception.Rejections[0].Reason.ShouldBe(RemoteRejectionReason.TypeNotAllowed);
@@ -685,7 +700,7 @@ namespace Tests.AST
 			table.Expression   = TableExpression;
 			table.TableName    = new SqlObjectName("NOT_A_MAPPED_NAME");
 
-			var exception = Assert.Throws<RemoteRequestRejectedException>(() => RoundTrip(db, SelectFrom(table), RemoteQueryPolicy.Create(db, [_thisAssembly], null, catalog)))!;
+			var exception = RejectedUnlessTrusted(db, SelectFrom(table), RemoteQueryPolicy.Create(db, [_thisAssembly], null, catalog))!;
 
 			exception.Rejections.ShouldContain(static r => r.Kind == SqlTextKind.TableName && r.Text == "NOT_A_MAPPED_NAME");
 		}
@@ -727,7 +742,7 @@ namespace Tests.AST
 			table.Expression   = expression;
 			table.TableName    = new SqlObjectName("NOT_A_MAPPED_NAME");
 
-			var exception = Assert.Throws<RemoteRequestRejectedException>(() => RoundTrip(db, SelectFrom(table), RemoteQueryPolicy.Create(db, [_thisAssembly], null, catalog)))!;
+			var exception = RejectedUnlessTrusted(db, SelectFrom(table), RemoteQueryPolicy.Create(db, [_thisAssembly], null, catalog))!;
 
 			exception.Rejections.ShouldContain(static r => r.Kind == SqlTextKind.TableName && r.Text == "NOT_A_MAPPED_NAME");
 		}
@@ -750,7 +765,7 @@ namespace Tests.AST
 				_          => new SqlObjectName("Allowed_Name", Server  : "NOT_ALLOWED"),
 			};
 
-			var exception = Assert.Throws<RemoteRequestRejectedException>(() => RoundTrip(db, SelectFrom(table), RemoteQueryPolicy.Create(db, [_thisAssembly], null, catalog)))!;
+			var exception = RejectedUnlessTrusted(db, SelectFrom(table), RemoteQueryPolicy.Create(db, [_thisAssembly], null, catalog))!;
 
 			exception.Rejections.ShouldContain(static r => r.Kind == SqlTextKind.TableName && r.Text == "NOT_ALLOWED");
 		}
@@ -774,7 +789,7 @@ namespace Tests.AST
 
 		static RemoteRequestRejectedException Rejected(DataConnection db, SqlStatement statement)
 		{
-			return Assert.Throws<RemoteRequestRejectedException>(() => RoundTrip(db, statement, RemoteQueryPolicy.Create(db, [_thisAssembly], null)))!;
+			return RejectedUnlessTrusted(db, statement, RemoteQueryPolicy.Create(db, [_thisAssembly], null))!;
 		}
 
 		[Test]
@@ -894,7 +909,7 @@ namespace Tests.AST
 			// newline, bidi override and line separator would split or spoof a log line
 			var text      = "NOT_IN_CATALOG\n\u202E\u2028({0})" + new string('x', 600);
 			var policy    = RemoteQueryPolicy.Create(db, [], null, catalog);
-			var exception = Assert.Throws<RemoteRequestRejectedException>(() => RoundTrip(db, SelectOf(new SqlExpression(new DbDataType(typeof(int)), text, One)), policy))!;
+			var exception = RejectedUnlessTrusted(db, SelectOf(new SqlExpression(new DbDataType(typeof(int)), text, One)), policy)!;
 
 			exception.Message.ShouldContain("\\u000a");
 			exception.Message.ShouldContain("\\u202e");
@@ -956,7 +971,7 @@ namespace Tests.AST
 				_        => new SqlMergeStatement(MappedTable(db)) { Output = output },
 			};
 
-			var exception = Assert.Throws<RemoteRequestRejectedException>(() => RoundTrip(db, statement, RemoteQueryPolicy.Create(db, [_thisAssembly], null, catalog)))!;
+			var exception = RejectedUnlessTrusted(db, statement, RemoteQueryPolicy.Create(db, [_thisAssembly], null, catalog))!;
 
 			exception.Rejections.ShouldContain(static r => r.NodeType == "ResultColumn");
 		}
@@ -1136,7 +1151,7 @@ namespace Tests.AST
 			// the same assembly as a catalog-only source: its text is read, its builder roles and types are not
 			var policy = RemoteQueryPolicy.Create(db, [], null, null, [_thisAssembly]);
 
-			Assert.Throws<RemoteRequestRejectedException>(() => RoundTrip(db, WithExtension(typeof(MarkerHintBuilder), "names.0", new SqlValue("IX_user_chosen_1")), policy))!
+			RejectedUnlessTrusted(db, WithExtension(typeof(MarkerHintBuilder), "names.0", new SqlValue("IX_user_chosen_1")), policy)!
 				.Rejections.ShouldContain(static r => r.Reason == RemoteRejectionReason.BuilderNotAllowed);
 		}
 
@@ -1250,7 +1265,7 @@ namespace Tests.AST
 		{
 			using (var db = CreateSqlServerConnection())
 			{
-				Assert.Throws<RemoteRequestRejectedException>(() => RoundTrip(db, WithJoinHint(InertText), RemoteQueryPolicy.Create(db, [], null)))!
+				RejectedUnlessTrusted(db, WithJoinHint(InertText), RemoteQueryPolicy.Create(db, [], null))!
 					.Rejections.ShouldContain(static r => r.Kind == SqlTextKind.ExtensionArgument && r.Text == InertText);
 
 				// control: the library's own join hint is catalogued
@@ -1280,7 +1295,7 @@ namespace Tests.AST
 			table.TableName      = new SqlObjectName("NOT_A_MAPPED_NAME");
 			table.TableArguments = [One];
 
-			var exception = Assert.Throws<RemoteRequestRejectedException>(() => RoundTrip(db, SelectFrom(table), RemoteQueryPolicy.Create(db, [_thisAssembly], null, catalog)))!;
+			var exception = RejectedUnlessTrusted(db, SelectFrom(table), RemoteQueryPolicy.Create(db, [_thisAssembly], null, catalog))!;
 
 			exception.Rejections.ShouldContain(static r => r.Reason == RemoteRejectionReason.NodeNotAllowed && r.Text == "SqlTable.Expression");
 			exception.Rejections.ShouldContain(static r => r.Kind == SqlTextKind.TableName && r.Text == "NOT_A_MAPPED_NAME");
@@ -1305,7 +1320,7 @@ namespace Tests.AST
 			table.TableName      = new SqlObjectName("NOT A NAME");
 			table.TableArguments = [One];
 
-			var exception = Assert.Throws<RemoteRequestRejectedException>(() => RoundTrip(db, SelectFrom(table), RemoteQueryPolicy.Create(db, [_thisAssembly], null, catalog)))!;
+			var exception = RejectedUnlessTrusted(db, SelectFrom(table), RemoteQueryPolicy.Create(db, [_thisAssembly], null, catalog))!;
 
 			exception.Rejections.ShouldContain(static r => r.Reason == RemoteRejectionReason.IdentifierNotMapped && r.Text == "NOT A NAME");
 		}
@@ -1326,7 +1341,7 @@ namespace Tests.AST
 		{
 			using var db = CreateConnection();
 
-			Assert.Throws<RemoteRequestRejectedException>(() => RoundTrip(db, SelectFrom(FunctionTable(db, "MARKER_OTHER", "MARKER_FUNCTION")), RemoteQueryPolicy.Create(db, [_thisAssembly], null)))!
+			RejectedUnlessTrusted(db, SelectFrom(FunctionTable(db, "MARKER_OTHER", "MARKER_FUNCTION")), RemoteQueryPolicy.Create(db, [_thisAssembly], null))!
 				.Rejections.ShouldContain(static r => r.Reason == RemoteRejectionReason.NodeNotAllowed && r.Text == "SqlTable.Expression");
 		}
 
@@ -1337,7 +1352,7 @@ namespace Tests.AST
 
 			var table = FunctionTable(db, "MARKER_FUNCTION", "MARKER_FUNCTION");
 
-			Assert.Throws<RemoteRequestRejectedException>(() => RoundTrip(db, SelectFrom(table), RemoteQueryPolicy.Create(db, [_thisAssembly], null)))!
+			RejectedUnlessTrusted(db, SelectFrom(table), RemoteQueryPolicy.Create(db, [_thisAssembly], null))!
 				.Rejections.ShouldContain(static r => r.Kind == SqlTextKind.TableName && r.Text == "MARKER_FUNCTION");
 
 			var catalog = new SqlTextCatalog();
@@ -1543,7 +1558,7 @@ namespace Tests.AST
 			RoundTrip(db, statement, RemoteQueryPolicy.Create(db, [_thisAssembly], null));
 
 			// without the assembly its catalog is not consulted: the text fails closed, and the exception names the provider
-			var exception = Assert.Throws<RemoteRequestRejectedException>(() => RoundTrip(db, statement, RemoteQueryPolicy.Create(db, [], null)))!;
+			var exception = RejectedUnlessTrusted(db, statement, RemoteQueryPolicy.Create(db, [], null))!;
 
 			exception.Rejections[0].Reason.ShouldBe(RemoteRejectionReason.TextNotInCatalog);
 			exception.Provider.ShouldBe(db.DataProvider.Name);
@@ -1679,7 +1694,7 @@ namespace Tests.AST
 			{
 				var statement = SelectOf(new SqlValue(new DbDataType(typeof(int)), new UnregisteredStruct()));
 
-				Assert.Throws<RemoteRequestRejectedException>(() => RoundTrip(db, statement, Untrusted(db, _thisAssembly)));
+				RejectedUnlessTrusted(db, statement, Untrusted(db, _thisAssembly));
 			}
 
 			schema.AddScalarType(typeof(UnregisteredStruct));
@@ -1732,6 +1747,7 @@ namespace Tests.AST
 				new SqlValue(new DbDataType(typeof(string)), new RecordingValue("a")),
 				new SqlValue(new DbDataType(typeof(string)), new LocalEntity()));
 
+			// not RejectedUnlessTrusted: a trusted server cannot convert an entity value from its text either
 			var exception = Assert.Throws<RemoteRequestRejectedException>(() => RoundTrip(db, statement, Untrusted(db)))!;
 
 			exception.Rejections.Count.ShouldBe(2);

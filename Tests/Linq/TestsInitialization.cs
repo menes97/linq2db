@@ -43,6 +43,11 @@ public class TestsInitialization
 		// this file is linked into the Playground too, so the assembly is whichever one runs the tests
 		Tests.Remote.TestLinqService.RegisterTestAssembly(typeof(TestsInitialization).Assembly);
 
+		// the F# and VB test models reach remote contexts too; the Playground does not reference the VB one
+		foreach (var reference in typeof(TestsInitialization).Assembly.GetReferencedAssemblies())
+			if (reference.Name is "linq2db.Tests.FSharp" or "Tests.VisualBasic")
+				Tests.Remote.TestLinqService.RegisterTestAssembly(Assembly.Load(reference));
+
 #if NET8_0_OR_GREATER
 		// this API is not available in NETFX, but for some reason it works if SDS test run first (which is true now)
 		IntPtr? handle = null;

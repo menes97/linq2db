@@ -9,6 +9,7 @@ using LinqToDB.Async;
 using LinqToDB.Data;
 using LinqToDB.Internal.SqlQuery;
 using LinqToDB.Mapping;
+using LinqToDB.Remote;
 
 using NUnit.Framework;
 
@@ -271,6 +272,7 @@ namespace Tests.Linq
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.Expression)]
 		public void TestPositionedParameters([DataSources] string context)
 		{
 			using var db = GetDataContext(context);
