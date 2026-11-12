@@ -11,7 +11,6 @@ using LinqToDB.DataProvider.Firebird;
 using LinqToDB.Internal.Mapping;
 using LinqToDB.Mapping;
 using LinqToDB.Metadata;
-using LinqToDB.Remote;
 
 using NUnit.Framework;
 
@@ -536,7 +535,6 @@ namespace Tests.Linq
 		}
 
 		[Test(Description = "https://stackoverflow.com/questions/61081571: Expression 't.Id' is not a Field.")]
-		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName)]
 		public void DynamicGoesBanana1([IncludeDataSources(true, TestProvName.AllSQLite)] string context)
 		{
 			using (var db = GetDataContext(context))

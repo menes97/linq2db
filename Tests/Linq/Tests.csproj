@@ -67,4 +67,18 @@
 		<Compile Include="$(MSBuildThisFileDirectory)/../../Source/Shared/JetBrains.Annotations.cs" Link="JetBrains.Annotations.cs" />
 		<Compile Include="$(MSBuildThisFileDirectory)/../../Source/LinqToDB.CLI/CommandLine/Commands/QueryExecution/QueryValueFormatter.cs" Link="DataProvider/QueryValueFormatter.cs" Condition="'$(TargetFramework)' != 'net462'" />
 	</ItemGroup>
+
+	<!-- Remote tests run with TrustedClient = false: the generated SQL text catalog lets the server accept this
+	     assembly's own mappings and constant query text, as it would for a user project. Tests send dynamic text on
+	     purpose (L2DB1005), and some templates are refused by design for a format item inside quotes (L2DB1006). -->
+	<PropertyGroup>
+		<LinqToDBSqlTextCatalog>true</LinqToDBSqlTextCatalog>
+		<NoWarn>$(NoWarn);L2DB1005;L2DB1006</NoWarn>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\..\Source\LinqToDB.Analyzers\LinqToDB.Analyzers.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+	</ItemGroup>
+
+	<Import Project="..\..\Source\LinqToDB.Analyzers.CodeFixes\build\linq2db.Analyzers.targets" />
 </Project>
