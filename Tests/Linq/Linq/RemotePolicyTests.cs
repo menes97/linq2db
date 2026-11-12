@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
+using System.Reflection.Emit;
 using System.Threading.Tasks;
 
 using LinqToDB;
@@ -357,6 +359,96 @@ namespace Tests.Linq
 			copy.SqlText.Load(new StringReader(exported));
 
 			copy.DumpSqlText().Single(static e => e.Source == SqlTextCatalog.HostSource).Text.ShouldBe(text);
+		}
+
+		const string LibraryText        = "Lpad('',{0},' ')";
+		const string LibraryCanonical   = "Lpad('',{},' ')";
+		const string AssemblyText       = "ASSEMBLY_CATALOG_TEXT({})";
+		const string AssemblyNoMatch    = "ASSEMBLY_REMOVAL_MATCHES_NOTHING({})";
+
+		/// <summary>A catalog that allows one text and removes a library text and a text no source has.</summary>
+		public sealed class RemovingCatalog : ISqlTextCatalog
+		{
+			public IReadOnlyList<SqlTextItem> Items { get; } =
+			[
+				new(SqlTextKind.Expression, AssemblyText,    null, nameof(RemotePolicyTests), false),
+				new(SqlTextKind.Expression, LibraryText,     null, nameof(RemotePolicyTests), false, IsRemoval: true),
+				new(SqlTextKind.Expression, AssemblyNoMatch, null, nameof(RemotePolicyTests), false, IsRemoval: true),
+			];
+		}
+
+		// a fresh assembly, so its removals reach no other test the way a catalog of this test assembly would
+		static Assembly CatalogAssembly()
+		{
+			var attribute = new CustomAttributeBuilder(typeof(SqlTextCatalogAttribute).GetConstructor([typeof(Type)])!, [typeof(RemovingCatalog)]);
+			var name      = new AssemblyName("SqlTextCatalogAssembly" + Guid.NewGuid().ToString("N"));
+
+			return AssemblyBuilder.DefineDynamicAssembly(name, AssemblyBuilderAccess.Run, [attribute]);
+		}
+
+		[Test]
+		public void AssemblyCatalogRemovalAppliesToLibraryEntries()
+		{
+			var service  = new SQLiteService();
+			var assembly = CatalogAssembly();
+			var source   = assembly.GetName().Name;
+
+			// control: the library entry is allowed until the assembly is registered
+			service.DumpSqlText().Single(static e => e.Text == LibraryCanonical).State.ShouldBe(SqlTextEntryState.Allowed);
+
+			service.SqlTextAssemblies.Add(assembly);
+
+			var dump = service.DumpSqlText();
+
+			var removed = dump.Single(static e => e.Text == LibraryCanonical);
+			removed.State.ShouldBe(SqlTextEntryState.Removed);
+			removed.Source.ShouldBe(source);
+
+			var stale = dump.Single(static e => e.Text == AssemblyNoMatch);
+			stale.State.ShouldBe(SqlTextEntryState.StaleRemoval);
+			stale.Source.ShouldBe(source);
+
+			var allowed = dump.Single(static e => e.Text == AssemblyText);
+			allowed.State.ShouldBe(SqlTextEntryState.Allowed);
+			allowed.Source.ShouldBe(source);
+		}
+
+		[Test]
+		public void HostAdditionDoesNotOverrideAssemblyRemoval()
+		{
+			var service = new SQLiteService();
+
+			service.SqlTextAssemblies.Add(CatalogAssembly());
+			service.SqlText.Add(SqlTextKind.Expression, LibraryText);
+
+			Allowed(service.DumpSqlText()).ShouldNotContain((SqlTextKind.Expression, LibraryCanonical));
+		}
+
+		[Test]
+		public void ExportedAssemblyCatalogLoadsIntoHostCatalog()
+		{
+			using var writer = new StringWriter();
+
+			SqlTextCatalog.Export(writer, CatalogAssembly());
+
+			var service = new SQLiteService();
+
+			service.SqlText.Load(new StringReader(writer.ToString()));
+
+			var dump = service.DumpSqlText();
+
+			dump.Single(static e => e.Text == AssemblyText).State.ShouldBe(SqlTextEntryState.Allowed);
+			dump.Single(static e => e.Text == LibraryCanonical).State.ShouldBe(SqlTextEntryState.Removed);
+		}
+
+		[Test]
+		public void LoadAcceptsDbTypeKind()
+		{
+			var service = new SQLiteService();
+
+			service.SqlText.Load(new StringReader("+\tDbType\tMARKER_TYPE(10)"));
+
+			service.DumpSqlText().Single(static e => e.Source == SqlTextCatalog.HostSource).Kind.ShouldBe(SqlTextKind.DbType);
 		}
 
 		[Test]

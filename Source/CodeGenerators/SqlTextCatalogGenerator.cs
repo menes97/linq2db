@@ -26,7 +26,7 @@ namespace CodeGenerators
 		static readonly string[] KindNames =
 		[
 			"Expression", "Fragment", "Function", "TableExpression", "Operator", "QueryHint",
-			"ExtensionArgument", "MergeHint", "RawSqlTable", "StatementHeader", "StatementFooter", "TableName",
+			"ExtensionArgument", "MergeHint", "RawSqlTable", "StatementHeader", "StatementFooter", "TableName", "DbType",
 		];
 
 		readonly record struct Item(int Kind, string Text, string? Partition, string? Origin, bool IsTemplate);

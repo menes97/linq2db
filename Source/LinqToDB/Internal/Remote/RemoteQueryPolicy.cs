@@ -42,11 +42,11 @@ namespace LinqToDB.Internal.Remote
 		bool _isTruncated;
 
 		readonly SqlTextCatalog                                                        _catalog;
-		readonly IReadOnlyDictionary<(SqlTextKind Kind, string Text), SqlTextOrigin> _sources;
+		readonly SqlTextSources                                                        _sources;
 		readonly Assembly                                                              _driverAssembly;
 		readonly SqlTextQuoting.Dialect                                                _dialect;
 
-		RemoteQueryPolicy(MappingSchema schema, IEnumerable<Assembly> nameAssemblies, IEnumerable<Assembly> entityAssemblies, IEnumerable<Assembly> builderAssemblies, string? provider, string? configuration, SqlTextCatalog catalog, IReadOnlyDictionary<(SqlTextKind Kind, string Text), SqlTextOrigin> sources, Assembly driverAssembly, SqlTextQuoting.Dialect dialect)
+		RemoteQueryPolicy(MappingSchema schema, IEnumerable<Assembly> nameAssemblies, IEnumerable<Assembly> entityAssemblies, IEnumerable<Assembly> builderAssemblies, string? provider, string? configuration, SqlTextCatalog catalog, SqlTextSources sources, Assembly driverAssembly, SqlTextQuoting.Dialect dialect)
 		{
 			_dialect           = dialect;
 			_driverAssembly    = driverAssembly;
@@ -72,8 +72,9 @@ namespace LinqToDB.Internal.Remote
 		/// <param name="mappingAssemblies">Assemblies registered by the host for entity, enum and builder types.</param>
 		/// <param name="configuration">Connection configuration requested by the client.</param>
 		/// <param name="catalog">Host-maintained SQL text. When <see langword="null"/>, no host text is accepted.</param>
+		/// <param name="sqlTextAssemblies">Assemblies whose SQL text catalogs are read; none of their types are accepted.</param>
 		/// <returns>Policy instance. An instance collects the violations of a single request.</returns>
-		public static RemoteQueryPolicy Create(DataConnection connection, IEnumerable<Assembly> mappingAssemblies, string? configuration, SqlTextCatalog? catalog = null)
+		public static RemoteQueryPolicy Create(DataConnection connection, IEnumerable<Assembly> mappingAssemblies, string? configuration, SqlTextCatalog? catalog = null, IEnumerable<Assembly>? sqlTextAssemblies = null)
 		{
 			var mapping          = mappingAssemblies.ToList();
 			var providerAssembly = connection.DataProvider.GetType().Assembly;
@@ -91,7 +92,7 @@ namespace LinqToDB.Internal.Remote
 
 			var builderAssemblies = new List<Assembly>(mapping) { typeof(DataConnection).Assembly, providerAssembly };
 
-			return new RemoteQueryPolicy(connection.MappingSchema, nameAssemblies, mapping, builderAssemblies, connection.DataProvider.Name, configuration, catalog ?? new SqlTextCatalog(), GetTextSources(connection, mapping), connection.DataProvider.DataReaderType.Assembly, GetDialect(connection));
+			return new RemoteQueryPolicy(connection.MappingSchema, nameAssemblies, mapping, builderAssemblies, connection.DataProvider.Name, configuration, catalog ?? new SqlTextCatalog(), GetTextSources(connection, mapping, sqlTextAssemblies), connection.DataProvider.DataReaderType.Assembly, GetDialect(connection));
 		}
 
 		/// <summary>Gets the quoting contexts of the provider serving <paramref name="connection"/>; all of them for a provider outside the library.</summary>
@@ -104,38 +105,54 @@ namespace LinqToDB.Internal.Remote
 		internal SqlTextQuoting.Dialect Dialect => _dialect;
 
 		/// <summary>
-		/// Gets the library, provider and mapping assembly entries of the catalog for requests served by <paramref name="connection"/>.
-		/// The first source to contribute a text is recorded as its origin.
+		/// Gets the library, provider, mapping assembly and catalog assembly entries for requests served by <paramref name="connection"/>.
+		/// The first source to contribute a text is recorded as its origin. A removal declared by any of them applies to all.
 		/// </summary>
-		internal static IReadOnlyDictionary<(SqlTextKind Kind, string Text), SqlTextOrigin> GetTextSources(DataConnection connection, IEnumerable<Assembly> mappingAssemblies)
+		internal static SqlTextSources GetTextSources(DataConnection connection, IEnumerable<Assembly> mappingAssemblies, IEnumerable<Assembly>? sqlTextAssemblies = null)
 		{
 			var providerAssembly = connection.DataProvider.GetType().Assembly;
-			var sources          = new Dictionary<(SqlTextKind Kind, string Text), SqlTextOrigin>();
+			var allowed          = new Dictionary<(SqlTextKind Kind, string Text), SqlTextOrigin>();
+			var removed          = new Dictionary<(SqlTextKind Kind, string Text), SqlTextOrigin>();
 			var dialect          = GetDialect(connection);
+			var merged           = new HashSet<Assembly>();
 
 			Merge(typeof(DataConnection).Assembly, GetProviderFamily(connection.DataProvider.GetType()));
-
-			if (providerAssembly != typeof(DataConnection).Assembly)
-				Merge(providerAssembly, null);
+			Merge(providerAssembly, null);
 
 			foreach (var assembly in mappingAssemblies)
 				Merge(assembly, null);
 
-			return sources;
+			foreach (var assembly in sqlTextAssemblies ?? [])
+				Merge(assembly, null);
+
+			var unmatched = new List<(SqlTextKind Kind, string Text)>();
+
+			foreach (var key in removed.Keys)
+				if (!allowed.Remove(key))
+					unmatched.Add(key);
+
+			return new SqlTextSources(allowed, removed, unmatched);
 
 			void Merge(Assembly assembly, string? family)
 			{
-				var source = assembly.GetName().Name ?? assembly.FullName ?? "";
+				if (!merged.Add(assembly))
+					return;
+
+				var source  = assembly.GetName().Name ?? assembly.FullName ?? "";
+				var entries = SqlTextCatalog.GetAssemblySources(assembly, family);
 
 				// a text with a format item in a quoted context of this provider is not accepted, whichever assembly declares it
-				foreach (var pair in SqlTextCatalog.GetAssemblySources(assembly, family))
-					if (!sources.ContainsKey(pair.Key) && !SqlTextCatalog.IsRefused(pair.Key.Text, dialect))
-						sources.Add(pair.Key, new SqlTextOrigin(source, pair.Value));
+				foreach (var pair in entries.Allowed)
+					if (!allowed.ContainsKey(pair.Key) && !SqlTextCatalog.IsRefused(pair.Key.Text, dialect))
+						allowed.Add(pair.Key, new SqlTextOrigin(source, pair.Value));
+
+				foreach (var pair in entries.Removed)
+					removed.TryAdd(pair.Key, new SqlTextOrigin(source, pair.Value));
 			}
 		}
 
-		/// <summary>Gets the library, provider and mapping assembly entries this policy accepts.</summary>
-		internal IReadOnlyDictionary<(SqlTextKind Kind, string Text), SqlTextOrigin> TextSources => _sources;
+		/// <summary>Gets the library, provider and assembly entries this policy accepts, and the assemblies' removals.</summary>
+		internal SqlTextSources TextSources => _sources;
 
 		const string ProviderNamespacePrefix = "LinqToDB.Internal.DataProvider.";
 

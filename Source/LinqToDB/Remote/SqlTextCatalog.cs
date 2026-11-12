@@ -95,47 +95,55 @@ namespace LinqToDB.Remote
 			return SqlTextQuoting.TryFindQuotedToken(text, dialect, out _);
 		}
 
-		internal RemoteRejectionReason? Check(SqlTextKind kind, string text, IReadOnlyDictionary<(SqlTextKind Kind, string Text), SqlTextOrigin> sources, SqlTextQuoting.Dialect dialect)
+		internal RemoteRejectionReason? Check(SqlTextKind kind, string text, SqlTextSources sources, SqlTextQuoting.Dialect dialect)
 		{
 			var state = _state;
 			var key   = (kind, Canonicalize(text));
 
-			if (state.Removed.Contains(key))
+			if (state.Removed.Contains(key) || sources.Removed.ContainsKey(key))
 				return RemoteRejectionReason.TextRemovedFromCatalog;
 
-			if (sources.ContainsKey(key) || state.Added.Contains(key) && !IsRefused(key.Item2, dialect))
+			if (sources.Allowed.ContainsKey(key) || state.Added.Contains(key) && !IsRefused(key.Item2, dialect))
 				return null;
 
 			var canonical = key.Item2;
 
-			return state.Added.Concat(sources.Keys).Any(e => e.Kind != kind && string.Equals(e.Text, canonical, StringComparison.Ordinal))
+			return state.Added.Concat(sources.Allowed.Keys).Any(e => e.Kind != kind && string.Equals(e.Text, canonical, StringComparison.Ordinal))
 				? RemoteRejectionReason.TextAllowedForOtherKind
 				: RemoteRejectionReason.TextNotInCatalog;
 		}
 
 		/// <summary>Lists every entry of the effective catalog over <paramref name="sources"/>, and removals that match nothing.</summary>
-		internal IReadOnlyList<SqlTextEntry> Dump(IReadOnlyDictionary<(SqlTextKind Kind, string Text), SqlTextOrigin> sources, SqlTextQuoting.Dialect dialect)
+		internal IReadOnlyList<SqlTextEntry> Dump(SqlTextSources sources, SqlTextQuoting.Dialect dialect)
 		{
 			var state   = _state;
-			var entries = new List<SqlTextEntry>(sources.Count + state.Added.Count);
+			var entries = new List<SqlTextEntry>(sources.Allowed.Count + sources.Removed.Count + state.Added.Count);
 
-			foreach (var pair in sources)
+			foreach (var pair in sources.Allowed)
 				entries.Add(new(pair.Key.Kind, pair.Key.Text, pair.Value.Source, pair.Value.Origin, state.Removed.Contains(pair.Key) ? SqlTextEntryState.Removed : SqlTextEntryState.Allowed));
+
+			// an assembly's removal is listed under the assembly that declares it
+			foreach (var pair in sources.Removed)
+			{
+				var isStale = sources.UnmatchedRemovals.Contains(pair.Key) && !state.Added.Contains(pair.Key);
+
+				entries.Add(new(pair.Key.Kind, pair.Key.Text, pair.Value.Source, pair.Value.Origin, isStale ? SqlTextEntryState.StaleRemoval : SqlTextEntryState.Removed));
+			}
 
 			foreach (var key in state.Added)
 			{
-				if (sources.ContainsKey(key))
+				if (sources.Allowed.ContainsKey(key))
 					continue;
 
 				var entryState =
-					state.Removed.Contains(key)   ? SqlTextEntryState.Removed :
-					IsRefused(key.Text, dialect) ? SqlTextEntryState.Refused :
-					                               SqlTextEntryState.Allowed;
+					state.Removed.Contains(key) || sources.Removed.ContainsKey(key) ? SqlTextEntryState.Removed :
+					IsRefused(key.Text, dialect)                                    ? SqlTextEntryState.Refused :
+					                                                                  SqlTextEntryState.Allowed;
 
 				entries.Add(new(key.Kind, key.Text, HostSource, null, entryState));
 			}
 
-			foreach (var (kind, text) in GetStaleRemovals(state, sources))
+			foreach (var (kind, text) in GetHostStaleRemovals(state, sources))
 				entries.Add(new(kind, text, HostSource, null, SqlTextEntryState.StaleRemoval));
 
 			entries.Sort(static (x, y) => x.Kind != y.Kind ? x.Kind.CompareTo(y.Kind) : string.CompareOrdinal(x.Text, y.Text));
@@ -143,15 +151,20 @@ namespace LinqToDB.Remote
 			return entries;
 		}
 
-		/// <summary>Removals that match no entry of <paramref name="sources"/> and no host addition: usually a typo or a text the library no longer produces.</summary>
-		internal IEnumerable<(SqlTextKind Kind, string Text)> GetStaleRemovals(IReadOnlyDictionary<(SqlTextKind Kind, string Text), SqlTextOrigin> sources)
+		/// <summary>
+		/// Host and assembly removals that match no entry of any source and no host addition: usually a typo, or a text the
+		/// library no longer produces.
+		/// </summary>
+		internal IEnumerable<(SqlTextKind Kind, string Text)> GetStaleRemovals(SqlTextSources sources)
 		{
-			return GetStaleRemovals(_state, sources);
+			var state = _state;
+
+			return GetHostStaleRemovals(state, sources).Concat(sources.UnmatchedRemovals.Where(key => !state.Added.Contains(key)));
 		}
 
-		static IEnumerable<(SqlTextKind Kind, string Text)> GetStaleRemovals(State state, IReadOnlyDictionary<(SqlTextKind Kind, string Text), SqlTextOrigin> sources)
+		static IEnumerable<(SqlTextKind Kind, string Text)> GetHostStaleRemovals(State state, SqlTextSources sources)
 		{
-			return state.Removed.Where(key => !sources.ContainsKey(key) && !state.Added.Contains(key));
+			return state.Removed.Where(key => !sources.Allowed.ContainsKey(key) && !sources.Removed.ContainsKey(key) && !state.Added.Contains(key));
 		}
 
 		/// <summary>Writes the host's additions and removals in the format <see cref="Load"/> reads.</summary>
@@ -227,40 +240,83 @@ namespace LinqToDB.Remote
 			}
 		}
 
-		static readonly ConcurrentDictionary<(Assembly Assembly, string? Family), Dictionary<(SqlTextKind Kind, string Text), string?>> _assemblyCache = new();
+		/// <summary>The entries and removals of an assembly's catalogs, with the type that produces each text.</summary>
+		internal sealed class AssemblyEntries(Dictionary<(SqlTextKind Kind, string Text), string?> allowed, Dictionary<(SqlTextKind Kind, string Text), string?> removed)
+		{
+			public IReadOnlyDictionary<(SqlTextKind Kind, string Text), string?> Allowed { get; } = allowed;
+			public IReadOnlyDictionary<(SqlTextKind Kind, string Text), string?> Removed { get; } = removed;
+		}
 
-		/// <summary>Gets the entries an assembly's catalogs contribute, with the type that produces each text.</summary>
-		internal static IReadOnlyDictionary<(SqlTextKind Kind, string Text), string?> GetAssemblySources(Assembly assembly, string? family)
+		static readonly ConcurrentDictionary<(Assembly Assembly, string? Family), AssemblyEntries> _assemblyCache = new();
+
+		/// <summary>Gets the entries and removals an assembly's catalogs declare for <paramref name="family"/>.</summary>
+		internal static AssemblyEntries GetAssemblySources(Assembly assembly, string? family)
 		{
 			return _assemblyCache.GetOrAdd((assembly, family), static key => Build(key.Assembly, key.Family));
 		}
 
-		static Dictionary<(SqlTextKind Kind, string Text), string?> Build(Assembly assembly, string? family)
+		static AssemblyEntries Build(Assembly assembly, string? family)
 		{
-			var result = new Dictionary<(SqlTextKind Kind, string Text), string?>();
+			var allowed = new Dictionary<(SqlTextKind Kind, string Text), string?>();
+			var removed = new Dictionary<(SqlTextKind Kind, string Text), string?>();
 
-			foreach (var attribute in assembly.GetAttributes<SqlTextCatalogAttribute>())
+			foreach (var item in GetItems(assembly))
 			{
-				var catalog = ActivatorExt.CreateInstance<ISqlTextCatalog>(attribute.CatalogType, true);
+				if (item.Partition != null && !string.Equals(item.Partition, family, StringComparison.Ordinal))
+					continue;
 
-				foreach (var item in catalog.Items)
+				var target = item.IsRemoval ? removed : allowed;
+
+				foreach (var text in item.IsTemplate ? ExpandTemplate(item.Text) : [item.Text])
+					target.TryAdd((item.Kind, Canonicalize(text)), item.Origin);
+			}
+
+			return new(allowed, removed);
+		}
+
+		static IEnumerable<SqlTextItem> GetItems(Assembly assembly)
+		{
+			foreach (var attribute in assembly.GetAttributes<SqlTextCatalogAttribute>())
+				foreach (var item in ActivatorExt.CreateInstance<ISqlTextCatalog>(attribute.CatalogType, true).Items)
+					yield return item;
+		}
+
+		/// <summary>
+		/// Writes the entries and removals the catalogs of <paramref name="assembly"/> declare, in the format <see cref="Load"/> reads.
+		/// Use it when the server cannot load a client's assembly, to ship its generated catalog as a file.
+		/// </summary>
+		/// <param name="writer">Target writer.</param>
+		/// <param name="assembly">Assembly declaring <see cref="SqlTextCatalogAttribute"/> catalogs.</param>
+		/// <remarks>
+		/// Only shared entries are written: an entry of one provider family would apply to every provider once loaded.
+		/// Templates are written expanded, and text <see cref="Add"/> refuses is left out.
+		/// </remarks>
+		public static void Export(TextWriter writer, Assembly assembly)
+		{
+			ArgumentNullException.ThrowIfNull(writer);
+			ArgumentNullException.ThrowIfNull(assembly);
+
+			var entries = new List<SqlTextEntry>();
+			var seen    = new HashSet<(SqlTextKind, string, bool)>();
+			var source  = assembly.GetName().Name ?? assembly.FullName ?? "";
+
+			foreach (var item in GetItems(assembly))
+			{
+				if (item.Partition != null)
+					continue;
+
+				foreach (var text in item.IsTemplate ? ExpandTemplate(item.Text) : [item.Text])
 				{
-					if (item.Partition != null && !string.Equals(item.Partition, family, StringComparison.Ordinal))
+					var canonical = Canonicalize(text);
+
+					if (!item.IsRemoval && GetRefusal(canonical) != null || !seen.Add((item.Kind, canonical, item.IsRemoval)))
 						continue;
 
-					var texts = item.IsTemplate ? ExpandTemplate(item.Text) : [item.Text];
-
-					foreach (var text in texts)
-					{
-						var key = (item.Kind, Canonicalize(text));
-
-						if (!result.ContainsKey(key))
-							result.Add(key, item.Origin);
-					}
+					entries.Add(new(item.Kind, canonical, source, item.Origin, item.IsRemoval ? SqlTextEntryState.Removed : SqlTextEntryState.Allowed));
 				}
 			}
 
-			return result;
+			Export(writer, entries);
 		}
 
 		const int MaxOptionalTokens = 6;

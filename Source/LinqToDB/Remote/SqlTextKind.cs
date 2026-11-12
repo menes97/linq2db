@@ -29,5 +29,7 @@ namespace LinqToDB.Remote
 		StatementFooter,
 		/// <summary>Runtime override of a table, schema, database or server name.</summary>
 		TableName,
+		/// <summary>Database type name of a value, parameter, cast or column, beyond those the server's mapping defines.</summary>
+		DbType,
 	}
 }

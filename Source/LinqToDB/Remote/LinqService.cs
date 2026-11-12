@@ -61,6 +61,15 @@ namespace LinqToDB.Remote
 		public ICollection<Assembly> MappingAssemblies { get; } = new HashSet<Assembly>();
 
 		/// <summary>
+		/// Gets assemblies whose <see cref="SqlTextCatalogAttribute"/> catalogs are read, typically a client assembly's generated
+		/// catalog. No type of these assemblies is accepted from clients; use <see cref="MappingAssemblies"/> for that.
+		/// When the server cannot load the assembly, export its catalog with <see cref="SqlTextCatalog.Export(System.IO.TextWriter, Assembly)"/>
+		/// and load the file into <see cref="SqlText"/> instead.
+		/// Not applied when <see cref="TrustedClient"/> is <see langword="true"/>.
+		/// </summary>
+		public ICollection<Assembly> SqlTextAssemblies { get; } = new HashSet<Assembly>();
+
+		/// <summary>
 		/// Gets host-maintained SQL text accepted from untrusted clients.
 		/// Not applied when <see cref="TrustedClient"/> is <see langword="true"/>.
 		/// </summary>
@@ -93,7 +102,7 @@ namespace LinqToDB.Remote
 			if (TrustedClient)
 				return null;
 
-			var policy = RemoteQueryPolicy.Create(db, MappingAssemblies, configuration, SqlText);
+			var policy = RemoteQueryPolicy.Create(db, MappingAssemblies, configuration, SqlText, SqlTextAssemblies);
 
 			ReportStaleRemovals(configuration, policy);
 
@@ -118,8 +127,9 @@ namespace LinqToDB.Remote
 		}
 
 		/// <summary>
-		/// Lists the effective SQL text catalog for untrusted clients of <paramref name="configuration"/>: library, provider and
-		/// <see cref="MappingAssemblies"/> entries with their removal state, host additions, and host removals that match nothing.
+		/// Lists the effective SQL text catalog for untrusted clients of <paramref name="configuration"/>: library, provider,
+		/// <see cref="MappingAssemblies"/> and <see cref="SqlTextAssemblies"/> entries with their removal state, assembly removals
+		/// under the assembly that declares them, host additions, and removals that match nothing.
 		/// </summary>
 		/// <param name="configuration">Connection configuration to list the catalog for.</param>
 		/// <returns>Entries ordered by kind and text. Pass them to <see cref="SqlTextCatalog.Export(System.IO.TextWriter, IEnumerable{SqlTextEntry})"/> to save the full set.</returns>
@@ -128,7 +138,7 @@ namespace LinqToDB.Remote
 		{
 			using var db = CreateDataContext(configuration);
 
-			return SqlText.Dump(RemoteQueryPolicy.GetTextSources(db, MappingAssemblies), RemoteQueryPolicy.GetDialect(db));
+			return SqlText.Dump(RemoteQueryPolicy.GetTextSources(db, MappingAssemblies, SqlTextAssemblies), RemoteQueryPolicy.GetDialect(db));
 		}
 
 		public MappingSchema? MappingSchema
