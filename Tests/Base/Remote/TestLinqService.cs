@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Reflection;
 using System.Threading;
 
 using LinqToDB.Data;
@@ -9,11 +10,24 @@ using LinqToDB.Remote;
 
 namespace Tests.Remote
 {
-	internal sealed class TestLinqService : LinqService, ITestLinqService
+	public sealed class TestLinqService : LinqService, ITestLinqService
 	{
 		readonly Func<string?, MappingSchema?, DataConnection> _connectionFactory;
 
-		public TestLinqService(Func<string?, MappingSchema?, DataConnection> connectionFactory)
+		static readonly List<Assembly> _testAssemblies = new();
+
+		/// <summary>
+		/// Registers a test assembly whose mappings and <see cref="SqlTextCatalogAttribute"/> catalogs untrusted remote test
+		/// hosts accept. Call it from the assembly's <c>[SetUpFixture]</c>, before the first remote test creates a host.
+		/// </summary>
+		public static void RegisterTestAssembly(Assembly assembly)
+		{
+			lock (_testAssemblies)
+				if (!_testAssemblies.Contains(assembly))
+					_testAssemblies.Add(assembly);
+		}
+
+		internal TestLinqService(Func<string?, MappingSchema?, DataConnection> connectionFactory)
 		{
 			_connectionFactory = connectionFactory;
 			TrustedClient      = _untrustedLog == null;
@@ -23,8 +37,9 @@ namespace Tests.Remote
 				MappingAssemblies.Add(typeof(TestLinqService).Assembly);
 				MappingAssemblies.Add(typeof(Tests.Model.Person).Assembly);
 
-				if (System.Reflection.Assembly.GetEntryAssembly() is { } entry)
-					MappingAssemblies.Add(entry);
+				lock (_testAssemblies)
+					foreach (var assembly in _testAssemblies)
+						MappingAssemblies.Add(assembly);
 
 				foreach (var provider in TestConfiguration.UserProviders)
 				{

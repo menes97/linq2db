@@ -40,6 +40,9 @@ public class TestsInitialization
 	[OneTimeSetUp]
 	public void TestAssemblySetup()
 	{
+		// this file is linked into the Playground too, so the assembly is whichever one runs the tests
+		Tests.Remote.TestLinqService.RegisterTestAssembly(typeof(TestsInitialization).Assembly);
+
 #if NET8_0_OR_GREATER
 		// this API is not available in NETFX, but for some reason it works if SDS test run first (which is true now)
 		IntPtr? handle = null;
