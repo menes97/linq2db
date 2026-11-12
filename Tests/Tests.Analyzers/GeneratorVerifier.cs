@@ -14,7 +14,6 @@ using LinqToDB.Remote;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Diagnostics;
-using Microsoft.CodeAnalysis.Testing;
 using Microsoft.CodeAnalysis.Text;
 
 namespace Tests.Analyzers
@@ -45,7 +44,7 @@ namespace Tests.Analyzers
 
 		public static async Task<ImmutableArray<MetadataReference>> GetReferencesAsync(bool withLinqToDB = true)
 		{
-			_references ??= await ReferenceAssemblies.Net.Net80.ResolveAsync(LanguageNames.CSharp, CancellationToken.None).ConfigureAwait(false);
+			_references ??= await TestReferenceAssemblies.Default.ResolveAsync(LanguageNames.CSharp, CancellationToken.None).ConfigureAwait(false);
 
 			return withLinqToDB
 				? _references.Value.Add(MetadataReference.CreateFromFile(typeof(Sql).Assembly.Location))
