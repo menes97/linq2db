@@ -42,15 +42,19 @@ namespace LinqToDB.Analyzers
 		/// <summary>Adds a known text; <paramref name="owner"/> names its origin.</summary>
 		public void Add(string kind, string text, ISymbol? owner, Location location)
 		{
-			if (Kinds.Contains(kind) && !IsRefused(text, location))
+			if (Kinds.Contains(kind) && !IsRefused(kind, text, location))
 				AddItem(kind, text, GetOrigin(owner), string.Equals(kind, "Expression", StringComparison.Ordinal) && HasNamedToken(text));
 		}
 
 		// Only the contexts every dialect quotes are refused here; brackets, backticks and dollar quotes depend on the
 		// provider family and are checked by the server against its dialect (a PostgreSQL ARRAY[{0}] is legitimate).
-		bool IsRefused(string text, Location location)
+		// A query hint is rendered on a line of its own (BasicSqlBuilder.ApplyQueryHints), so it is checked as rendered,
+		// as SqlTextCatalog.GetRefusal does: a '--' comment hint ends at its line feed.
+		bool IsRefused(string kind, string text, Location location)
 		{
-			if (!SqlTextQuoting.TryFindQuotedToken(text, SqlTextQuoting.Dialect.AlwaysOn, out _))
+			var rendered = string.Equals(kind, "QueryHint", StringComparison.Ordinal) ? text + "\n" : text;
+
+			if (!SqlTextQuoting.TryFindQuotedToken(rendered, SqlTextQuoting.Dialect.AlwaysOn, out _))
 				return false;
 
 			_report(Diagnostic.Create(SqlTextUserCatalogGenerator.QuotedPlaceholderRule, location, text));
@@ -96,7 +100,7 @@ namespace LinqToDB.Analyzers
 		/// <summary>Adds an allow-file entry, subject to the same quoting refusal as text in code.</summary>
 		public void AddFileEntry(string kind, string text, string origin, Location location)
 		{
-			if (!IsRefused(text, location))
+			if (!IsRefused(kind, text, location))
 				AddItem(kind, text, origin, false);
 		}
 

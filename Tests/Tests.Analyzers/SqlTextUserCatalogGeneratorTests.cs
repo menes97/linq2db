@@ -266,6 +266,21 @@ namespace Tests.Analyzers
 			result.Texts(SqlTextKind.Expression).ShouldBe(["ARRAY[{0}]", "QUOTED_CONSTANT('{{0}}', {0})"], ignoreOrder: true);
 		}
 
+		// A query hint is rendered on a line of its own, so a '--' comment hint ends there; inline kinds stay refused.
+		[Test]
+		public async Task CommentQueryHint_IsAccepted_InlineCommentIsRefused()
+		{
+			var result = await GeneratorVerifier.RunAsync(Body("""
+				db.QueryHints.Add("-- HINT COMMENT");
+				db.QueryHints.Add("-- HINT {0}");
+				table.WithTableExpression("{0} {1} -- TRAILING").ToList();
+				"""));
+
+			result.Texts(SqlTextKind.QueryHint).ShouldBe(["-- HINT COMMENT"]);
+			result.Texts(SqlTextKind.TableExpression).ShouldBeEmpty();
+			result.Diagnostics.Count(static d => d.Id == "L2DB1006").ShouldBe(2);
+		}
+
 		[Test]
 		public async Task QuotedFormatItem_InAllowFile_IsRefused()
 		{
