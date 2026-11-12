@@ -10,11 +10,18 @@
 		(Shared Roslyn-component settings + polyfills live in ..\Analyzers.Common.props.)
 		-->
 		<IsPackable>false</IsPackable>
+		<!-- GHSA-B-TEMP: the linked SqlTextFlow.cs has three MA0006 sites, fixed upstream; remove after the rebase. -->
+		<NoWarn>$(NoWarn);MA0006</NoWarn>
 	</PropertyGroup>
 
 	<ItemGroup>
 		<!-- The shared compat sources target the runtime library (IAsyncDisposable, [module: SkipLocalsInit], …) and aren't needed by a Roslyn component. -->
 		<Compile Remove="$(MSBuildThisFileDirectory)..\..\Source\Shared\*.cs" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<!-- Constant-flow resolution shared with the library catalog generator, so library and user catalogs resolve text alike. -->
+		<Compile Include="$(MSBuildThisFileDirectory)..\CodeGenerators\SqlTextFlow.cs" Link="SqlTextFlow.cs" />
 	</ItemGroup>
 
 	<ItemGroup>

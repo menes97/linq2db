@@ -18,6 +18,7 @@
 
 	<ItemGroup>
 		<PackageReference Include="NUnit" />
+		<PackageReference Include="Shouldly" />
 		<PackageReference Include="NUnit3TestAdapter" />
 		<PackageReference Include="Microsoft.Testing.Platform.MSBuild" />
 		<PackageReference Include="Microsoft.Testing.Extensions.TrxReport" />

@@ -28,4 +28,31 @@
 		</ItemGroup>
 	</Target>
 
+	<!-- Opt-in SQL text catalog for LinqService hosts with TrustedClient = false:
+
+	       <PropertyGroup>
+	         <LinqToDBSqlTextCatalog>true</LinqToDBSqlTextCatalog>
+	       </PropertyGroup>
+	       <ItemGroup>
+	         <LinqToDBSqlText Include="sqltext.txt" />
+	       </ItemGroup>
+
+	     LinqToDBSqlText files hold '+' / '-' lines in the SqlTextCatalog.Export format and are read only from under
+	     the project directory, or from under a directory listed in LinqToDBSqlTextRoots, and never from obj/.
+	     The project directory is set here unconditionally, after the project body, so the location check reads
+	     the real directory. -->
+	<PropertyGroup>
+		<LinqToDBSqlTextProjectDir>$(MSBuildProjectDirectory)</LinqToDBSqlTextProjectDir>
+		<LinqToDBSqlTextIntermediateDir>$(BaseIntermediateOutputPath)</LinqToDBSqlTextIntermediateDir>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<CompilerVisibleProperty     Include="LinqToDBSqlTextCatalog" />
+		<CompilerVisibleProperty     Include="LinqToDBSqlTextProjectDir" />
+		<CompilerVisibleProperty     Include="LinqToDBSqlTextIntermediateDir" />
+		<CompilerVisibleProperty     Include="LinqToDBSqlTextRoots" />
+		<CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="LinqToDBSqlText" />
+		<AdditionalFiles             Include="@(LinqToDBSqlText)" LinqToDBSqlText="true" />
+	</ItemGroup>
+
 </Project>
