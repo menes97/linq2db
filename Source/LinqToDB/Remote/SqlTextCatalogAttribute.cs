@@ -3,9 +3,10 @@ using System;
 namespace LinqToDB.Remote
 {
 	/// <summary>
-	/// Names the type that supplies the SQL text catalog of an assembly.
+	/// Names a type that supplies SQL text catalog entries of an assembly. An assembly may declare several, for example
+	/// a generated catalog and a hand-written one.
 	/// </summary>
-	[AttributeUsage(AttributeTargets.Assembly)]
+	[AttributeUsage(AttributeTargets.Assembly, AllowMultiple = true)]
 	public sealed class SqlTextCatalogAttribute : Attribute
 	{
 		/// <summary>Creates the attribute.</summary>

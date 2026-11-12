@@ -20,6 +20,7 @@ using NUnit.Framework;
 using Shouldly;
 
 [assembly: SqlTextCatalog(typeof(Tests.AST.RemoteQueryValidatorTests.MappingAssemblyCatalog))]
+[assembly: SqlTextCatalog(typeof(Tests.AST.RemoteQueryValidatorTests.SecondMappingAssemblyCatalog))]
 
 namespace Tests.AST
 {
@@ -985,6 +986,25 @@ namespace Tests.AST
 
 			exception.Rejections[0].Reason.ShouldBe(RemoteRejectionReason.TextNotInCatalog);
 			exception.Provider.ShouldBe(db.DataProvider.Name);
+		}
+
+		const string SecondMappingAssemblyText = "SECOND_MAPPING_ASSEMBLY_TEXT({0})";
+
+		/// <summary>A second catalog of this test assembly, as a generated catalog beside a hand-written one would be.</summary>
+		public sealed class SecondMappingAssemblyCatalog : ISqlTextCatalog
+		{
+			public IReadOnlyList<SqlTextItem> Items { get; } = [new(SqlTextKind.Expression, SecondMappingAssemblyText, null, nameof(RemoteQueryValidatorTests), false)];
+		}
+
+		[Test]
+		public void EveryCatalogOfAnAssemblyContributesEntries()
+		{
+			using var db = CreateConnection();
+
+			var policy = RemoteQueryPolicy.Create(db, [_thisAssembly], null);
+
+			RoundTrip(db, SelectOf(new SqlExpression(new DbDataType(typeof(int)), MappingAssemblyText,       One)), policy);
+			RoundTrip(db, SelectOf(new SqlExpression(new DbDataType(typeof(int)), SecondMappingAssemblyText, One)), RemoteQueryPolicy.Create(db, [_thisAssembly], null));
 		}
 
 		// Every text-bearing member of every query element, with how an untrusted request's value is handled.

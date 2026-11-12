@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -21,7 +22,7 @@ namespace CodeGenerators
 		{
 			foreach (var attribute in symbol.GetAttributes())
 			{
-				if (attribute.AttributeClass?.ToDisplayString() == AttributeName && attribute.ConstructorArguments.Length == 1 && attribute.ConstructorArguments[0].Value is int value)
+				if (string.Equals(attribute.AttributeClass?.ToDisplayString(), AttributeName, StringComparison.Ordinal) && attribute.ConstructorArguments.Length == 1 && attribute.ConstructorArguments[0].Value is int value)
 				{
 					kind = value;
 					return true;
@@ -94,7 +95,7 @@ namespace CodeGenerators
 					if (!TryResolve(instance, model, inner, depth + 1) || inner.Count == 0)
 						return false;
 
-					var lower = caseChange.TargetMethod.Name == "ToLowerInvariant";
+					var lower = string.Equals(caseChange.TargetMethod.Name, "ToLowerInvariant", StringComparison.Ordinal);
 
 					values.AddRange(inner.Select(v => lower ? v.ToLowerInvariant() : v.ToUpperInvariant()));
 					return true;
@@ -358,7 +359,7 @@ namespace CodeGenerators
 
 			if (instance is not IFieldReferenceOperation { Field: { IsReadOnly: true } field }
 				|| field.Type is not INamedTypeSymbol { OriginalDefinition: { } fieldType }
-				|| fieldType.ToDisplayString() != "System.Collections.Generic.IReadOnlyDictionary<TKey, TValue>")
+				|| !string.Equals(fieldType.ToDisplayString(), "System.Collections.Generic.IReadOnlyDictionary<TKey, TValue>", StringComparison.Ordinal))
 				return false;
 
 			if (field.DeclaringSyntaxReferences.FirstOrDefault() is not { } reference
