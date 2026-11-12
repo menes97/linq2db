@@ -6,6 +6,8 @@ using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Xml;
+using System.Xml.Linq;
 
 using LinqToDB;
 using LinqToDB.Common;
@@ -504,6 +506,50 @@ namespace Tests.AST
 			var exception = Assert.Throws<RemoteRequestRejectedException>(() => RoundTrip(db, statement, policy))!;
 
 			RecordingValue.Constructed.ShouldBe(0);
+			exception.Rejections[0].Reason.ShouldBe(RemoteRejectionReason.TypeNotAllowed);
+		}
+
+		// a scalar value is converted while the request is read, before it is validated, so the XML converter must not process a DTD
+		[Test]
+		public void XmlDocumentTypeIsNotProcessed([Values] bool trusted)
+		{
+			using var db = CreateConnection();
+
+			var document  = XDocument.Parse("<!DOCTYPE r [<!ENTITY e \"inert\">]><r>&e;</r>");
+			var statement = SelectOf(new SqlValue(new DbDataType(typeof(XDocument), DataType.Xml), document));
+
+			var exception = Assert.Catch(() => RoundTrip(db, statement, trusted ? null : Untrusted(db)))!;
+
+			for (Exception? e = exception; ; e = e.InnerException)
+			{
+				e.ShouldNotBeNull(exception.ToString());
+
+				if (e is XmlException)
+					break;
+			}
+		}
+
+		[Test]
+		public void XmlDocumentIsAccepted()
+		{
+			using var db = CreateConnection();
+
+			var statement = SelectOf(new SqlValue(new DbDataType(typeof(XDocument), DataType.Xml), XDocument.Parse("<r>inert</r>")));
+			var query     = RoundTrip(db, statement, Untrusted(db));
+
+			var value = ((SqlSelectStatement)query.Statement).SelectQuery.Select.Columns[0].Expression.ShouldBeOfType<SqlValue>().Value;
+
+			value.ShouldBeOfType<XDocument>().Root!.Value.ShouldBe("inert");
+		}
+
+		[Test]
+		public void XmlElementIsRejected()
+		{
+			using var db = CreateConnection();
+
+			var statement = SelectOf(new SqlValue(new DbDataType(typeof(XElement), DataType.Xml), new XElement("r", "inert")));
+			var exception = Assert.Throws<RemoteRequestRejectedException>(() => RoundTrip(db, statement, Untrusted(db)))!;
+
 			exception.Rejections[0].Reason.ShouldBe(RemoteRejectionReason.TypeNotAllowed);
 		}
 

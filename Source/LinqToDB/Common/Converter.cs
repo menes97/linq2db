@@ -6,6 +6,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq.Expressions;
 using System.Xml;
+using System.Xml.Linq;
 
 using JetBrains.Annotations;
 
@@ -36,6 +37,14 @@ namespace LinqToDB.Common
 			return xml;
 		}
 
+		// XDocument.Parse processes a DTD; these settings prohibit one, as for XmlDocument, and keep Parse's whitespace handling
+		static XDocument CreateXDocument(string str)
+		{
+			using var reader = XmlReader.Create(new StringReader(str), new XmlReaderSettings() { XmlResolver = null, IgnoreWhitespace = true });
+
+			return XDocument.Load(reader);
+		}
+
 		static Converter()
 		{
 			SetConverter<string,         char>          (v => v.Length == 0 ? '\0' : v[0]);
@@ -45,6 +54,7 @@ namespace LinqToDB.Common
 			SetConverter<bool,           decimal>       (v => v ? 1m : 0m);
 			SetConverter<DateTimeOffset, DateTime>      (v => v.LocalDateTime);
 			SetConverter<string,         XmlDocument>   (v => CreateXmlDocument(v));
+			SetConverter<string,         XDocument>     (v => CreateXDocument(v));
 			SetConverter<string,         byte[]>        (v => Convert.FromBase64String(v));
 			SetConverter<byte[],         string>        (v => Convert.ToBase64String(v));
 			SetConverter<TimeSpan,       DateTime>      (v => DateTime.MinValue + v);
