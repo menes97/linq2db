@@ -25,5 +25,19 @@ namespace Tests.Analyzers.Internal
 
 			return test.RunAsync(CancellationToken.None);
 		}
+
+		/// <summary>Verifies a compilation of several files, for rules that depend on how a type is split across them.</summary>
+		public static Task VerifyAsync(string[] sources)
+		{
+			var test = new CSharpAnalyzerTest<TAnalyzer, DefaultVerifier>
+			{
+				ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
+			};
+
+			foreach (var source in sources)
+				test.TestState.Sources.Add(source);
+
+			return test.RunAsync(CancellationToken.None);
+		}
 	}
 }
