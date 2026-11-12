@@ -60,7 +60,7 @@ namespace Tests.Remote
 		// the provider of the current server request, set in CreateDataContext before the request is validated
 		static readonly AsyncLocal<string?> _requestProvider = new();
 
-		static readonly object _logLock = new();
+		static readonly Lock _logLock = new();
 
 		/// <summary>
 		/// Rejections recorded for <paramref name="provider"/> since the last <see cref="ClearRejections"/>. The client sees

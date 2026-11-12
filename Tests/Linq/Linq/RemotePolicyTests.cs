@@ -135,7 +135,7 @@ namespace Tests.Linq
 		}
 
 		[Test]
-		public void OversizedElementCountIsRejectedBeforeAllocation([Values(true, false)] bool trusted)
+		public void OversizedElementCountIsRejectedBeforeAllocation([Values] bool trusted)
 		{
 			var service = new SQLiteService { TrustedClient = trusted };
 
@@ -147,7 +147,7 @@ namespace Tests.Linq
 
 		sealed class ConnectionFactory : IDataContextFactory<DataConnection>
 		{
-			public DataConnection CreateDataContext(string? configuration) => throw new InvalidOperationException();
+			public DataConnection CreateDataContext(string? configuration = null) => throw new InvalidOperationException();
 		}
 
 		[Test]
