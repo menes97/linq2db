@@ -10,13 +10,15 @@ namespace LinqToDB.Remote
 	public sealed class SqlTextCatalogAttribute : Attribute
 	{
 		/// <summary>Creates the attribute.</summary>
-		/// <param name="catalogType">Type implementing <see cref="ISqlTextCatalog"/> with a parameterless constructor.</param>
+		/// <param name="catalogType">
+		/// Type implementing <see cref="ISqlTextCatalog"/>, <see cref="ISqlExtensionBuilderRoles"/> or both, with a parameterless constructor.
+		/// </param>
 		public SqlTextCatalogAttribute(Type catalogType)
 		{
 			CatalogType = catalogType;
 		}
 
-		/// <summary>Gets the type implementing <see cref="ISqlTextCatalog"/>.</summary>
+		/// <summary>Gets the type implementing <see cref="ISqlTextCatalog"/>, <see cref="ISqlExtensionBuilderRoles"/> or both.</summary>
 		public Type CatalogType { get; }
 	}
 }

@@ -55,7 +55,9 @@ namespace LinqToDB.Remote
 		public ICollection<string?> AllowedConfigurations { get; } = new HashSet<string?>(StringComparer.Ordinal);
 
 		/// <summary>
-		/// Gets assemblies an untrusted client may name for entity, enum and extension builder types.
+		/// Gets assemblies an untrusted client may name for entity, enum and extension builder types. Their
+		/// <see cref="SqlTextCatalogAttribute"/> catalogs are read, including the argument roles an extension builder needs
+		/// (<see cref="ISqlExtensionBuilderRoles"/>). A value type must still be a scalar type of the server schema.
 		/// Not applied when <see cref="TrustedClient"/> is <see langword="true"/>.
 		/// </summary>
 		public ICollection<Assembly> MappingAssemblies { get; } = new HashSet<Assembly>();

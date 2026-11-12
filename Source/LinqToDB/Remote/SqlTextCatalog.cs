@@ -277,11 +277,44 @@ namespace LinqToDB.Remote
 			return new(allowed, removed);
 		}
 
-		static IEnumerable<SqlTextItem> GetItems(Assembly assembly)
+		static IEnumerable<object> GetCatalogs(Assembly assembly)
 		{
 			foreach (var attribute in assembly.GetAttributes<SqlTextCatalogAttribute>())
-				foreach (var item in ActivatorExt.CreateInstance<ISqlTextCatalog>(attribute.CatalogType, true).Items)
-					yield return item;
+			{
+				var catalog = ActivatorExt.CreateInstance<object>(attribute.CatalogType, true);
+
+				if (catalog is not (ISqlTextCatalog or ISqlExtensionBuilderRoles))
+					throw new LinqToDBException($"Type '{attribute.CatalogType.FullName}' must implement '{nameof(ISqlTextCatalog)}' or '{nameof(ISqlExtensionBuilderRoles)}'.");
+
+				yield return catalog;
+			}
+		}
+
+		static IEnumerable<SqlTextItem> GetItems(Assembly assembly)
+		{
+			return GetCatalogs(assembly).OfType<ISqlTextCatalog>().SelectMany(static c => c.Items);
+		}
+
+		static readonly ConcurrentDictionary<Assembly, IReadOnlyDictionary<Type, (string Key, SqlExtensionArgumentRole Role)[]>> _rolesCache = new();
+
+		/// <summary>
+		/// Gets the argument roles an assembly's catalogs declare for its own extension builders. A role for a builder of
+		/// another assembly is ignored, so no catalog can widen what a library or third-party builder accepts.
+		/// </summary>
+		internal static IReadOnlyDictionary<Type, (string Key, SqlExtensionArgumentRole Role)[]> GetBuilderRoles(Assembly assembly)
+		{
+			return _rolesCache.GetOrAdd(assembly, static assembly =>
+			{
+				if (assembly == typeof(SqlTextCatalog).Assembly)
+					return new Dictionary<Type, (string, SqlExtensionArgumentRole)[]>();
+
+				return GetCatalogs(assembly)
+					.OfType<ISqlExtensionBuilderRoles>()
+					.SelectMany(static r => r.Arguments)
+					.Where(a => a.BuilderType.Assembly == assembly)
+					.GroupBy(static a => a.BuilderType)
+					.ToDictionary(static g => g.Key, static g => g.Select(static a => (a.Key, a.Role)).ToArray());
+			});
 		}
 
 		/// <summary>

@@ -50,8 +50,11 @@ namespace LinqToDB.Internal.Remote
 		readonly SqlTextQuoting.Dialect                                                _dialect;
 		readonly Type                                                                  _providerType;
 
-		RemoteQueryPolicy(MappingSchema schema, IEnumerable<Assembly> nameAssemblies, IEnumerable<Assembly> entityAssemblies, IEnumerable<Assembly> builderAssemblies, string? provider, string? configuration, SqlTextCatalog catalog, SqlTextSources sources, Assembly driverAssembly, SqlTextQuoting.Dialect dialect, Type providerType)
+		readonly Dictionary<Type, (string Key, SqlExtensionArgumentRole Role)[]>       _builderRoles;
+
+		RemoteQueryPolicy(Dictionary<Type, (string Key, SqlExtensionArgumentRole Role)[]> builderRoles, MappingSchema schema, IEnumerable<Assembly> nameAssemblies, IEnumerable<Assembly> entityAssemblies, IEnumerable<Assembly> builderAssemblies, string? provider, string? configuration, SqlTextCatalog catalog, SqlTextSources sources, Assembly driverAssembly, SqlTextQuoting.Dialect dialect, Type providerType)
 		{
+			_builderRoles      = builderRoles;
 			_providerType      = providerType;
 			_dialect           = dialect;
 			_driverAssembly    = driverAssembly;
@@ -97,7 +100,20 @@ namespace LinqToDB.Internal.Remote
 
 			var builderAssemblies = new List<Assembly>(mapping) { typeof(DataConnection).Assembly, providerAssembly };
 
-			return new RemoteQueryPolicy(connection.MappingSchema, nameAssemblies, mapping, builderAssemblies, connection.DataProvider.Name, configuration, catalog ?? new SqlTextCatalog(), GetTextSources(connection, mapping, sqlTextAssemblies), connection.DataProvider.DataReaderType.Assembly, GetDialect(connection), connection.DataProvider.GetType());
+			// a catalog-only assembly supplies text, never builder roles
+			var builderRoles = new Dictionary<Type, (string Key, SqlExtensionArgumentRole Role)[]>();
+
+			foreach (var assembly in mapping.Prepend(providerAssembly))
+				foreach (var pair in SqlTextCatalog.GetBuilderRoles(assembly))
+					builderRoles.TryAdd(pair.Key, pair.Value);
+
+			return new RemoteQueryPolicy(builderRoles,connection.MappingSchema, nameAssemblies, mapping, builderAssemblies, connection.DataProvider.Name, configuration, catalog ?? new SqlTextCatalog(), GetTextSources(connection, mapping, sqlTextAssemblies), connection.DataProvider.DataReaderType.Assembly, GetDialect(connection), connection.DataProvider.GetType());
+		}
+
+		/// <summary>Gets the argument roles the provider or a mapping assembly declares for one of its own extension builders.</summary>
+		internal bool TryGetBuilderRoles(Type builderType, out (string Key, SqlExtensionArgumentRole Role)[] roles)
+		{
+			return _builderRoles.TryGetValue(builderType, out roles!);
 		}
 
 		/// <summary>
@@ -321,7 +337,7 @@ namespace LinqToDB.Internal.Remote
 					if (type != null && _builderAssemblies.Contains(type.Assembly) && typeof(ISqlExtensionBuilder).IsAssignableFrom(type))
 						return type;
 
-					Reject(RemoteRejectionReason.BuilderNotAllowed, entry, role, "Add the assembly declaring the builder to LinqService.MappingAssemblies if it is your own builder.");
+					Reject(RemoteRejectionReason.BuilderNotAllowed, entry, role, "If it is your own builder, add its assembly to LinqService.MappingAssemblies and declare its argument roles with ISqlExtensionBuilderRoles.");
 					return null;
 
 				default:
@@ -399,7 +415,7 @@ namespace LinqToDB.Internal.Remote
 
 		internal void RejectBuilder(string name)
 		{
-			Add(new RemoteRejection(RemoteRejectionReason.BuilderNotAllowed, null, name, nameof(RemoteTypeRole.Builder), "This builder has no argument table. Set LinqService.TrustedClient if your clients are trusted."));
+			Add(new RemoteRejection(RemoteRejectionReason.BuilderNotAllowed, null, name, nameof(RemoteTypeRole.Builder), "The builder has no declared argument roles. If it is your own builder, declare them with ISqlExtensionBuilderRoles in a catalog of its assembly."));
 		}
 
 		/// <summary>Rejects a result column type the server would build a reader for, unless it is a value type of the server schema.</summary>

@@ -9,6 +9,7 @@ using LinqToDB.Common;
 using LinqToDB.Data;
 using LinqToDB.DataProvider.SQLite;
 using LinqToDB.DataProvider.SqlServer;
+using LinqToDB.Internal.DataProvider;
 using LinqToDB.Internal.Remote;
 using LinqToDB.Internal.SqlProvider;
 using LinqToDB.Internal.SqlQuery;
@@ -22,6 +23,7 @@ using Shouldly;
 
 [assembly: SqlTextCatalog(typeof(Tests.AST.RemoteQueryValidatorTests.MappingAssemblyCatalog))]
 [assembly: SqlTextCatalog(typeof(Tests.AST.RemoteQueryValidatorTests.SecondMappingAssemblyCatalog))]
+[assembly: SqlTextCatalog(typeof(Tests.AST.RemoteQueryValidatorTests.BuilderRoles))]
 
 namespace Tests.AST
 {
@@ -954,6 +956,11 @@ namespace Tests.AST
 
 		static SqlSelectStatement WithExtension(string builder, string key, ISqlExpression value, Sql.QueryExtensionScope scope = Sql.QueryExtensionScope.QueryHint)
 		{
+			return WithExtension(typeof(DataOptions).Assembly.GetType(builder, throwOnError: true)!, key, value, scope);
+		}
+
+		static SqlSelectStatement WithExtension(Type builder, string key, ISqlExpression value, Sql.QueryExtensionScope scope = Sql.QueryExtensionScope.QueryHint)
+		{
 			var statement = SelectOf(One);
 
 			statement.SelectQuery!.SqlQueryExtensions =
@@ -961,7 +968,7 @@ namespace Tests.AST
 				new SqlQueryExtension
 				{
 					Scope       = scope,
-					BuilderType = typeof(DataOptions).Assembly.GetType(builder, throwOnError: true),
+					BuilderType = builder,
 					Arguments   = new(StringComparer.Ordinal) { [key] = value },
 				},
 			];
@@ -1004,6 +1011,88 @@ namespace Tests.AST
 
 			// renders nothing, so even text outside the catalog never reaches the SQL
 			RoundTrip(db, WithExtension("LinqToDB.SqlQuery.NoneExtensionBuilder", "hint", new SqlValue(InertText)), RemoteQueryPolicy.Create(db, [_thisAssembly], null));
+		}
+
+		/// <summary>An extension builder of this test assembly, with roles declared by <see cref="BuilderRoles"/>.</summary>
+		public sealed class MarkerHintBuilder : ISqlQueryExtensionBuilder
+		{
+			public void Build(NullabilityContext nullability, ISqlBuilder sqlBuilder, System.Text.StringBuilder stringBuilder, SqlQueryExtension sqlQueryExtension)
+			{
+				stringBuilder.Append("MARKER");
+			}
+		}
+
+		/// <summary>Roles for this assembly's builder, and an attempt to widen a library builder's roles, which is ignored.</summary>
+		public sealed class BuilderRoles : ISqlExtensionBuilderRoles
+		{
+			public IReadOnlyList<SqlExtensionArgument> Arguments { get; } =
+			[
+				new(typeof(MarkerHintBuilder),             "hint",    SqlExtensionArgumentRole.Text),
+				new(typeof(MarkerHintBuilder),             "names.*", SqlExtensionArgumentRole.Identifier),
+				new(typeof(TableSpecHintExtensionBuilder), "widened", SqlExtensionArgumentRole.Unrendered),
+			];
+		}
+
+		[Test]
+		public void DeclaredBuilderRolesAreApplied()
+		{
+			using var db = CreateConnection();
+
+			var policy = RemoteQueryPolicy.Create(db, [_thisAssembly], null);
+
+			RoundTrip(db, WithExtension(typeof(MarkerHintBuilder), "names.0", new SqlValue("IX_user_chosen_1")), policy);
+
+			Rejected(db, WithExtension(typeof(MarkerHintBuilder), "names.0", new SqlValue("NOT A NAME"))).Rejections
+				.ShouldContain(static r => r.Reason == RemoteRejectionReason.IdentifierNotMapped);
+
+			Rejected(db, WithExtension(typeof(MarkerHintBuilder), "hint", new SqlValue(InertText))).Rejections
+				.ShouldContain(static r => r.Kind == SqlTextKind.ExtensionArgument && r.Text == InertText);
+
+			Rejected(db, WithExtension(typeof(MarkerHintBuilder), "undeclared", One)).Rejections
+				.ShouldContain(static r => r.Reason == RemoteRejectionReason.NodeNotAllowed && r.Text.EndsWith(":undeclared", StringComparison.Ordinal));
+		}
+
+		[Test]
+		public void BuilderRolesComeOnlyFromMappingAndProviderAssemblies()
+		{
+			using var db = CreateConnection();
+
+			// the same assembly as a catalog-only source: its text is read, its builder roles and types are not
+			var policy = RemoteQueryPolicy.Create(db, [], null, null, [_thisAssembly]);
+
+			Assert.Throws<RemoteRequestRejectedException>(() => RoundTrip(db, WithExtension(typeof(MarkerHintBuilder), "names.0", new SqlValue("IX_user_chosen_1")), policy))!
+				.Rejections.ShouldContain(static r => r.Reason == RemoteRejectionReason.BuilderNotAllowed);
+		}
+
+		[Test]
+		public void DeclaredRolesNeverWidenAnotherAssemblysBuilder()
+		{
+			using var db = CreateConnection();
+
+			Rejected(db, WithExtension(typeof(TableSpecHintExtensionBuilder), "widened", One)).Rejections
+				.ShouldContain(static r => r.Reason == RemoteRejectionReason.NodeNotAllowed && r.Text.EndsWith(":widened", StringComparison.Ordinal));
+		}
+
+		[Test, NonParallelizable]
+		public void BuilderNamedLikeALibraryBuilderGetsNoLibraryRoles()
+		{
+			using var db = CreateConnection();
+
+			// same full name as the library's HintExtensionBuilder, declared in this assembly with no roles of its own;
+			// only an assembly-qualified name on the wire reaches it, since a bare name resolves to the library first
+			var saved = Configuration.LinqService.SerializeAssemblyQualifiedName;
+
+			try
+			{
+				Configuration.LinqService.SerializeAssemblyQualifiedName = true;
+
+				Rejected(db, WithExtension(typeof(LinqToDB.Internal.SqlProvider.HintExtensionBuilder), "hint", new SqlValue("MARKER"))).Rejections
+					.ShouldContain(static r => r.Reason == RemoteRejectionReason.BuilderNotAllowed);
+			}
+			finally
+			{
+				Configuration.LinqService.SerializeAssemblyQualifiedName = saved;
+			}
 		}
 
 		static Sql.SqlID MarkerID => new(Sql.SqlIDType.TableAlias, "MARKER");

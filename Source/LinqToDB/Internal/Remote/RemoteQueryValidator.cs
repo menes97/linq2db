@@ -59,52 +59,33 @@ namespace LinqToDB.Internal.Remote
 			"+", "-", "*", "/", "%", "&", "|", "^", "||",
 		};
 
-		/// <summary>How an extension builder renders the value of one argument key.</summary>
-		internal enum ArgumentRole
-		{
-			/// <summary>Never rendered.</summary>
-			Unrendered,
-			/// <summary>A string written as is: catalog text.</summary>
-			Text,
-			/// <summary>An <see cref="int"/> count of indexed keys.</summary>
-			Count,
-			/// <summary>A value written as is: an identifier-shaped string or a number.</summary>
-			Identifier,
-			/// <summary>As <see cref="Identifier"/>, or a <see cref="Sql.SqlID"/> the builder resolves through <c>BuildSqlID</c>.</summary>
-			IdentifierOrSqlId,
-			/// <summary>A <see cref="Sql.SqlID"/> the builder resolves through <c>BuildSqlID</c>.</summary>
-			SqlId,
-			/// <summary>A query element the builder renders through <c>BuildExpression</c>; validated as an element.</summary>
-			Element,
-		}
-
-		static readonly (string Key, ArgumentRole Role)[] _commonKeys =
+		static readonly (string Key, SqlExtensionArgumentRole Role)[] _commonKeys =
 		[
-			(".MethodName",              ArgumentRole.Unrendered),
-			(".ExtensionArguments.Count", ArgumentRole.Count),
-			(".ExtensionArguments.*",     ArgumentRole.Text),
-			("hint",                      ArgumentRole.Text),
+			(".MethodName",              SqlExtensionArgumentRole.Unrendered),
+			(".ExtensionArguments.Count", SqlExtensionArgumentRole.Count),
+			(".ExtensionArguments.*",     SqlExtensionArgumentRole.Text),
+			("hint",                      SqlExtensionArgumentRole.Text),
 		];
 
 		const string NoneBuilder = "LinqToDB.SqlQuery.NoneExtensionBuilder";
 
-		static readonly Dictionary<string,(string Key, ArgumentRole Role)[]> _builderKeys = new(StringComparer.Ordinal)
+		static readonly Dictionary<string,(string Key, SqlExtensionArgumentRole Role)[]> _builderKeys = new(StringComparer.Ordinal)
 		{
 			[NoneBuilder]                                                                          = _commonKeys,
 			["LinqToDB.Internal.SqlProvider.HintExtensionBuilder"]                                 = _commonKeys,
-			["LinqToDB.Internal.SqlProvider.HintWithParameterExtensionBuilder"]                    = [.._commonKeys, ("hintParameter", ArgumentRole.IdentifierOrSqlId)],
-			["LinqToDB.Internal.SqlProvider.HintWithParametersExtensionBuilder"]                   = [.._commonKeys, ("hintParameters.Count", ArgumentRole.Count), ("hintParameters.*", ArgumentRole.IdentifierOrSqlId)],
-			["LinqToDB.Internal.SqlProvider.HintWithFormatParametersExtensionBuilder"]             = [.._commonKeys, ("hintFormat", ArgumentRole.Text), ("hintParameters.Count", ArgumentRole.Count), ("hintParameters.*", ArgumentRole.IdentifierOrSqlId)],
+			["LinqToDB.Internal.SqlProvider.HintWithParameterExtensionBuilder"]                    = [.._commonKeys, ("hintParameter", SqlExtensionArgumentRole.IdentifierOrSqlId)],
+			["LinqToDB.Internal.SqlProvider.HintWithParametersExtensionBuilder"]                   = [.._commonKeys, ("hintParameters.Count", SqlExtensionArgumentRole.Count), ("hintParameters.*", SqlExtensionArgumentRole.IdentifierOrSqlId)],
+			["LinqToDB.Internal.SqlProvider.HintWithFormatParametersExtensionBuilder"]             = [.._commonKeys, ("hintFormat", SqlExtensionArgumentRole.Text), ("hintParameters.Count", SqlExtensionArgumentRole.Count), ("hintParameters.*", SqlExtensionArgumentRole.IdentifierOrSqlId)],
 			// renders its parameters without BuildSqlID, so a table ID is not accepted there
-			["LinqToDB.Internal.DataProvider.TableSpecHintExtensionBuilder"]                       = [.._commonKeys, ("hintParameter", ArgumentRole.Identifier), ("hintParameters.Count", ArgumentRole.Count), ("hintParameters.*", ArgumentRole.Identifier)],
+			["LinqToDB.Internal.DataProvider.TableSpecHintExtensionBuilder"]                       = [.._commonKeys, ("hintParameter", SqlExtensionArgumentRole.Identifier), ("hintParameters.Count", SqlExtensionArgumentRole.Count), ("hintParameters.*", SqlExtensionArgumentRole.Identifier)],
 			["LinqToDB.DataProvider.ClickHouse.ClickHouseHints+TableHintExtensionBuilder"]         = _commonKeys,
-			["LinqToDB.DataProvider.Ydb.YdbHints+YdbQueryHintExtensionBuilder"]                    = [.._commonKeys, ("values.Count", ArgumentRole.Count), ("values.*", ArgumentRole.Text)],
-			["LinqToDB.DataProvider.PostgreSQL.PostgreSQLHints+SubQueryTableHintExtensionBuilder"] = [.._commonKeys, ("hint2", ArgumentRole.Text), ("tableIDs.Count", ArgumentRole.Count), ("tableIDs.*", ArgumentRole.SqlId)],
-			["LinqToDB.DataProvider.MySql.MySqlHints+SubQueryTableHintExtensionBuilder"]           = [.._commonKeys, ("hint2", ArgumentRole.Text), ("tableIDs.Count", ArgumentRole.Count), ("tableIDs.*", ArgumentRole.SqlId)],
-			["LinqToDB.DataProvider.SqlServer.SqlServerHints+WithForceSeekExtensionBuilder"]       = [.._commonKeys, ("indexName", ArgumentRole.Identifier), ("columns.Count", ArgumentRole.Count), ("columns.*", ArgumentRole.Element)],
-			["LinqToDB.DataProvider.SqlServer.SqlServerHints+ParamsExtensionBuilder"]              = [.._commonKeys, ("values.Count", ArgumentRole.Count), ("values.*", ArgumentRole.Text)],
-			["LinqToDB.DataProvider.SqlServer.SqlServerHints+TableParamsExtensionBuilder"]         = [.._commonKeys, ("tableID", ArgumentRole.SqlId), ("values.Count", ArgumentRole.Count), ("values.*", ArgumentRole.Text)],
-			["LinqToDB.DataProvider.SqlServer.SqlServerHints+TemporalTableExtensionBuilder"]       = [.._commonKeys, ("expression", ArgumentRole.Text), ("dateTime", ArgumentRole.Element), ("dateTime2", ArgumentRole.Element)],
+			["LinqToDB.DataProvider.Ydb.YdbHints+YdbQueryHintExtensionBuilder"]                    = [.._commonKeys, ("values.Count", SqlExtensionArgumentRole.Count), ("values.*", SqlExtensionArgumentRole.Text)],
+			["LinqToDB.DataProvider.PostgreSQL.PostgreSQLHints+SubQueryTableHintExtensionBuilder"] = [.._commonKeys, ("hint2", SqlExtensionArgumentRole.Text), ("tableIDs.Count", SqlExtensionArgumentRole.Count), ("tableIDs.*", SqlExtensionArgumentRole.SqlId)],
+			["LinqToDB.DataProvider.MySql.MySqlHints+SubQueryTableHintExtensionBuilder"]           = [.._commonKeys, ("hint2", SqlExtensionArgumentRole.Text), ("tableIDs.Count", SqlExtensionArgumentRole.Count), ("tableIDs.*", SqlExtensionArgumentRole.SqlId)],
+			["LinqToDB.DataProvider.SqlServer.SqlServerHints+WithForceSeekExtensionBuilder"]       = [.._commonKeys, ("indexName", SqlExtensionArgumentRole.Identifier), ("columns.Count", SqlExtensionArgumentRole.Count), ("columns.*", SqlExtensionArgumentRole.Element)],
+			["LinqToDB.DataProvider.SqlServer.SqlServerHints+ParamsExtensionBuilder"]              = [.._commonKeys, ("values.Count", SqlExtensionArgumentRole.Count), ("values.*", SqlExtensionArgumentRole.Text)],
+			["LinqToDB.DataProvider.SqlServer.SqlServerHints+TableParamsExtensionBuilder"]         = [.._commonKeys, ("tableID", SqlExtensionArgumentRole.SqlId), ("values.Count", SqlExtensionArgumentRole.Count), ("values.*", SqlExtensionArgumentRole.Text)],
+			["LinqToDB.DataProvider.SqlServer.SqlServerHints+TemporalTableExtensionBuilder"]       = [.._commonKeys, ("expression", SqlExtensionArgumentRole.Text), ("dateTime", SqlExtensionArgumentRole.Element), ("dateTime2", SqlExtensionArgumentRole.Element)],
 		};
 
 		// rendered as their invariant text, which holds no character outside digits, signs, the point and the exponent
@@ -364,9 +345,15 @@ namespace LinqToDB.Internal.Remote
 
 		static void CheckExtension(RemoteQueryPolicy policy, SqlQueryExtension extension, HashSet<string> mappedNames)
 		{
-			if (extension.BuilderType?.FullName is not { } builderName || !_builderKeys.TryGetValue(builderName, out var keys))
+			// the library table is keyed by name, so it applies only to the library's own types
+			var builderType = extension.BuilderType;
+			var builderName = builderType?.FullName ?? "<none>";
+
+			if (builderType == null
+				|| !(builderType.Assembly == typeof(SqlQueryExtension).Assembly && _builderKeys.TryGetValue(builderName, out var keys))
+				&& !policy.TryGetBuilderRoles(builderType, out keys))
 			{
-				policy.RejectBuilder(extension.BuilderType?.FullName ?? "<none>");
+				policy.RejectBuilder(builderName);
 				return;
 			}
 
@@ -391,11 +378,11 @@ namespace LinqToDB.Internal.Remote
 
 				switch (role)
 				{
-					case ArgumentRole.Unrendered:
-					case ArgumentRole.Element:
+					case SqlExtensionArgumentRole.Unrendered:
+					case SqlExtensionArgumentRole.Element:
 						break;
 
-					case ArgumentRole.Text:
+					case SqlExtensionArgumentRole.Text:
 						if (pair.Value is not SqlValue { Value: string or null } textValue)
 							policy.RejectNode(position + " value");
 						else if (textValue.Value is string text)
@@ -409,24 +396,24 @@ namespace LinqToDB.Internal.Remote
 
 						break;
 
-					case ArgumentRole.Count:
+					case SqlExtensionArgumentRole.Count:
 						if (pair.Value is not SqlValue { Value: int })
 							policy.RejectNode(position + " value");
 						break;
 
-					case ArgumentRole.SqlId:
+					case SqlExtensionArgumentRole.SqlId:
 						if (pair.Value is not SqlValue { Value: Sql.SqlID })
 							policy.RejectNode(position + " value");
 						break;
 
-					case ArgumentRole.Identifier:
-					case ArgumentRole.IdentifierOrSqlId:
+					case SqlExtensionArgumentRole.Identifier:
+					case SqlExtensionArgumentRole.IdentifierOrSqlId:
 						switch (pair.Value)
 						{
 							case SqlValue { Value: string identifier }:
 								CheckIdentifier(policy, identifier, position, mappedNames);
 								break;
-							case SqlValue { Value: Sql.SqlID } when role == ArgumentRole.IdentifierOrSqlId:
+							case SqlValue { Value: Sql.SqlID } when role == SqlExtensionArgumentRole.IdentifierOrSqlId:
 								break;
 							case SqlValue { Value: { } number } when _numericTypes.Contains(number.GetType()):
 								break;
