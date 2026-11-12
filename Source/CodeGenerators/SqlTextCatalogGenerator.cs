@@ -25,6 +25,7 @@ namespace CodeGenerators
 		const int TableExpressionKind   = 3;
 		const int QueryHintKind         = 5;
 		const int ExtensionArgumentKind = 6;
+		const int RawSqlTableKind       = 8;
 		const int TableNameKind         = 11;
 		const int DbTypeKind            = 12;
 
@@ -219,8 +220,66 @@ namespace CodeGenerators
 			}
 
 			AddDbTypeLiteral(result, operation, containing);
+			AddInterpolatedSql(result, operation, containing);
 
 			return result.ToImmutable();
+		}
+
+		// Sql.Expr and FromSql take user text, so they carry no [SqlText]. The library's own calls pass an interpolated string,
+		// which reaches the server as its composite format: that format is the catalog entry.
+		static void AddInterpolatedSql(ImmutableArray<Item>.Builder result, IOperation operation, ISymbol? containing)
+		{
+			if (operation is not IInvocationOperation { TargetMethod: var method } invocation)
+				return;
+
+			var kind = method switch
+			{
+				{ Name: "Expr",    ContainingType: { Name: "Sql",            ContainingNamespace.Name: "LinqToDB" } } => ExpressionKind,
+				{ Name: "FromSql", ContainingType: { Name: "DataExtensions", ContainingNamespace.Name: "LinqToDB" } } => RawSqlTableKind,
+				_                                                                                                       => -1,
+			};
+
+			if (kind < 0)
+				return;
+
+			foreach (var argument in invocation.Arguments)
+			{
+				var value = argument.Value;
+
+				while (value is IConversionOperation conversion)
+					value = conversion.Operand;
+
+				if (argument.Parameter?.Type.Name == "FormattableString" && value is IInterpolatedStringOperation interpolated && TryGetCompositeFormat(interpolated, out var format))
+					result.Add(new Item(kind, format, GetPartition(containing), containing?.ContainingType?.Name, false));
+			}
+		}
+
+		// the format FormattableStringFactory receives: literal braces doubled, each hole numbered in order
+		static bool TryGetCompositeFormat(IInterpolatedStringOperation interpolated, out string format)
+		{
+			var sb   = new StringBuilder();
+			var hole = 0;
+
+			foreach (var part in interpolated.Parts)
+			{
+				switch (part)
+				{
+					case IInterpolatedStringTextOperation { Text.ConstantValue.Value: string text }:
+						sb.Append(text.Replace("{", "{{").Replace("}", "}}"));
+						break;
+
+					case IInterpolationOperation { Alignment: null, FormatString: null }:
+						sb.Append('{').Append(hole++).Append('}');
+						break;
+
+					default:
+						format = "";
+						return false;
+				}
+			}
+
+			format = sb.ToString();
+			return true;
 		}
 
 		static bool IsRawStatementArgument(IOperation operation)

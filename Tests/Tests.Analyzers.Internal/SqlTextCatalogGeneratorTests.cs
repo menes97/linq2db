@@ -69,6 +69,13 @@ namespace Tests.Analyzers.Internal
 						public string? Schema   { get; set; }
 						public string? Database { get; set; }
 					}
+
+					public static T Expr<T>(System.FormattableString sql) => default!;
+				}
+
+				static class DataExtensions
+				{
+					public static object FromSql<T>(System.FormattableString sql) => null!;
 				}
 			}
 
@@ -221,6 +228,24 @@ namespace Tests.Analyzers.Internal
 			"TableName - dbo",
 			"TableName - Main",
 			"TableName - Unnamed");
+
+		// the library's interpolated Sql.Expr and FromSql calls reach the server as their composite format
+		[Test]
+		public Task InterpolatedSqlIsCataloguedAsCompositeFormat() => ShouldGenerate("""
+					public static bool Match(string column, string search) => Sql.Expr<bool>($"{column} MATCH {search}");
+
+					public static object Table(string name) => DataExtensions.FromSql<int>($"SELECT * FROM {name}");
+
+					public static string Braces(string value) => Sql.Expr<string>($"{{literal}} {value}");
+			""",
+			"Expression - {0} MATCH {1}",
+			"RawSqlTable - SELECT * FROM {0}",
+			"Expression - {{literal}} {0}");
+
+		[Test]
+		public Task InterpolationWithFormatIsNotCatalogued() => ShouldGenerate("""
+					public static string Padded(int value) => Sql.Expr<string>($"{value,5}");
+			""");
 
 		// F6: the base attributes fall back to the member name; a derived one builds its own text
 		[Test]

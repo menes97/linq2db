@@ -388,11 +388,25 @@ Expression	SqlCe	second
 Expression	SqlCe	week
 Expression	SqlCe	weekday
 Expression	SqlCe	year
+Expression	SQLite	{0}
+Expression	SQLite	{0} MATCH {1}
 Expression	SQLite	1/TAN({0})
+Expression	SQLite	bm25({0}, {1})
+Expression	SQLite	bm25({0})
 Expression	SQLite	CURRENT_TIMESTAMP
+Expression	SQLite	highlight({0}, {1}, {2}, {3})
 Expression	SQLite	INDEXED BY {0}
+Expression	SQLite	matchinfo({0}, {1})
+Expression	SQLite	matchinfo({0})
+Expression	SQLite	offsets({0})
 Expression	SQLite	REPLACE(HEX(ZEROBLOB({0})), '00', ' ')
 Expression	SQLite	REPLACE(HEX(ZEROBLOB({1})), '00', {0})
+Expression	SQLite	snippet({0}, {1}, {2}, {3}, {4}, {5})
+Expression	SQLite	snippet({0}, {1}, {2}, {3}, {4})
+Expression	SQLite	snippet({0}, {1}, {2}, {3})
+Expression	SQLite	snippet({0}, {1}, {2})
+Expression	SQLite	snippet({0}, {1})
+Expression	SQLite	snippet({0})
 Expression	SQLite	SUBSTRING({0}, 1, {1})
 Expression	SQLite	SUBSTRING({0}, LENGTH({0}) - {1} + 1)
 Expression	SqlServer	{string} COLLATE {collation_name}
@@ -441,6 +455,8 @@ Expression	SqlServer	COLUMNPROPERTY
 Expression	SqlServer	CONNECTIONPROPERTY
 Expression	SqlServer	CONTAINS(({tableOrColumns, ', '}), {search}, LANGUAGE {language})
 Expression	SqlServer	CONTAINS(({tableOrColumns, ', '}), {search})
+Expression	SqlServer	CONTAINS(PROPERTY({0}, {1}), {2}, LANGUAGE {3})
+Expression	SqlServer	CONTAINS(PROPERTY({0}, {1}), {2})
 Expression	SqlServer	CONVERT({1}, {0})
 Expression	SqlServer	CONVERT({2}, {0}, {1})
 Expression	SqlServer	CONVERT({data_type}, {expression}, {style})
@@ -1737,6 +1753,26 @@ Operator	SQLite	&
 Operator	Ydb	*
 Operator	Ydb	+
 Operator	Ydb	||
+RawSqlTable	PostgreSQL	UNNEST({0}) WITH ORDINALITY {1}(value, idx)
+RawSqlTable	SQLite	{0}({1})
+RawSqlTable	SqlServer	CONTAINSTABLE({0}, ({1}), {2}, {3})
+RawSqlTable	SqlServer	CONTAINSTABLE({0}, ({1}), {2}, LANGUAGE {3}, {4})
+RawSqlTable	SqlServer	CONTAINSTABLE({0}, ({1}), {2}, LANGUAGE {3})
+RawSqlTable	SqlServer	CONTAINSTABLE({0}, ({1}), {2})
+RawSqlTable	SqlServer	CONTAINSTABLE({0}, *, {1}, {2})
+RawSqlTable	SqlServer	CONTAINSTABLE({0}, *, {1}, LANGUAGE {2}, {3})
+RawSqlTable	SqlServer	CONTAINSTABLE({0}, *, {1}, LANGUAGE {2})
+RawSqlTable	SqlServer	CONTAINSTABLE({0}, *, {1})
+RawSqlTable	SqlServer	FREETEXTTABLE({0}, ({1}), {2}, {3})
+RawSqlTable	SqlServer	FREETEXTTABLE({0}, ({1}), {2}, LANGUAGE {3}, {4})
+RawSqlTable	SqlServer	FREETEXTTABLE({0}, ({1}), {2}, LANGUAGE {3})
+RawSqlTable	SqlServer	FREETEXTTABLE({0}, ({1}), {2})
+RawSqlTable	SqlServer	FREETEXTTABLE({0}, *, {1}, {2})
+RawSqlTable	SqlServer	FREETEXTTABLE({0}, *, {1}, LANGUAGE {2}, {3})
+RawSqlTable	SqlServer	FREETEXTTABLE({0}, *, {1}, LANGUAGE {2})
+RawSqlTable	SqlServer	FREETEXTTABLE({0}, *, {1})
+RawSqlTable	SqlServer	OPENJSON({0}, {1})
+RawSqlTable	SqlServer	OPENJSON({0})
 TableExpression	SapHana	{0}('PLACEHOLDER' = ({2})) {1}
 TableExpression	SqlServer	OPENJSON({2}, {3}) {1}
 TableExpression	SqlServer	OPENJSON({2}) {1}
