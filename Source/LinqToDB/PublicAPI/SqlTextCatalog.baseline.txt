@@ -124,6 +124,7 @@ Expression	-	VARIANCE({expr})
 Expression	-	VARIANCE({modifier?}{_}{expr})
 Expression	-	WITHIN GROUP ({order_by_clause})
 Expression	-	WITHIN GROUP ({order_by_clause}){_}{over?}
+Expression	Access	({0})
 Expression	Access	@@IDENTITY
 Expression	Access	Format({0}, String('0', {1}))
 Expression	Access	Now
