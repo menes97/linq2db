@@ -792,11 +792,15 @@ namespace LinqToDB
 		[Expression(PN.Sybase, "right(replicate('0',{1}) + cast({0} as varchar(255)),{1})",                         IsNullable = IsNullableType.SameAsFirstParameter)]
 		[Expression(PN.DuckDB, "Lpad(CAST({0} AS VARCHAR),{1},'0')",                                                IsNullable = IsNullableType.SameAsFirstParameter)]
 		[Expression(PN.PostgreSQL, "Lpad({0}::text,{1},'0')",                                                       IsNullable = IsNullableType.SameAsFirstParameter)]
+		#pragma warning disable LINQ2DB0009 // format item inside a string literal: rejected for untrusted clients until rewritten
 		[Expression(PN.SQLite, "printf('%0{1}d', {0})",                                                             IsNullable = IsNullableType.SameAsFirstParameter)]
+		#pragma warning restore LINQ2DB0009
 		[Expression(PN.ClickHouse, "leftPadUTF8(toString({0}), toUInt32({1}), '0')",                                IsNullable = IsNullableType.SameAsFirstParameter)]
 		[Expression(PN.Ydb, "CAST(String::LeftPad(CAST({0} AS String), {1}, '0') AS Utf8)",                                         IsNullable = IsNullableType.SameAsFirstParameter)]
 		[Expression(PN.SqlCe, "REPLICATE('0', {1} - LEN(CAST({0} as NVARCHAR({1})))) + CAST({0} as NVARCHAR({1}))", IsNullable = IsNullableType.SameAsFirstParameter)]
+		#pragma warning disable LINQ2DB0009 // format item inside a string literal: rejected for untrusted clients until rewritten
 		[Expression(PN.SqlServer, "format({0}, 'd{1}')",                                                            IsNullable = IsNullableType.SameAsFirstParameter)]
+		#pragma warning restore LINQ2DB0009
 		[Expression(PN.SqlServer2005, "REPLICATE('0', CASE WHEN LEN(CAST({0} as NVARCHAR)) > {1} THEN 0 ELSE ({1} - LEN(CAST({0} as NVARCHAR))) END) + CAST({0} as NVARCHAR)", IsNullable = IsNullableType.SameAsFirstParameter)]
 		[Expression(PN.SqlServer2008, "REPLICATE('0', CASE WHEN LEN(CAST({0} as NVARCHAR)) > {1} THEN 0 ELSE ({1} - LEN(CAST({0} as NVARCHAR))) END) + CAST({0} as NVARCHAR)", IsNullable = IsNullableType.SameAsFirstParameter)]
 		public static string? ZeroPad(int? val, int length)

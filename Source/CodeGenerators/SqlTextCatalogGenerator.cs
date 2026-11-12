@@ -7,6 +7,7 @@ using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.CodeAnalysis.Operations;
 
 namespace CodeGenerators
 {
@@ -18,10 +19,14 @@ namespace CodeGenerators
 	{
 		const string AssemblyName = "linq2db";
 
+		// values of LinqToDB.Remote.SqlTextKind; new members are appended there, so these stay stable
 		const int ExpressionKind        = 0;
 		const int FunctionKind          = 2;
 		const int TableExpressionKind   = 3;
+		const int QueryHintKind         = 5;
 		const int ExtensionArgumentKind = 6;
+		const int TableNameKind         = 11;
+		const int DbTypeKind            = 12;
 
 		static readonly string[] KindNames =
 		[
@@ -29,14 +34,33 @@ namespace CodeGenerators
 			"ExtensionArgument", "MergeHint", "RawSqlTable", "StatementHeader", "StatementFooter", "TableName", "DbType",
 		];
 
-		readonly record struct Item(int Kind, string Text, string? Partition, string? Origin, bool IsTemplate);
+		internal readonly record struct Item(int Kind, string Text, string? Partition, string? Origin, bool IsTemplate);
+
+		// an incremental pipeline caches by value: ImmutableArray compares by reference, so it would never hit
+		readonly struct EquatableItems(ImmutableArray<Item> items) : IEquatable<EquatableItems>
+		{
+			public ImmutableArray<Item> Items { get; } = items.IsDefault ? ImmutableArray<Item>.Empty : items;
+
+			public bool Equals(EquatableItems other) => Items.SequenceEqual(other.Items);
+			public override bool Equals(object? obj) => obj is EquatableItems other && Equals(other);
+
+			public override int GetHashCode()
+			{
+				var hash = 17;
+
+				foreach (var item in Items)
+					hash = unchecked(hash * 31 + item.GetHashCode());
+
+				return hash;
+			}
+		}
 
 		/// <inheritdoc/>
 		public void Initialize(IncrementalGeneratorInitializationContext context)
 		{
 			var items = context.SyntaxProvider
 				.CreateSyntaxProvider(IsCandidate, Transform)
-				.SelectMany(static (x, _) => x)
+				.SelectMany(static (x, _) => x.Items)
 				.Collect();
 
 			var enabled = context.CompilationProvider.Select(static (c, _) => c.AssemblyName == AssemblyName);
@@ -82,12 +106,16 @@ namespace CodeGenerators
 				return;
 			}
 
-			var expected = new HashSet<string>(StringComparer.Ordinal);
+			var expected   = new HashSet<string>(StringComparer.Ordinal);
+			var duplicates = new List<string>();
 
 			foreach (var text in baselines)
+			{
+				// a line never ends in whitespace (SqlTextLineFormat), so only the CR of a CRLF file is trimmed
 				foreach (var line in (text ?? "").Split('\n'))
-					if (line.TrimEnd() is { Length: > 0 } entry && entry[0] != '#')
-						expected.Add(entry);
+					if (line.TrimEnd('\r') is { Length: > 0 } entry && entry[0] != '#' && !expected.Add(entry))
+						duplicates.Add(entry);
+			}
 
 			var actual = new HashSet<string>(generated.Select(FormatBaselineLine), StringComparer.Ordinal);
 
@@ -95,6 +123,10 @@ namespace CodeGenerators
 			var stale   = expected.Where(l => !actual.Contains(l)).OrderBy(static l => l, StringComparer.Ordinal).ToList();
 
 			var reported = 0;
+
+			foreach (var line in duplicates)
+				if (reported++ < MaxReported)
+					context.ReportDiagnostic(Diagnostic.Create(BaselineRule, Location.None, $"Entry listed twice across the {BaselineFileName} files, keep it in one: {line}"));
 
 			foreach (var line in missing)
 				if (reported++ < MaxReported)
@@ -108,24 +140,13 @@ namespace CodeGenerators
 				context.ReportDiagnostic(Diagnostic.Create(BaselineRule, Location.None, $"{reported - MaxReported} more {BaselineFileName} differences are not listed."));
 		}
 
-		// <kind> TAB <partition or -> TAB <text>, with backslash, tab, CR and LF escaped. A line never ends in whitespace,
-		// which editors and the build log strip: trailing spaces are written as \s and an empty text as \e.
+		// <kind> TAB <partition or -> TAB <escaped text>; the escaping is shared with SqlTextCatalog.Export and Load
 		static string FormatBaselineLine(Item item)
 		{
-			var text = item.Text
-				.Replace("\\", "\\\\")
-				.Replace("\t", "\\t")
-				.Replace("\r", "\\r")
-				.Replace("\n", "\\n");
-
-			var trimmed = text.TrimEnd(' ');
-
-			text = text.Length == 0 ? "\\e" : trimmed + string.Concat(Enumerable.Repeat("\\s", text.Length - trimmed.Length));
-
-			return KindNames[item.Kind] + "\t" + (item.Partition ?? "-") + "\t" + text;
+			return LinqToDB.Analyzers.SqlTextLineFormat.FormatBaseline(KindNames[item.Kind], item.Partition, item.Text);
 		}
 
-		static bool IsCandidate(SyntaxNode node, System.Threading.CancellationToken cancellationToken)
+		internal static bool IsCandidate(SyntaxNode node, System.Threading.CancellationToken cancellationToken)
 		{
 			return node switch
 			{
@@ -140,18 +161,33 @@ namespace CodeGenerators
 			};
 		}
 
-		static ImmutableArray<Item> Transform(GeneratorSyntaxContext context, System.Threading.CancellationToken cancellationToken)
+		static EquatableItems Transform(GeneratorSyntaxContext context, System.Threading.CancellationToken cancellationToken)
 		{
 			if (context.SemanticModel.Compilation.AssemblyName != AssemblyName)
-				return [];
+				return default;
 
-			return context.Node switch
+			// a text refused for its provider's quoting can never be accepted from a client; the analyzer reports its site
+			return new(TransformNode(context.Node, context.SemanticModel, cancellationToken).Where(static i => !IsRefused(i)).ToImmutableArray());
+		}
+
+		/// <summary>Gets the catalog entries one syntax node of the library contributes. Shared with <see cref="SqlTextContractAnalyzer"/>.</summary>
+		internal static ImmutableArray<Item> TransformNode(SyntaxNode node, SemanticModel model, System.Threading.CancellationToken cancellationToken)
+		{
+			return node switch
 			{
-				AttributeSyntax attribute         => TransformAttribute(attribute, context.SemanticModel),
-				FieldDeclarationSyntax field      => TransformHintConstant(field, context.SemanticModel),
-				PropertyDeclarationSyntax property => TransformProperty(property, context.SemanticModel),
-				_                              => TransformCall(context.Node, context.SemanticModel, cancellationToken),
+				AttributeSyntax attribute          => TransformAttribute(attribute, model),
+				FieldDeclarationSyntax field       => TransformHintConstant(field, model),
+				PropertyDeclarationSyntax property => TransformProperty(property, model),
+				_                                  => TransformCall(node, model, cancellationToken),
 			};
+		}
+
+		/// <summary>Whether the text has a format item in a quoted context of its partition's provider.</summary>
+		internal static bool IsRefused(Item item)
+		{
+			var text = item.Kind == QueryHintKind ? item.Text + "\n" : item.Text;
+
+			return LinqToDB.Analyzers.SqlTextQuoting.TryFindQuotedToken(text, LinqToDB.Analyzers.SqlTextQuoting.GetDialect(item.Partition), out _);
 		}
 
 		static ImmutableArray<Item> TransformCall(SyntaxNode node, SemanticModel model, System.Threading.CancellationToken cancellationToken)
@@ -161,23 +197,68 @@ namespace CodeGenerators
 			if (operation == null)
 				return [];
 
+			// a raw statement is built and run by the server alone (DML services' DDL); the validator rejects it from clients
+			if (IsRawStatementArgument(operation))
+				return [];
+
 			var result     = ImmutableArray.CreateBuilder<Item>();
 			var containing = model.GetEnclosingSymbol(node.SpanStart, cancellationToken);
 
 			foreach (var (argument, kind) in SqlTextFlow.GetSqlTextArguments(operation))
 				AddValues(result, argument.Value, kind, containing, model);
 
-			if (operation is Microsoft.CodeAnalysis.Operations.ISimpleAssignmentOperation assignment && SqlTextFlow.TryGetAssignedKind(assignment, out var assignedKind))
-				AddValues(result, assignment.Value, assignedKind, containing, model);
+			switch (operation)
+			{
+				case ISimpleAssignmentOperation assignment when SqlTextFlow.TryGetAssignedKind(assignment, out var assignedKind):
+					AddValues(result, assignment.Value, assignedKind, containing, model);
+					break;
+
+				case ICoalesceAssignmentOperation { Target: IPropertyReferenceOperation target } coalesce when SqlTextFlow.TryGetPropertyKind(target.Property, out var coalescedKind):
+					AddValues(result, coalesce.Value, coalescedKind, containing, model);
+					break;
+			}
+
+			AddDbTypeLiteral(result, operation, containing);
 
 			return result.ToImmutable();
+		}
+
+		static bool IsRawStatementArgument(IOperation operation)
+		{
+			return operation.Parent is IArgumentOperation { Parent: IObjectCreationOperation { Type.Name: "SqlRawStatement" } };
+		}
+
+		// a constant DbType given to DbDataType is rendered as written in casts and DDL
+		static void AddDbTypeLiteral(ImmutableArray<Item>.Builder result, IOperation operation, ISymbol? containing)
+		{
+			var (method, arguments) = operation switch
+			{
+				IInvocationOperation     invocation => (invocation.TargetMethod, invocation.Arguments),
+				IObjectCreationOperation creation   => (creation.Constructor, creation.Arguments),
+				_                                   => (null, default),
+			};
+
+			if (method?.ContainingType is not { Name: "DbDataType", ContainingNamespace.Name: "LinqToDB" } || arguments.IsDefaultOrEmpty)
+				return;
+
+			if (method.MethodKind != MethodKind.Constructor && !string.Equals(method.Name, "WithDbType", StringComparison.Ordinal))
+				return;
+
+			foreach (var argument in arguments)
+			{
+				if (string.Equals(argument.Parameter?.Name, "dbType", StringComparison.Ordinal)
+					&& argument.Value.ConstantValue is { HasValue: true, Value: string { Length: > 0 } dbType })
+				{
+					result.Add(new Item(DbTypeKind, dbType, GetPartition(containing), containing?.ContainingType?.Name, false));
+				}
+			}
 		}
 
 		static void AddValues(ImmutableArray<Item>.Builder result, IOperation value, int kind, ISymbol? containing, SemanticModel model)
 		{
 			var values = new List<string>();
 
-			SqlTextFlow.TryResolve(value, model, values);
+			SqlTextFlow.TryResolve(value, model, values, 0, kind);
 
 			var partition = GetPartition(containing);
 			var origin    = containing?.ContainingType?.Name;
@@ -243,13 +324,107 @@ namespace CodeGenerators
 				return [];
 
 			var owner = model.GetDeclaredSymbol(attribute.Parent!.Parent!);
-			var text  = GetAttributeText(attribute, constructor, model) ?? (attributeKind == ExpressionKind ? null : owner?.Name);
+
+			// the base attributes fall back to the member name at run time (ExpressionAttribute.PrepareParameterValues,
+			// TableFunctionAttribute.SetTable); a derived attribute builds its own text, so its member name is never sent
+			var text = GetAttributeText(attribute, constructor, model) ?? (UsesMemberNameFallback(constructor.ContainingType) ? owner?.Name : null);
 
 			if (text == null || text.Length == 0)
 				return [];
 
-			return [new Item(attributeKind.Value, text, GetPartition(owner), owner?.ContainingType?.Name, attributeKind == ExpressionKind)];
+			// an attribute naming a provider configuration applies to that provider only
+			var partition = GetConfigurationPartition(attribute, constructor, model) ?? GetPartition(owner);
+			var origin    = owner?.ContainingType?.Name;
+
+			// a table function is rendered by its object name, which the validator checks part by part as TableName text
+			if (IsSqlAttribute(constructor.ContainingType, "TableFunctionAttribute"))
+			{
+				var result = ImmutableArray.CreateBuilder<Item>();
+
+				result.Add(new Item(TableNameKind, text, partition, origin, false));
+
+				foreach (var part in GetNamedTexts(attribute, model, "Schema", "Database", "Server", "Package"))
+					result.Add(new Item(TableNameKind, part, partition, origin, false));
+
+				return result.ToImmutable();
+			}
+
+			return [new Item(attributeKind.Value, text, partition, origin, attributeKind == ExpressionKind)];
 		}
+
+		static bool UsesMemberNameFallback(INamedTypeSymbol type)
+		{
+			return IsSqlAttribute(type, "ExpressionAttribute")
+				|| IsSqlAttribute(type, "FunctionAttribute")
+				|| IsSqlAttribute(type, "PropertyAttribute")
+				|| IsSqlAttribute(type, "TableFunctionAttribute");
+		}
+
+		static IEnumerable<string> GetNamedTexts(AttributeSyntax attribute, SemanticModel model, params string[] names)
+		{
+			foreach (var argument in attribute.ArgumentList?.Arguments ?? default)
+			{
+				if (argument.NameEquals is { } nameEquals
+					&& names.Contains(nameEquals.Name.Identifier.Text, StringComparer.Ordinal)
+					&& model.GetConstantValue(argument.Expression) is { HasValue: true, Value: string { Length: > 0 } value })
+				{
+					yield return value;
+				}
+			}
+		}
+
+		// provider names whose first segment is not the provider's namespace family
+		static readonly Dictionary<string,string> _configurationFamilies = new(StringComparer.OrdinalIgnoreCase)
+		{
+			["Access"]     = "Access",     ["ClickHouse"] = "ClickHouse", ["DB2"]      = "DB2",      ["DuckDB"]    = "DuckDB",
+			["Firebird"]   = "Firebird",   ["Informix"]   = "Informix",   ["MariaDB"]  = "MySql",    ["MySql"]     = "MySql",
+			["MySqlConnector"] = "MySql",  ["Oracle"]     = "Oracle",     ["PostgreSQL"] = "PostgreSQL", ["SapHana"] = "SapHana",
+			["SqlCe"]      = "SqlCe",      ["SQLite"]     = "SQLite",     ["SqlServer"] = "SqlServer", ["Sybase"]  = "Sybase",
+			["YDB"]        = "Ydb",
+		};
+
+		/// <summary>Maps a provider configuration name to its provider family, the namespace segment the runtime partitions by.</summary>
+		internal static bool TryGetConfigurationFamily(string configuration, out string family)
+		{
+			var dot = configuration.IndexOf('.');
+
+			return _configurationFamilies.TryGetValue(dot < 0 ? configuration : configuration.Substring(0, dot), out family!);
+		}
+
+		static string? GetConfigurationPartition(AttributeSyntax attribute, IMethodSymbol constructor, SemanticModel model)
+		{
+			if (attribute.ArgumentList == null)
+				return null;
+
+			var position = 0;
+
+			foreach (var argument in attribute.ArgumentList.Arguments)
+			{
+				string? configuration = null;
+
+				if (argument.NameEquals != null)
+				{
+					if (string.Equals(argument.NameEquals.Name.Identifier.Text, "Configuration", StringComparison.Ordinal))
+						configuration = model.GetConstantValue(argument.Expression).Value as string;
+				}
+				else
+				{
+					if (position < constructor.Parameters.Length && string.Equals(constructor.Parameters[position].Name, "configuration", StringComparison.Ordinal))
+						configuration = model.GetConstantValue(argument.Expression).Value as string;
+
+					position++;
+				}
+
+				// an unknown name keeps the text out of every provider partition; the analyzer reports it
+				if (configuration != null)
+					return TryGetConfigurationFamily(configuration, out var family) ? family : UnknownPartition;
+			}
+
+			return null;
+		}
+
+		/// <summary>Partition of a text whose provider configuration maps to no provider family. No provider reads it.</summary>
+		internal const string UnknownPartition = "?";
 
 		static bool IsSqlAttribute(INamedTypeSymbol? type, string name)
 		{
@@ -371,7 +546,12 @@ namespace CodeGenerators
 			sb.AppendLine("\t\tpublic System.Collections.Generic.IReadOnlyList<SqlTextItem> Items { get; } = new SqlTextItem[]");
 			sb.AppendLine("\t\t{");
 
-			foreach (var item in items.Distinct().OrderBy(static i => i.Kind).ThenBy(static i => i.Text, StringComparer.Ordinal).ThenBy(static i => i.Partition, StringComparer.Ordinal))
+			// one entry per kind, partition and text: entries differing only by origin collapse to the first origin in order
+			var unique = items
+				.GroupBy(static i => (i.Kind, i.Partition, i.Text, i.IsTemplate))
+				.Select(static g => g.OrderBy(static i => i.Origin, StringComparer.Ordinal).First());
+
+			foreach (var item in unique.OrderBy(static i => i.Kind).ThenBy(static i => i.Text, StringComparer.Ordinal).ThenBy(static i => i.Partition, StringComparer.Ordinal))
 			{
 				sb.Append("\t\t\tnew(SqlTextKind.").Append(KindNames[item.Kind]).Append(", ")
 					.Append(SymbolDisplay.FormatLiteral(item.Text, true)).Append(", ")

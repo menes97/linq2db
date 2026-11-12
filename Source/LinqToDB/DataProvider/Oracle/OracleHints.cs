@@ -151,7 +151,9 @@ namespace LinqToDB.DataProvider.Oracle
 			public const string PxJoinFilter          = "PX_JOIN_FILTER";
 			public const string NoPxJoinFilter        = "NO_PX_JOIN_FILTER";
 
+			#pragma warning disable LINQ2DB0009 // format item inside a string literal: rejected for untrusted clients until rewritten
 			[Sql.Expression("CONTAINERS(DEFAULT_PDB_HINT='{0}')")]
+			#pragma warning restore LINQ2DB0009
 			public static string Containers(string hint)
 			{
 				return string.Format(CultureInfo.InvariantCulture, "CONTAINERS(DEFAULT_PDB_HINT='{0}')", hint);

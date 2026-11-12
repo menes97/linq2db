@@ -400,12 +400,42 @@ namespace Tests.Linq
 		}
 
 		[Test]
+		public void ProviderScopedTemplateIsAcceptedOnlyOnItsProvider()
+		{
+			// [Expression(ProviderName.PostgreSQL, ...)] on Sql.ZeroPad: partitioned by the attribute's configuration
+			const string text = "Lpad({}::text,{},'0')";
+
+			Allowed(new PostgreSQLService().DumpSqlText()).ShouldContain((SqlTextKind.Expression, text));
+			Allowed(new SQLiteService()    .DumpSqlText()).ShouldNotContain((SqlTextKind.Expression, text));
+		}
+
+		[Test]
+		public void EveryCatalogPartitionIsAProviderFamily()
+		{
+			var library  = typeof(DataOptions).Assembly;
+			var catalog  = (ISqlTextCatalog)Activator.CreateInstance(library.GetType("LinqToDB.Remote.GeneratedSqlTextCatalog", throwOnError: true)!, nonPublic: true)!;
+			const string prefix = "LinqToDB.Internal.DataProvider.";
+
+			// the runtime takes a provider's family from the namespace of its provider type
+			var families = library.GetTypes()
+				.Where(static t => !t.IsAbstract && typeof(LinqToDB.DataProvider.IDataProvider).IsAssignableFrom(t) && t.Namespace?.StartsWith(prefix, StringComparison.Ordinal) == true)
+				.Select(static t => t.Namespace!.Substring(prefix.Length).Split('.')[0])
+				.ToHashSet(StringComparer.Ordinal);
+
+			families.ShouldContain("SqlServer");
+
+			var partitions = catalog.Items.Select(static i => i.Partition).Where(static p => p != null).Distinct();
+
+			partitions.Where(p => !families.Contains(p!)).ShouldBeEmpty();
+		}
+
+		[Test]
 		public void LibraryTextWithQuotedFormatItemIsNotAccepted()
 		{
 			var allowed = Allowed(new SQLiteService().DumpSqlText());
 
 			// control: a library text with quotes beside its format items stays
-			allowed.ShouldContain((SqlTextKind.Expression, "Lpad('',{},' ')"));
+			allowed.ShouldContain((SqlTextKind.Expression, "Lpad({},{},'0')"));
 
 			allowed.ShouldNotContain((SqlTextKind.Expression, "format({}, 'd{}')"));
 			allowed.ShouldNotContain((SqlTextKind.Expression, "printf('%0{}d', {})"));
@@ -443,8 +473,8 @@ namespace Tests.Linq
 			copy.DumpSqlText().Single(static e => e.Source == SqlTextCatalog.HostSource).Text.ShouldBe(text);
 		}
 
-		const string LibraryText        = "Lpad('',{0},' ')";
-		const string LibraryCanonical   = "Lpad('',{},' ')";
+		const string LibraryText        = "Lpad({0},{1},'0')";
+		const string LibraryCanonical   = "Lpad({},{},'0')";
 		const string AssemblyText       = "ASSEMBLY_CATALOG_TEXT({})";
 		const string AssemblyNoMatch    = "ASSEMBLY_REMOVAL_MATCHES_NOTHING({})";
 

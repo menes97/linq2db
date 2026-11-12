@@ -4562,7 +4562,11 @@ namespace LinqToDB.DataProvider.SqlServer
 						: builder.GetExpression(prop.Name!)!;
 				}
 
+				// the extension's Expression text is used as a function name: accepted from untrusted clients only where the
+				// same text is also catalogued as Function text
+				#pragma warning disable LINQ2DB0007
 				builder.ResultExpression = new SqlFunction(builder.Mapping.GetDbDataType(method.ReturnType), builder.Expression, ps);
+				#pragma warning restore LINQ2DB0007
 			}
 		}
 	}

@@ -13,3 +13,5 @@ LINQ2DB0005 | Usage | Warning | ProjectFlagsAnalyzer
 LINQ2DB0006 | Usage | Warning | ProjectFlagsAnalyzer
 LINQ2DB0007 | Usage | Warning | SqlTextContractAnalyzer
 LINQ2DB0008 | Usage | Warning | SqlTextCatalogGenerator
+LINQ2DB0009 | Usage | Warning | SqlTextContractAnalyzer
+LINQ2DB0010 | Usage | Warning | SqlTextContractAnalyzer

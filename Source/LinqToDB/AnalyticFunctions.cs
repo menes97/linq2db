@@ -31,12 +31,14 @@ namespace LinqToDB
 				{
 					case Sql.NullsPosition.None :
 						break;
+					#pragma warning disable LINQ2DB0007 // composed extension text: rejected for untrusted clients unless the host adds it
 					case Sql.NullsPosition.First :
 						builder.Expression += " NULLS FIRST";
 						break;
 					case Sql.NullsPosition.Last :
 						builder.Expression += " NULLS LAST";
 						break;
+					#pragma warning restore LINQ2DB0007
 					default :
 						throw new InvalidOperationException($"Unexpected nulls position: {nulls}");
 				}

@@ -60,8 +60,16 @@ namespace CodeGenerators
 		}
 
 		/// <summary>Adds every string <paramref name="operation"/> can produce to <paramref name="values"/>.</summary>
+		/// <param name="operation">Value passed to a <c>[SqlText]</c> position.</param>
+		/// <param name="model">Semantic model of the operation's tree.</param>
+		/// <param name="values">Receives the texts.</param>
+		/// <param name="depth">Recursion depth.</param>
+		/// <param name="expectedKind">
+		/// Kind of the receiving position, or -1 when unknown. A <c>[SqlText]</c> parameter or property forwarded to the
+		/// position is catalogued at its own sites, so it is accepted only when its kind is this one.
+		/// </param>
 		/// <returns><see langword="false"/> when a value cannot be determined at compile time.</returns>
-		public static bool TryResolve(IOperation? operation, SemanticModel model, List<string> values, int depth = 0)
+		public static bool TryResolve(IOperation? operation, SemanticModel model, List<string> values, int depth = 0, int expectedKind = -1)
 		{
 			if (operation == null || depth > MaxDepth || values.Count > MaxValues)
 				return false;
@@ -85,8 +93,8 @@ namespace CodeGenerators
 					return true;
 
 				case ICoalesceOperation coalesce:
-					return TryResolve(coalesce.Value, model, values, depth + 1)
-						&& (IsThrow(coalesce.WhenNull) || TryResolve(coalesce.WhenNull, model, values, depth + 1));
+					return TryResolve(coalesce.Value, model, values, depth + 1, expectedKind)
+						&& (IsThrow(coalesce.WhenNull) || TryResolve(coalesce.WhenNull, model, values, depth + 1, expectedKind));
 
 				case IInvocationOperation { TargetMethod.Name: "ToLowerInvariant" or "ToUpperInvariant", Instance: { } instance } caseChange:
 				{
@@ -102,32 +110,35 @@ namespace CodeGenerators
 				}
 
 				case IInvocationOperation helper when helper.TargetMethod.ReturnType.SpecialType == SpecialType.System_String && !helper.TargetMethod.IsVirtual && !helper.TargetMethod.IsAbstract:
-					return TryResolveHelper(helper.TargetMethod, model, values, depth);
+					return TryResolveHelper(helper.TargetMethod, model, values, depth, expectedKind);
 
 				case IConversionOperation conversion:
-					return TryResolve(conversion.Operand, model, values, depth + 1);
+					return TryResolve(conversion.Operand, model, values, depth + 1, expectedKind);
 
 				case IParenthesizedOperation parenthesized:
-					return TryResolve(parenthesized.Operand, model, values, depth + 1);
+					return TryResolve(parenthesized.Operand, model, values, depth + 1, expectedKind);
 
 				case IConditionalOperation conditional:
-					return TryResolve(conditional.WhenTrue, model, values, depth + 1)
-						&& TryResolve(conditional.WhenFalse, model, values, depth + 1);
+					return TryResolve(conditional.WhenTrue, model, values, depth + 1, expectedKind)
+						&& TryResolve(conditional.WhenFalse, model, values, depth + 1, expectedKind);
 
 				case ISwitchExpressionOperation switchExpression:
-					return switchExpression.Arms.All(arm => IsThrow(arm.Value) || TryResolve(arm.Value, model, values, depth + 1));
+					return switchExpression.Arms.All(arm => IsThrow(arm.Value) || TryResolve(arm.Value, model, values, depth + 1, expectedKind));
 
+				// a forwarded [SqlText] parameter or property is catalogued at its own sites, under its own kind
 				case IParameterReferenceOperation parameter:
-					return TryGetKind(parameter.Parameter, out _) || TryResolveFromCallers(parameter.Parameter, model, values, depth);
+					return TryGetKind(parameter.Parameter, out var parameterKind)
+						? expectedKind < 0 || parameterKind == expectedKind
+						: TryResolveFromCallers(parameter.Parameter, model, values, depth, expectedKind);
 
 				case IPropertyReferenceOperation property:
-					return TryGetPropertyKind(property.Property, out _);
+					return TryGetPropertyKind(property.Property, out var propertyKind) && (expectedKind < 0 || propertyKind == expectedKind);
 
 				case ILocalReferenceOperation local:
-					return TryResolveSymbol(local.Local, model, values, depth);
+					return TryResolveSymbol(local.Local, model, values, depth, expectedKind);
 
 				case IFieldReferenceOperation field when field.Field.IsReadOnly:
-					return TryResolveSymbol(field.Field, model, values, depth);
+					return TryResolveSymbol(field.Field, model, values, depth, expectedKind);
 
 				case IBinaryOperation { OperatorKind: BinaryOperatorKind.Add } binary:
 					return TryResolveConcat([binary.LeftOperand, binary.RightOperand], model, values, depth);
@@ -141,10 +152,12 @@ namespace CodeGenerators
 		}
 
 		/// <summary>
-		/// Resolves a parameter of a private method or local function from every call in the same file. Nothing outside
-		/// the file can call such a method, so the callers seen here are all of them.
+		/// Resolves a parameter of a private method or local function from every call of it. Only the declaring type can
+		/// call such a method; when that type is declared in this file alone, the calls seen here are all of them. A type
+		/// split across files (a partial type), or any use other than a direct call, such as a method group passed on,
+		/// fails the resolution.
 		/// </summary>
-		static bool TryResolveFromCallers(IParameterSymbol parameter, SemanticModel model, List<string> values, int depth)
+		static bool TryResolveFromCallers(IParameterSymbol parameter, SemanticModel model, List<string> values, int depth, int expectedKind)
 		{
 			if (parameter.ContainingSymbol is not IMethodSymbol method)
 				return false;
@@ -152,22 +165,36 @@ namespace CodeGenerators
 			if (method.MethodKind != MethodKind.LocalFunction && method.DeclaredAccessibility != Accessibility.Private)
 				return false;
 
-			if (method.DeclaringSyntaxReferences.FirstOrDefault()?.SyntaxTree != model.SyntaxTree)
+			var declarations = method.MethodKind == MethodKind.LocalFunction || method.ContainingType == null
+				? method.DeclaringSyntaxReferences
+				: method.ContainingType.DeclaringSyntaxReferences;
+
+			if (declarations.IsEmpty || declarations.Any(r => r.SyntaxTree != model.SyntaxTree))
 				return false;
 
 			var found = false;
 
-			foreach (var invocation in model.SyntaxTree.GetRoot().DescendantNodes().OfType<InvocationExpressionSyntax>())
+			foreach (var name in model.SyntaxTree.GetRoot().DescendantNodes().OfType<SimpleNameSyntax>())
 			{
-				if (model.GetSymbolInfo(invocation).Symbol is not IMethodSymbol target || !SymbolEqualityComparer.Default.Equals(target.OriginalDefinition, method))
+				if (!string.Equals(name.Identifier.ValueText, method.Name, StringComparison.Ordinal)
+					|| model.GetSymbolInfo(name).Symbol is not IMethodSymbol target
+					|| !SymbolEqualityComparer.Default.Equals(target.OriginalDefinition, method))
+				{
 					continue;
+				}
 
-				if (model.GetOperation(invocation) is not IInvocationOperation call)
+				var callee = name.Parent is MemberAccessExpressionSyntax access && access.Name == name ? (ExpressionSyntax)access : name;
+
+				if (callee.Parent is not InvocationExpressionSyntax invocation
+					|| invocation.Expression != callee
+					|| model.GetOperation(invocation) is not IInvocationOperation call)
+				{
 					return false;
+				}
 
 				var argument = call.Arguments.FirstOrDefault(a => SymbolEqualityComparer.Default.Equals(a.Parameter?.OriginalDefinition, parameter));
 
-				if (argument == null || !TryResolve(argument.Value, model, values, depth + 1))
+				if (argument == null || !TryResolve(argument.Value, model, values, depth + 1, expectedKind))
 					return false;
 
 				found = true;
@@ -195,7 +222,7 @@ namespace CodeGenerators
 			return false;
 		}
 
-		static bool TryResolveHelper(IMethodSymbol method, SemanticModel model, List<string> values, int depth)
+		static bool TryResolveHelper(IMethodSymbol method, SemanticModel model, List<string> values, int depth, int expectedKind)
 		{
 			var reference = method.DeclaringSyntaxReferences.FirstOrDefault();
 
@@ -212,7 +239,7 @@ namespace CodeGenerators
 			};
 
 			if (bodyExpression != null)
-				return TryResolve(model.GetOperation(bodyExpression), model, values, depth + 1);
+				return TryResolve(model.GetOperation(bodyExpression), model, values, depth + 1, expectedKind);
 
 			var returns = syntax.DescendantNodes().OfType<ReturnStatementSyntax>().ToList();
 
@@ -220,7 +247,7 @@ namespace CodeGenerators
 				return false;
 
 			foreach (var statement in returns)
-				if (statement.Expression == null || !TryResolve(model.GetOperation(statement.Expression), model, values, depth + 1))
+				if (statement.Expression == null || !TryResolve(model.GetOperation(statement.Expression), model, values, depth + 1, expectedKind))
 					return false;
 
 			return true;
@@ -231,7 +258,7 @@ namespace CodeGenerators
 			return operation is IThrowOperation or IConversionOperation { Operand: IThrowOperation };
 		}
 
-		static bool TryResolveSymbol(ISymbol symbol, SemanticModel model, List<string> output, int depth)
+		static bool TryResolveSymbol(ISymbol symbol, SemanticModel model, List<string> output, int depth, int expectedKind)
 		{
 			var reference = symbol.DeclaringSyntaxReferences.FirstOrDefault();
 
@@ -245,7 +272,7 @@ namespace CodeGenerators
 			switch (syntax)
 			{
 				case VariableDeclaratorSyntax { Initializer: { } initializer }:
-					if (!TryResolve(model.GetOperation(initializer.Value), model, values, depth + 1))
+					if (!TryResolve(model.GetOperation(initializer.Value), model, values, depth + 1, expectedKind))
 						return false;
 
 					resolved = true;
@@ -275,18 +302,57 @@ namespace CodeGenerators
 					return false;
 			}
 
+			// a readonly field may also be assigned in a constructor of its type, in this file
+			if (symbol is IFieldSymbol field)
+			{
+				if (field.ContainingType.DeclaringSyntaxReferences.Any(r => r.SyntaxTree != model.SyntaxTree))
+					return false;
+
+				foreach (var constructor in field.ContainingType.Constructors.Concat(field.ContainingType.StaticConstructors))
+				{
+					foreach (var body in constructor.DeclaringSyntaxReferences.Select(static r => r.GetSyntax()))
+					{
+						foreach (var assignment in body.DescendantNodes().OfType<AssignmentExpressionSyntax>())
+						{
+							if (!Writes(assignment, symbol, model))
+								continue;
+
+							if (!assignment.IsKind(SyntaxKind.SimpleAssignmentExpression) || !TryResolve(model.GetOperation(assignment.Right), model, values, depth + 1, expectedKind))
+								return false;
+
+							resolved = true;
+						}
+					}
+				}
+			}
+
 			if (symbol is ILocalSymbol)
 			{
 				var body = syntax.Ancestors().FirstOrDefault(static a => a is BlockSyntax or ArrowExpressionClauseSyntax);
 
+				// a write through out or ref has no value to read
+				foreach (var argument in body?.DescendantNodes().OfType<ArgumentSyntax>() ?? [])
+				{
+					if (!argument.RefKindKeyword.IsKind(SyntaxKind.None)
+						&& argument.Expression is not DeclarationExpressionSyntax
+						&& SymbolEqualityComparer.Default.Equals(model.GetSymbolInfo(argument.Expression).Symbol, symbol))
+					{
+						return false;
+					}
+				}
+
 				foreach (var assignment in body?.DescendantNodes().OfType<AssignmentExpressionSyntax>() ?? [])
 				{
-					if (!SymbolEqualityComparer.Default.Equals(model.GetSymbolInfo(assignment.Left).Symbol, symbol))
+					if (!Writes(assignment, symbol, model))
 						continue;
+
+					// (a, b) = ... writes the local as one element of a tuple
+					if (assignment.Left is TupleExpressionSyntax)
+						return false;
 
 					var right = new List<string>();
 
-					if (!TryResolve(model.GetOperation(assignment.Right), model, right, depth + 1))
+					if (!TryResolve(model.GetOperation(assignment.Right), model, right, depth + 1, expectedKind))
 						return false;
 
 					switch (assignment.Kind())
@@ -296,16 +362,21 @@ namespace CodeGenerators
 							values.AddRange(right);
 							break;
 
-						// Appends cross every value seen so far, in source order: a superset of the texts the code builds,
-						// all made of the same literals. A loop would append without bound.
-						case SyntaxKind.AddAssignmentExpression when resolved && !assignment.Ancestors().TakeWhile(a => a != body).Any(IsLoop):
+						// An append crosses every value seen so far with the appended text, in source order. A conditional
+						// append also keeps the values before it, as the branch may not run: a superset of the texts the code
+						// builds, all made of the same literals. A loop would append without bound. An appended [SqlText]
+						// operand has no values of its own here, so it cannot be crossed.
+						case SyntaxKind.AddAssignmentExpression when resolved && right.Count > 0 && !assignment.Ancestors().TakeWhile(a => a != body).Any(IsLoop):
 						{
-							var appended = values.SelectMany(left => right.Select(r => left + r)).ToList();
+							var appended    = values.SelectMany(left => right.Select(r => left + r)).ToList();
+							var conditional = assignment.Ancestors().TakeWhile(a => a != body).Any(IsBranch);
 
-							if (appended.Count > MaxValues)
+							if ((conditional ? values.Count : 0) + appended.Count > MaxValues)
 								return false;
 
-							values.Clear();
+							if (!conditional)
+								values.Clear();
+
 							values.AddRange(appended);
 							break;
 						}
@@ -322,6 +393,20 @@ namespace CodeGenerators
 				output.AddRange(values);
 
 			return resolved;
+		}
+
+		// whether the assignment writes the symbol, directly or as an element of a deconstructed tuple
+		static bool Writes(AssignmentExpressionSyntax assignment, ISymbol symbol, SemanticModel model)
+		{
+			if (assignment.Left is TupleExpressionSyntax tuple)
+				return tuple.DescendantNodes().OfType<IdentifierNameSyntax>().Any(n => SymbolEqualityComparer.Default.Equals(model.GetSymbolInfo(n).Symbol, symbol));
+
+			return SymbolEqualityComparer.Default.Equals(model.GetSymbolInfo(assignment.Left).Symbol, symbol);
+		}
+
+		static bool IsBranch(SyntaxNode node)
+		{
+			return node is IfStatementSyntax or ElseClauseSyntax or SwitchSectionSyntax or ConditionalExpressionSyntax or CatchClauseSyntax;
 		}
 
 		static bool IsLoop(SyntaxNode node)
@@ -399,7 +484,8 @@ namespace CodeGenerators
 			{
 				var options = new List<string>();
 
-				if (!TryResolve(part, model, options, depth + 1))
+				// a [SqlText] operand resolves to no values of its own, so the composed texts would go uncatalogued
+				if (!TryResolve(part, model, options, depth + 1) || options.Count == 0)
 					return false;
 
 				var next = new List<string>(current.Count * options.Count);
@@ -433,7 +519,7 @@ namespace CodeGenerators
 						break;
 
 					case IInterpolationOperation { Alignment: null, FormatString: null } interpolation:
-						if (!TryResolve(interpolation.Expression, model, options, depth + 1))
+						if (!TryResolve(interpolation.Expression, model, options, depth + 1) || options.Count == 0)
 							return false;
 						break;
 
