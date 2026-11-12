@@ -392,7 +392,7 @@ namespace Tests.AST
 		}
 
 		[Test]
-		public void TagIsDropped()
+		public void TagIsKept()
 		{
 			using var db = CreateConnection();
 
@@ -404,9 +404,10 @@ namespace Tests.AST
 
 			typeof(SqlStatement).GetProperty(nameof(SqlStatement.Tag))!.SetValue(statement, comment);
 
+			// BuildSqlComment removes every delimiter, so the text renders inert, as for a direct query
 			var result = RoundTrip(db, statement, Untrusted(db));
 
-			result.Statement.Tag.ShouldBeNull();
+			result.Statement.Tag!.Lines.ShouldBe(["inert"]);
 		}
 
 		[Test]
@@ -1656,7 +1657,7 @@ namespace Tests.AST
 			"LinqToDB.Internal.SqlQuery.SqlCastExpression.Type: DbDataType, DbType shape in ReadDbDataType",
 			"LinqToDB.Internal.SqlQuery.SqlColumn.Alias: identifier shape, else dropped; * admitted",
 			"LinqToDB.Internal.SqlQuery.SqlColumn.RawAlias: identifier shape, else dropped; * admitted",
-			"LinqToDB.Internal.SqlQuery.SqlComment.Lines: only SqlStatement.Tag holds a comment, and it is dropped",
+			"LinqToDB.Internal.SqlQuery.SqlComment.Lines: only SqlStatement.Tag holds a comment; BuildSqlComment removes every delimiter",
 			"LinqToDB.Internal.SqlQuery.SqlCreateTableStatement.StatementFooter: StatementFooter catalog text",
 			"LinqToDB.Internal.SqlQuery.SqlCreateTableStatement.StatementHeader: StatementHeader catalog text",
 			"LinqToDB.Internal.SqlQuery.SqlCteField.Name: identifier shape",

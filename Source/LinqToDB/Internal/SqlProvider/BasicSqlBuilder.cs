@@ -4618,7 +4618,13 @@ namespace LinqToDB.Internal.SqlProvider
 
 			for (var i = 0; i < comment.Lines.Count; i++)
 			{
-				sb.Append(comment.Lines[i].Replace("/*", "", StringComparison.Ordinal).Replace("*/", "", StringComparison.Ordinal));
+				var line = comment.Lines[i];
+
+				// one pass can leave a delimiter behind ("**//" becomes "*/") and end the comment early
+				while (line.Contains("/*", StringComparison.Ordinal) || line.Contains("*/", StringComparison.Ordinal))
+					line = line.Replace("/*", "", StringComparison.Ordinal).Replace("*/", "", StringComparison.Ordinal);
+
+				sb.Append(line);
 				if (i < comment.Lines.Count - 1)
 					sb.AppendLine();
 			}

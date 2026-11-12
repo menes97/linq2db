@@ -53,6 +53,22 @@ namespace Tests.Linq
 			commandSql.ShouldContain(expected);
 		}
 
+		// one removal pass leaves a delimiter behind ("**//" becomes "*/"), which would end the comment early
+		[Test]
+		public void Test_CommentSanitationRemovesEveryDelimiter([DataSources(NOT_SUPPORTED)] string context, [Values("**//", "//**", "/**/*/", "inert **// inert")] string tag)
+		{
+			using var db = GetDataContext(context);
+
+			db.Person.TagQuery(tag).ToList();
+
+			var commandSql = GetCurrentBaselines();
+			var start      = commandSql.IndexOf("/* ", StringComparison.Ordinal) + 3;
+			var body       = commandSql.Substring(start, commandSql.IndexOf(" */", start, StringComparison.Ordinal) - start);
+
+			body.ShouldNotContain("*/");
+			body.ShouldNotContain("/*");
+		}
+
 		[Test]
 		public void Test_FromVariable([DataSources(NOT_SUPPORTED)] string context, [Values("one", null, "two")] string? tag)
 		{

@@ -170,8 +170,6 @@ namespace LinqToDB.Internal.Remote
 			foreach (var dbType in policy.DeferredDbTypes)
 				CheckDbType(policy, dbType, mappedDbTypes);
 
-			statement.Tag = null;
-
 			CheckResultColumns(policy, statement);
 		}
 
