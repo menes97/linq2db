@@ -47,7 +47,7 @@ namespace Tests.Remote
 					AllowedConfigurations.Add(provider + ".LinqService");
 
 					// RemoteContextTests.TestFlagsTransfered registers "<context>:<transport>" for its own provider
-					foreach (var transport in Enum.GetNames(typeof(TestBase.RemoteTransport)))
+					foreach (var transport in typeof(TestBase.RemoteTransport).GetEnumNames())
 						AllowedConfigurations.Add($"{provider}.LinqService:{transport}");
 				}
 			}
