@@ -11,6 +11,7 @@ using LinqToDB.DataProvider.Firebird;
 using LinqToDB.Internal.Mapping;
 using LinqToDB.Mapping;
 using LinqToDB.Metadata;
+using LinqToDB.Remote;
 
 using NUnit.Framework;
 
