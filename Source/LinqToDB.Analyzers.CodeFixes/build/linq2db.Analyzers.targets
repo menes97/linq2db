@@ -46,13 +46,23 @@
 		<LinqToDBSqlTextIntermediateDir>$(BaseIntermediateOutputPath)</LinqToDBSqlTextIntermediateDir>
 	</PropertyGroup>
 
-	<ItemGroup>
+	<!-- Item conditions see the final property values, so an opt-in set after this file still counts. -->
+	<ItemGroup Condition="'$(LinqToDBSqlTextCatalog)' == 'true'">
 		<CompilerVisibleProperty     Include="LinqToDBSqlTextCatalog" />
 		<CompilerVisibleProperty     Include="LinqToDBSqlTextProjectDir" />
 		<CompilerVisibleProperty     Include="LinqToDBSqlTextIntermediateDir" />
 		<CompilerVisibleProperty     Include="LinqToDBSqlTextRoots" />
 		<CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="LinqToDBSqlText" />
-		<AdditionalFiles             Include="@(LinqToDBSqlText)" LinqToDBSqlText="true" />
 	</ItemGroup>
+
+	<!-- In a target, not at evaluation: a static include sees only the LinqToDBSqlText items declared before this file,
+	     so one in Directory.Build.targets, a deny file among them, would never reach the generator. -->
+	<Target Name="LinqToDBAddSqlTextFiles"
+			Condition="'$(LinqToDBSqlTextCatalog)' == 'true'"
+			BeforeTargets="GenerateMSBuildEditorConfigFileShouldRun">
+		<ItemGroup>
+			<AdditionalFiles Include="@(LinqToDBSqlText)" LinqToDBSqlText="true" />
+		</ItemGroup>
+	</Target>
 
 </Project>
