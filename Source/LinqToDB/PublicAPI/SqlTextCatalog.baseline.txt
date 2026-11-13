@@ -623,8 +623,6 @@ Expression	Ydb	Unicode::Substring({0}, 0, {1} - 1) || {3} || Unicode::Substring(
 Expression	Ydb	Unicode::Substring({0}, 0, {1})
 Expression	Ydb	Unicode::Substring({0}, CAST(Unicode::GetLength({0}) - {1} AS UInt32), {1})
 Expression	Ydb	Unwrap(CAST({0} AS Int32?))
-ExtensionArgument	-	,\s
-ExtensionArgument	-	\s
 ExtensionArgument	Access	WITH OWNERACCESS OPTION
 ExtensionArgument	ClickHouse	\s
 ExtensionArgument	ClickHouse	ALL

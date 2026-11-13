@@ -27,6 +27,7 @@
 		<Compile Include="$(MSBuildThisFileDirectory)..\LinqToDB.Analyzers\ServerSideOnlyContract.cs" Link="ServerSideOnlyContract.cs" />
 		<Compile Include="$(MSBuildThisFileDirectory)..\LinqToDB.Analyzers\SqlTextQuoting.cs"         Link="SqlTextQuoting.cs" />
 		<Compile Include="$(MSBuildThisFileDirectory)..\LinqToDB.Analyzers\SqlTextLineFormat.cs"      Link="SqlTextLineFormat.cs" />
+		<Compile Include="$(MSBuildThisFileDirectory)..\LinqToDB.Analyzers\SqlTextAttributeSources.cs" Link="SqlTextAttributeSources.cs" />
 	</ItemGroup>
 
 </Project>

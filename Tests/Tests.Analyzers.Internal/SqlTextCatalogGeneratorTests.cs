@@ -105,6 +105,9 @@ namespace Tests.Analyzers.Internal
 				{
 				}
 
+				// forwards its text to the base constructor under a parameter of its own naming, as SqlType's SqlExpression does
+				sealed class TypeNameAttribute(string name) : Sql.ExpressionAttribute(name);
+
 				static class Uses
 				{
 			{{body}}
@@ -228,6 +231,13 @@ namespace Tests.Analyzers.Internal
 			"TableName - dbo",
 			"TableName - Main",
 			"TableName - Unnamed");
+
+		[Test]
+		public Task DerivedAttributeTextUnderItsOwnParameterNameIsCatalogued() => ShouldGenerate("""
+					[TypeName("nvarchar({0})")]
+					public static string NVarChar(int size) => "";
+			""",
+			"Expression - nvarchar({0})");
 
 		// the library's interpolated Sql.Expr and FromSql calls reach the server as their composite format
 		[Test]

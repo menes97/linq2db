@@ -21,12 +21,9 @@ namespace CodeGenerators
 
 		// values of LinqToDB.Remote.SqlTextKind; new members are appended there, so these stay stable
 		const int ExpressionKind        = 0;
-		const int FunctionKind          = 2;
-		const int TableExpressionKind   = 3;
 		const int QueryHintKind         = 5;
 		const int ExtensionArgumentKind = 6;
 		const int RawSqlTableKind       = 8;
-		const int TableNameKind         = 11;
 		const int DbTypeKind            = 12;
 
 		static readonly string[] KindNames =
@@ -208,6 +205,12 @@ namespace CodeGenerators
 			foreach (var (argument, kind) in SqlTextFlow.GetSqlTextArguments(operation))
 				AddValues(result, argument.Value, kind, containing, model);
 
+			// new Sql.*Attribute(...), as fluent mapping creates it, read like the declared attribute
+			if (operation is IObjectCreationOperation creation)
+				foreach (var (kindName, value) in LinqToDB.Analyzers.SqlTextAttributeSources.GetTextValues(creation))
+					if (Array.IndexOf(KindNames, kindName) is var kind and >= 0)
+						AddValues(result, value, kind, containing, model);
+
 			switch (operation)
 			{
 				case ISimpleAssignmentOperation assignment when SqlTextFlow.TryGetAssignedKind(assignment, out var assignedKind):
@@ -369,67 +372,40 @@ namespace CodeGenerators
 			return result.ToImmutable();
 		}
 
+		// The texts are read by SqlTextAttributeSources, shared with the user catalog generator, so both catalogues read an
+		// attribute alike; this maps its kind names and provider configuration to library entries.
 		static ImmutableArray<Item> TransformAttribute(AttributeSyntax attribute, SemanticModel model)
 		{
-			if (model.GetSymbolInfo(attribute).Symbol is not IMethodSymbol constructor)
+			// an assembly or module attribute is applied to no member
+			if (attribute.Parent?.Parent is not { } declaration || model.GetDeclaredSymbol(declaration) is not { } owner)
 				return [];
 
-			if (IsSqlAttribute(constructor.ContainingType, "QueryExtensionAttribute"))
-				return TransformQueryExtension(attribute, constructor, model);
+			var data = owner.GetAttributes().FirstOrDefault(a =>
+				a.ApplicationSyntaxReference is { } reference && reference.SyntaxTree == attribute.SyntaxTree && reference.Span == attribute.Span);
 
-			var attributeKind = GetAttributeKind(constructor.ContainingType);
-
-			if (attributeKind == null)
+			if (data == null)
 				return [];
 
-			var owner = model.GetDeclaredSymbol(attribute.Parent!.Parent!);
+			var result = ImmutableArray.CreateBuilder<Item>();
+			var origin = owner.ContainingType?.Name;
 
-			// the base attributes fall back to the member name at run time (ExpressionAttribute.PrepareParameterValues,
-			// TableFunctionAttribute.SetTable); a derived attribute builds its own text, so its member name is never sent
-			var text = GetAttributeText(attribute, constructor, model) ?? (UsesMemberNameFallback(constructor.ContainingType) ? owner?.Name : null);
-
-			if (text == null || text.Length == 0)
-				return [];
-
-			// an attribute naming a provider configuration applies to that provider only
-			var partition = GetConfigurationPartition(attribute, constructor, model) ?? GetPartition(owner);
-			var origin    = owner?.ContainingType?.Name;
-
-			// a table function is rendered by its object name, which the validator checks part by part as TableName text
-			if (IsSqlAttribute(constructor.ContainingType, "TableFunctionAttribute"))
+			foreach (var (kindName, text, configuration) in LinqToDB.Analyzers.SqlTextAttributeSources.GetTexts(data, owner))
 			{
-				var result = ImmutableArray.CreateBuilder<Item>();
+				var kind = Array.IndexOf(KindNames, kindName);
 
-				result.Add(new Item(TableNameKind, text, partition, origin, false));
+				if (kind < 0)
+					continue;
 
-				foreach (var part in GetNamedTexts(attribute, model, "Schema", "Database", "Server", "Package"))
-					result.Add(new Item(TableNameKind, part, partition, origin, false));
+				// an attribute naming a provider configuration applies to that provider only; an unknown name keeps the text out
+				// of every provider partition, and the analyzer reports it
+				var partition = configuration == null
+					? GetPartition(owner)
+					: TryGetConfigurationFamily(configuration, out var family) ? family : UnknownPartition;
 
-				return result.ToImmutable();
+				result.Add(new Item(kind, text, partition, origin, kind == ExpressionKind && HasNamedToken(text)));
 			}
 
-			return [new Item(attributeKind.Value, text, partition, origin, attributeKind == ExpressionKind)];
-		}
-
-		static bool UsesMemberNameFallback(INamedTypeSymbol type)
-		{
-			return IsSqlAttribute(type, "ExpressionAttribute")
-				|| IsSqlAttribute(type, "FunctionAttribute")
-				|| IsSqlAttribute(type, "PropertyAttribute")
-				|| IsSqlAttribute(type, "TableFunctionAttribute");
-		}
-
-		static IEnumerable<string> GetNamedTexts(AttributeSyntax attribute, SemanticModel model, params string[] names)
-		{
-			foreach (var argument in attribute.ArgumentList?.Arguments ?? default)
-			{
-				if (argument.NameEquals is { } nameEquals
-					&& names.Contains(nameEquals.Name.Identifier.Text, StringComparer.Ordinal)
-					&& model.GetConstantValue(argument.Expression) is { HasValue: true, Value: string { Length: > 0 } value })
-				{
-					yield return value;
-				}
-			}
+			return result.ToImmutable();
 		}
 
 		// provider names whose first segment is not the provider's namespace family
@@ -450,131 +426,8 @@ namespace CodeGenerators
 			return _configurationFamilies.TryGetValue(dot < 0 ? configuration : configuration.Substring(0, dot), out family!);
 		}
 
-		static string? GetConfigurationPartition(AttributeSyntax attribute, IMethodSymbol constructor, SemanticModel model)
-		{
-			if (attribute.ArgumentList == null)
-				return null;
-
-			var position = 0;
-
-			foreach (var argument in attribute.ArgumentList.Arguments)
-			{
-				string? configuration = null;
-
-				if (argument.NameEquals != null)
-				{
-					if (string.Equals(argument.NameEquals.Name.Identifier.Text, "Configuration", StringComparison.Ordinal))
-						configuration = model.GetConstantValue(argument.Expression).Value as string;
-				}
-				else
-				{
-					if (position < constructor.Parameters.Length && string.Equals(constructor.Parameters[position].Name, "configuration", StringComparison.Ordinal))
-						configuration = model.GetConstantValue(argument.Expression).Value as string;
-
-					position++;
-				}
-
-				// an unknown name keeps the text out of every provider partition; the analyzer reports it
-				if (configuration != null)
-					return TryGetConfigurationFamily(configuration, out var family) ? family : UnknownPartition;
-			}
-
-			return null;
-		}
-
 		/// <summary>Partition of a text whose provider configuration maps to no provider family. No provider reads it.</summary>
 		internal const string UnknownPartition = "?";
-
-		static bool IsSqlAttribute(INamedTypeSymbol? type, string name)
-		{
-			return type is { ContainingType.Name: "Sql" }
-				&& type.ContainingType.ContainingNamespace?.ToDisplayString() == "LinqToDB"
-				&& type.Name == name;
-		}
-
-		/// <summary>
-		/// Catalogues the <c>extensionArgument</c> texts of a <c>[Sql.QueryExtension]</c>, which reach the builder as
-		/// <c>.ExtensionArguments.{n}</c>; a params array is passed as the trailing positional arguments.
-		/// </summary>
-		static ImmutableArray<Item> TransformQueryExtension(AttributeSyntax attribute, IMethodSymbol constructor, SemanticModel model)
-		{
-			if (attribute.ArgumentList == null || constructor.Parameters.IsEmpty)
-				return [];
-
-			var owner  = model.GetDeclaredSymbol(attribute.Parent!.Parent!);
-			var result = ImmutableArray.CreateBuilder<Item>();
-			var last   = constructor.Parameters[constructor.Parameters.Length - 1];
-			var index  = 0;
-
-			foreach (var argument in attribute.ArgumentList.Arguments)
-			{
-				if (argument.NameEquals != null || argument.NameColon != null)
-					continue;
-
-				var parameter = index < constructor.Parameters.Length ? constructor.Parameters[index] : last.IsParams ? last : null;
-
-				index++;
-
-				if (parameter == null || !parameter.Name.StartsWith("extensionArgument", StringComparison.Ordinal))
-					continue;
-
-				if (model.GetConstantValue(argument.Expression) is { HasValue: true, Value: string text })
-					result.Add(new Item(ExtensionArgumentKind, text, GetPartition(owner), owner?.ContainingType?.Name, false));
-			}
-
-			return result.ToImmutable();
-		}
-
-		static int? GetAttributeKind(INamedTypeSymbol? type)
-		{
-			for (; type != null; type = type.BaseType)
-			{
-				if (type.ContainingType?.Name != "Sql" || type.ContainingType.ContainingNamespace?.ToDisplayString() != "LinqToDB")
-					continue;
-
-				switch (type.Name)
-				{
-					case "FunctionAttribute"        : return FunctionKind;
-					case "TableExpressionAttribute" : return TableExpressionKind;
-					case "TableFunctionAttribute"   : return FunctionKind;
-					case "PropertyAttribute"        : return ExpressionKind;
-					case "ExtensionAttribute"       : return ExpressionKind;
-					case "ExpressionAttribute"      : return ExpressionKind;
-				}
-			}
-
-			return null;
-		}
-
-		static string? GetAttributeText(AttributeSyntax attribute, IMethodSymbol constructor, SemanticModel model)
-		{
-			if (attribute.ArgumentList == null)
-				return null;
-
-			var position = 0;
-
-			foreach (var argument in attribute.ArgumentList.Arguments)
-			{
-				if (argument.NameEquals != null)
-				{
-					if (argument.NameEquals.Name.Identifier.Text is "Name" or "Expression" && model.GetConstantValue(argument.Expression) is { HasValue: true, Value: string named })
-						return named;
-
-					continue;
-				}
-
-				if (position < constructor.Parameters.Length
-					&& constructor.Parameters[position].Name is "name" or "expression"
-					&& model.GetConstantValue(argument.Expression) is { HasValue: true, Value: string value })
-				{
-					return value;
-				}
-
-				position++;
-			}
-
-			return null;
-		}
 
 		static string? GetPartition(ISymbol? symbol)
 		{
