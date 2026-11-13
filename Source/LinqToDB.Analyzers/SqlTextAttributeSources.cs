@@ -33,19 +33,6 @@ namespace LinqToDB.Analyzers
 				yield break;
 			}
 
-			if (IsDbTypeAttribute(type))
-			{
-				for (var i = 0; i < constructor.Parameters.Length && i < attribute.ConstructorArguments.Length; i++)
-					if (string.Equals(constructor.Parameters[i].Name, "dbType", StringComparison.Ordinal) && AsString(attribute.ConstructorArguments[i]) is { Length: > 0 } dbType)
-						collector.Add("DbType", dbType, owner, location);
-
-				foreach (var named in attribute.NamedArguments)
-					if (string.Equals(named.Key, "DbType", StringComparison.Ordinal) && AsString(named.Value) is { Length: > 0 } dbType)
-						collector.Add("DbType", dbType, owner, location);
-
-				return;
-			}
-
 			if (IsSqlAttribute(type, "QueryExtensionAttribute"))
 			{
 				for (var i = 0; i < constructor.Parameters.Length && i < attribute.ConstructorArguments.Length; i++)
