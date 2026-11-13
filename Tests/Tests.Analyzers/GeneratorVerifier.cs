@@ -30,10 +30,12 @@ namespace Tests.Analyzers
 	{
 		public string? GeneratedSource => Run.GeneratedSources.Length == 0 ? null : Run.GeneratedSources[0].SourceText.ToString();
 
-		public IEnumerable<string> Texts(SqlTextKind kind) => Items.Where(i => i.Kind == kind).Select(static i => i.Text);
+		public IEnumerable<string> Texts(SqlTextKind kind) => Items
+			.Where(i => i.Kind == kind)
+			.Select(static i => i.Text);
 	}
 
-	// Drives SqlTextUserCatalogGenerator through CSharpGeneratorDriver: the snippet compiles against the .NET 8 reference
+	// Drives SqlTextUserCatalogGenerator through CSharpGeneratorDriver: the snippet compiles against the project TFM's reference
 	// assemblies plus the real linq2db, the output is emitted and loaded, and the generated catalog is read through the
 	// public ISqlTextCatalog contract, so the items are what the runtime would read.
 	internal static class GeneratorVerifier
@@ -44,7 +46,10 @@ namespace Tests.Analyzers
 
 		public static async Task<ImmutableArray<MetadataReference>> GetReferencesAsync(bool withLinqToDB = true)
 		{
-			_references ??= await TestReferenceAssemblies.Default.ResolveAsync(LanguageNames.CSharp, CancellationToken.None).ConfigureAwait(false);
+			_references ??= await TestReferenceAssemblies
+				.Default
+				.ResolveAsync(LanguageNames.CSharp, CancellationToken.None)
+				.ConfigureAwait(false);
 
 			return withLinqToDB
 				? _references.Value.Add(MetadataReference.CreateFromFile(typeof(Sql).Assembly.Location))
@@ -62,7 +67,8 @@ namespace Tests.Analyzers
 			IEnumerable<MetadataReference>? extraReferences = null)
 		{
 			var parseOptions = new CSharpParseOptions(languageVersion);
-			var references   = (await GetReferencesAsync(withLinqToDB).ConfigureAwait(false)).AddRange(extraReferences ?? []);
+			var references   = (await GetReferencesAsync(withLinqToDB).ConfigureAwait(false))
+				.AddRange(extraReferences ?? []);
 
 			var compilation = CSharpCompilation.Create(
 				assemblyName,
@@ -82,9 +88,12 @@ namespace Tests.Analyzers
 			if (roots != null)
 				global["build_property.LinqToDBSqlTextRoots"] = roots;
 
-			var texts       = (files ?? []).Select(static f => new TestAdditionalText(f.Path, f.Text, f.IsCatalogFile)).ToImmutableArray();
+			var texts       = (files ?? [])
+				.Select(static f => new TestAdditionalText(f.Path, f.Text, f.IsCatalogFile))
+				.ToImmutableArray();
 			var options     = new TestOptionsProvider(global, texts);
-			var generator   = new SqlTextUserCatalogGenerator().AsSourceGenerator();
+			var generator   = new SqlTextUserCatalogGenerator()
+				.AsSourceGenerator();
 
 			GeneratorDriver driver = CSharpGeneratorDriver.Create(
 				[generator],
@@ -115,7 +124,9 @@ namespace Tests.Analyzers
 
 		public static IEnumerable<Diagnostic> Errors(this Compilation compilation)
 		{
-			return compilation.GetDiagnostics().Where(static d => d.Severity == DiagnosticSeverity.Error);
+			return compilation
+				.GetDiagnostics()
+				.Where(static d => d.Severity == DiagnosticSeverity.Error);
 		}
 
 		sealed class TestAdditionalText(string path, string text, bool isCatalogFile) : AdditionalText

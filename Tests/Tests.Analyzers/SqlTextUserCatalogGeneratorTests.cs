@@ -66,8 +66,13 @@ namespace Tests.Analyzers
 			var result = await GeneratorVerifier.RunAsync(Body("""table.TableHint("NOLOCK").ToList();"""));
 
 			result.Run.GeneratedSources.Length.ShouldBe(1);
-			result.Output.Errors().ShouldBeEmpty();
-			result.Texts(SqlTextKind.ExtensionArgument).ShouldContain("NOLOCK");
+			result
+				.Output
+				.Errors()
+				.ShouldBeEmpty();
+			result
+				.Texts(SqlTextKind.ExtensionArgument)
+				.ShouldContain("NOLOCK");
 		}
 
 		[Test]
@@ -98,9 +103,13 @@ namespace Tests.Analyzers
 		public void Generator_UsesNoSyntaxProvider()
 		{
 			var source = Path.Combine(Path.GetDirectoryName(ThisFile())!, "..", "..", "Source", "LinqToDB.Analyzers", "SqlTextUserCatalogGenerator.cs");
-			var root   = CSharpSyntaxTree.ParseText(File.ReadAllText(source)).GetRoot();
+			var root   = CSharpSyntaxTree
+				.ParseText(File.ReadAllText(source))
+				.GetRoot();
 
-			root.DescendantNodes().OfType<MemberAccessExpressionSyntax>()
+			root
+				.DescendantNodes()
+				.OfType<MemberAccessExpressionSyntax>()
 				.Select(static m => m.Name.Identifier.Text)
 				.ShouldNotContain("SyntaxProvider");
 		}
@@ -158,18 +167,41 @@ namespace Tests.Analyzers
 				}
 				""");
 
-			result.Output.Errors().ShouldBeEmpty();
+			result
+				.Output
+				.Errors()
+				.ShouldBeEmpty();
 
-			result.Texts(SqlTextKind.Expression).ShouldBe(["NamedExpr", "NamedProp", "USER_EXPR({0})", "USER_EXT({value}{_}{sep?})", "USER_PROP"], ignoreOrder: true);
-			result.Texts(SqlTextKind.Function).ShouldBe(["NAMED_PROP_FN", "NamedFn", "USER_FN"], ignoreOrder: true);
+			result
+				.Texts(SqlTextKind.Expression)
+				.ShouldBe(["NamedExpr", "NamedProp", "USER_EXPR({0})", "USER_EXT({value}{_}{sep?})", "USER_PROP"], ignoreOrder: true);
+			result
+				.Texts(SqlTextKind.Function)
+				.ShouldBe(["NAMED_PROP_FN", "NamedFn", "USER_FN"], ignoreOrder: true);
 			// a table function's Expression may only repeat its name, so the name is TableName text only
-			result.Texts(SqlTextKind.TableExpression).ShouldBe(["{0} {1} USER_TE"]);
-			result.Texts(SqlTextKind.TableName).ShouldBe(["USER_TF", "TF_SCHEMA", "TE_NAME"], ignoreOrder: true);
+			result
+				.Texts(SqlTextKind.TableExpression)
+				.ShouldBe(["{0} {1} USER_TE"]);
+			result
+				.Texts(SqlTextKind.TableName)
+				.ShouldBe(["USER_TF", "TF_SCHEMA", "TE_NAME"], ignoreOrder: true);
 
-			result.Items.Single(i => i.Text == "USER_EXT({value}{_}{sep?})").IsTemplate.ShouldBeTrue();
-			result.Items.Single(i => i.Text == "USER_EXPR({0})").IsTemplate.ShouldBeFalse();
+			result
+				.Items
+				.Single(i => i.Text == "USER_EXT({value}{_}{sep?})")
+				.IsTemplate
+				.ShouldBeTrue();
+			result
+				.Items
+				.Single(i => i.Text == "USER_EXPR({0})")
+				.IsTemplate
+				.ShouldBeFalse();
 			result.Items.ShouldAllBe(i => i.Partition == null);
-			result.Items.Single(i => i.Text == "USER_FN").Origin.ShouldBe("App.DataProvider.Reports.Functions");
+			result
+				.Items
+				.Single(i => i.Text == "USER_FN")
+				.Origin
+				.ShouldBe("App.DataProvider.Reports.Functions");
 		}
 
 		// TypedConstant.Value throws for an array argument; Tests/Linq's own mappings crashed the generator (CS8785) this way
@@ -189,11 +221,22 @@ namespace Tests.Analyzers
 				""");
 
 			result.Diagnostics.ShouldNotContain(static d => d.Id == "CS8785");
-			result.Output.Errors().ShouldBeEmpty();
-			result.Texts(SqlTextKind.TableExpression).ShouldBe(["{0} {1} TE_ARGS"]);
-			result.Texts(SqlTextKind.TableName).ShouldContain("TF_ARGS");
-			result.Texts(SqlTextKind.Function).ShouldContain("FN_ARGS");
-			result.Texts(SqlTextKind.Expression).ShouldContain("EXPR_ARGS({0})");
+			result
+				.Output
+				.Errors()
+				.ShouldBeEmpty();
+			result
+				.Texts(SqlTextKind.TableExpression)
+				.ShouldBe(["{0} {1} TE_ARGS"]);
+			result
+				.Texts(SqlTextKind.TableName)
+				.ShouldContain("TF_ARGS");
+			result
+				.Texts(SqlTextKind.Function)
+				.ShouldContain("FN_ARGS");
+			result
+				.Texts(SqlTextKind.Expression)
+				.ShouldContain("EXPR_ARGS({0})");
 		}
 
 		[Test]
@@ -210,8 +253,13 @@ namespace Tests.Analyzers
 				}
 				""");
 
-			result.Output.Errors().ShouldBeEmpty();
-			result.Texts(SqlTextKind.ExtensionArgument).ShouldBe(["ARG_A", "ARG_B", "ARG_ONE"], ignoreOrder: true);
+			result
+				.Output
+				.Errors()
+				.ShouldBeEmpty();
+			result
+				.Texts(SqlTextKind.ExtensionArgument)
+				.ShouldBe(["ARG_A", "ARG_B", "ARG_ONE"], ignoreOrder: true);
 		}
 
 		[Test]
@@ -223,9 +271,16 @@ namespace Tests.Analyzers
 				var c = new Sql.ExpressionAttribute(dynamicText);
 				"""));
 
-			result.Texts(SqlTextKind.Expression).ShouldContain("FLUENT_EXPR({0})");
-			result.Texts(SqlTextKind.Function).ShouldContain("FLUENT_FN");
-			result.Diagnostics.Count(d => d.Id == "L2DB1005").ShouldBe(1);
+			result
+				.Texts(SqlTextKind.Expression)
+				.ShouldContain("FLUENT_EXPR({0})");
+			result
+				.Texts(SqlTextKind.Function)
+				.ShouldContain("FLUENT_FN");
+			result
+				.Diagnostics
+				.Count(d => d.Id == "L2DB1005")
+				.ShouldBe(1);
 		}
 
 		[Test]
@@ -242,8 +297,12 @@ namespace Tests.Analyzers
 				}
 				""");
 
-			result.Texts(SqlTextKind.Expression).ShouldContain("BUILT({0})");
-			result.Texts(SqlTextKind.Fragment).ShouldContain("FRAGMENT_TEXT");
+			result
+				.Texts(SqlTextKind.Expression)
+				.ShouldContain("BUILT({0})");
+			result
+				.Texts(SqlTextKind.Fragment)
+				.ShouldContain("FRAGMENT_TEXT");
 		}
 
 		#endregion
@@ -265,8 +324,13 @@ namespace Tests.Analyzers
 				}
 				""");
 
-			result.Diagnostics.Count(static d => d.Id == "L2DB1006").ShouldBe(4);
-			result.Texts(SqlTextKind.Expression).ShouldBe(["ARRAY[{0}]", "QUOTED_CONSTANT('{{0}}', {0})"], ignoreOrder: true);
+			result
+				.Diagnostics
+				.Count(static d => d.Id == "L2DB1006")
+				.ShouldBe(4);
+			result
+				.Texts(SqlTextKind.Expression)
+				.ShouldBe(["ARRAY[{0}]", "QUOTED_CONSTANT('{{0}}', {0})"], ignoreOrder: true);
 		}
 
 		// A query hint is rendered on a line of its own, so a '--' comment hint ends there; inline kinds stay refused.
@@ -279,9 +343,16 @@ namespace Tests.Analyzers
 				table.WithTableExpression("{0} {1} -- TRAILING").ToList();
 				"""));
 
-			result.Texts(SqlTextKind.QueryHint).ShouldBe(["-- HINT COMMENT"]);
-			result.Texts(SqlTextKind.TableExpression).ShouldBeEmpty();
-			result.Diagnostics.Count(static d => d.Id == "L2DB1006").ShouldBe(2);
+			result
+				.Texts(SqlTextKind.QueryHint)
+				.ShouldBe(["-- HINT COMMENT"]);
+			result
+				.Texts(SqlTextKind.TableExpression)
+				.ShouldBeEmpty();
+			result
+				.Diagnostics
+				.Count(static d => d.Id == "L2DB1006")
+				.ShouldBe(2);
 		}
 
 		[Test]
@@ -292,8 +363,14 @@ namespace Tests.Analyzers
 				new(GeneratorVerifier.ProjectDir + "/allow.txt", "+\tExpression\tALLOW_QUOTED('{0}')\n+\tExpression\tALLOW_PLAIN({0})"),
 			]);
 
-			result.Diagnostics.Single().Id.ShouldBe("L2DB1006");
-			result.Texts(SqlTextKind.Expression).ShouldBe(["ALLOW_PLAIN({0})"]);
+			result
+				.Diagnostics
+				.Single()
+				.Id
+				.ShouldBe("L2DB1006");
+			result
+				.Texts(SqlTextKind.Expression)
+				.ShouldBe(["ALLOW_PLAIN({0})"]);
 		}
 
 		#endregion
@@ -310,10 +387,14 @@ namespace Tests.Analyzers
 				table.Select(r => Sql.Expr<int>($"EXPR_FMT({r.Id})")).ToList();
 				"""));
 
-			result.Texts(SqlTextKind.RawSqlTable).ShouldBe(
-				["SELECT * FROM rows WHERE id = {0} AND x = {1,5} AND y = {2:N2} {{literal}}", "SELECT 1 FROM raw WHERE id = {0}", "SELECT {0}"],
-				ignoreOrder: true);
-			result.Texts(SqlTextKind.Expression).ShouldContain("EXPR_FMT({0})");
+			result
+				.Texts(SqlTextKind.RawSqlTable)
+				.ShouldBe(
+					["SELECT * FROM rows WHERE id = {0} AND x = {1,5} AND y = {2:N2} {{literal}}", "SELECT 1 FROM raw WHERE id = {0}", "SELECT {0}"],
+					ignoreOrder: true);
+			result
+				.Texts(SqlTextKind.Expression)
+				.ShouldContain("EXPR_FMT({0})");
 			result.Diagnostics.ShouldNotContain(d => d.Id == "L2DB1005");
 		}
 
@@ -327,8 +408,12 @@ namespace Tests.Analyzers
 				table.QueryHint("QH_EXT").ToList();
 				"""));
 
-			result.Texts(SqlTextKind.ExtensionArgument).ShouldBe(["TH", "CONST_HINT", "WITH_HINT", "QH_EXT"], ignoreOrder: true);
-			result.Texts(SqlTextKind.TableExpression).ShouldBe(["{0} {1} WITH (WITH_HINT)"]);
+			result
+				.Texts(SqlTextKind.ExtensionArgument)
+				.ShouldBe(["TH", "CONST_HINT", "WITH_HINT", "QH_EXT"], ignoreOrder: true);
+			result
+				.Texts(SqlTextKind.TableExpression)
+				.ShouldBe(["{0} {1} WITH (WITH_HINT)"]);
 		}
 
 		[Test]
@@ -346,12 +431,20 @@ namespace Tests.Analyzers
 				var temp = new TempTable<Row>(db, tableName: "TEMP_T");
 				"""));
 
-			result.Texts(SqlTextKind.TableName).ShouldBe(
-				["TN", "SN", "DN", "SV", "INS_T", "CTOR_T", "WITH_S", "INIT_D", "BULK_T", "TEMP_T"],
-				ignoreOrder: true);
-			result.Texts(SqlTextKind.TableExpression).ShouldContain("{0} {1} TABLE_EXPR");
-			result.Texts(SqlTextKind.StatementHeader).ShouldBe(["HEADER {0}"]);
-			result.Texts(SqlTextKind.StatementFooter).ShouldBe(["FOOTER", "WITH_FOOTER"], ignoreOrder: true);
+			result
+				.Texts(SqlTextKind.TableName)
+				.ShouldBe(
+					["TN", "SN", "DN", "SV", "INS_T", "CTOR_T", "WITH_S", "INIT_D", "BULK_T", "TEMP_T"],
+					ignoreOrder: true);
+			result
+				.Texts(SqlTextKind.TableExpression)
+				.ShouldContain("{0} {1} TABLE_EXPR");
+			result
+				.Texts(SqlTextKind.StatementHeader)
+				.ShouldBe(["HEADER {0}"]);
+			result
+				.Texts(SqlTextKind.StatementFooter)
+				.ShouldBe(["FOOTER", "WITH_FOOTER"], ignoreOrder: true);
 		}
 
 		[Test]
@@ -361,7 +454,9 @@ namespace Tests.Analyzers
 				table.Merge("MERGE_HINT");
 				"""));
 
-			result.Texts(SqlTextKind.MergeHint).ShouldBe(["MERGE_HINT"]);
+			result
+				.Texts(SqlTextKind.MergeHint)
+				.ShouldBe(["MERGE_HINT"]);
 		}
 
 		[Test]
@@ -377,7 +472,9 @@ namespace Tests.Analyzers
 				dc.QueryHints.Add("QH_IMPL");
 				"""));
 
-			result.Texts(SqlTextKind.QueryHint).ShouldBe(["QH_ADD", "QH_INSERT", "QH_RANGE_1", "QH_RANGE_2", "QH_ALIAS", "QH_IMPL"], ignoreOrder: true);
+			result
+				.Texts(SqlTextKind.QueryHint)
+				.ShouldBe(["QH_ADD", "QH_INSERT", "QH_RANGE_1", "QH_RANGE_2", "QH_ALIAS", "QH_IMPL"], ignoreOrder: true);
 		}
 
 		#endregion
@@ -394,7 +491,9 @@ namespace Tests.Analyzers
 				}
 				""");
 
-			result.Texts(SqlTextKind.DbType).ShouldContain("TARGET_TYPED_DBTYPE");
+			result
+				.Texts(SqlTextKind.DbType)
+				.ShouldContain("TARGET_TYPED_DBTYPE");
 		}
 
 		#region Not constant (TO-21d)
@@ -409,7 +508,10 @@ namespace Tests.Analyzers
 				table.TableName(dynamicText).ToList();
 				"""));
 
-			result.Diagnostics.Count(d => d.Id == "L2DB1005").ShouldBe(4);
+			result
+				.Diagnostics
+				.Count(d => d.Id == "L2DB1005")
+				.ShouldBe(4);
 		}
 
 		[Test]
@@ -422,8 +524,12 @@ namespace Tests.Analyzers
 				"""));
 
 			result.Diagnostics.ShouldNotContain(d => d.Id == "L2DB1005");
-			result.Texts(SqlTextKind.ExtensionArgument).ShouldContain("LOCAL_HINT");
-			result.Texts(SqlTextKind.RawSqlTable).ShouldContain("SELECT * FROM t WHERE x = {0}");
+			result
+				.Texts(SqlTextKind.ExtensionArgument)
+				.ShouldContain("LOCAL_HINT");
+			result
+				.Texts(SqlTextKind.RawSqlTable)
+				.ShouldContain("SELECT * FROM t WHERE x = {0}");
 		}
 
 		#endregion
@@ -439,8 +545,14 @@ namespace Tests.Analyzers
 			]);
 
 			result.Diagnostics.ShouldBeEmpty();
-			result.Items.Single(i => i.Text == "ALLOWED ").Origin.ShouldBe("sql/allow.txt");
-			result.Texts(SqlTextKind.Expression).ShouldContain("");
+			result
+				.Items
+				.Single(i => i.Text == "ALLOWED ")
+				.Origin
+				.ShouldBe("sql/allow.txt");
+			result
+				.Texts(SqlTextKind.Expression)
+				.ShouldContain("");
 		}
 
 		[Test]
@@ -463,7 +575,11 @@ namespace Tests.Analyzers
 		{
 			var result = await GeneratorVerifier.RunAsync("class C { }", files: [new(GeneratorVerifier.ProjectDir + "/allow.txt", line)]);
 
-			result.Diagnostics.Single().Id.ShouldBe("L2DB1007");
+			result
+				.Diagnostics
+				.Single()
+				.Id
+				.ShouldBe("L2DB1007");
 			result.Items.ShouldBeEmpty();
 		}
 
@@ -476,7 +592,11 @@ namespace Tests.Analyzers
 		{
 			var result = await GeneratorVerifier.RunAsync("class C { }", files: [new(path, "+\tQueryHint\tOUTSIDE")], roots: roots);
 
-			result.Diagnostics.Single().Id.ShouldBe("L2DB1008");
+			result
+				.Diagnostics
+				.Single()
+				.Id
+				.ShouldBe("L2DB1008");
 			result.Items.ShouldNotContain(i => i.Text == "OUTSIDE");
 		}
 
@@ -489,7 +609,9 @@ namespace Tests.Analyzers
 			var result = await GeneratorVerifier.RunAsync("class C { }", files: [new(path, "+\tQueryHint\tINSIDE")], roots: roots);
 
 			result.Diagnostics.ShouldBeEmpty();
-			result.Texts(SqlTextKind.QueryHint).ShouldContain("INSIDE");
+			result
+				.Texts(SqlTextKind.QueryHint)
+				.ShouldContain("INSIDE");
 		}
 
 		[Test]
@@ -501,14 +623,29 @@ namespace Tests.Analyzers
 			]);
 
 			result.Diagnostics.ShouldBeEmpty();
-			result.Output.Errors().ShouldBeEmpty();
+			result
+				.Output
+				.Errors()
+				.ShouldBeEmpty();
 
 			// a removal only narrows, so even a text the quoting rule would refuse as an addition is carried
-			result.Items.Where(static i => i.IsRemoval).Select(static i => (i.Kind, i.Text)).ShouldBe(
-				[(SqlTextKind.Function, "SUBSTRING"), (SqlTextKind.QueryHint, "DENIED_QUOTED('{0}')")],
-				ignoreOrder: true);
-			result.Items.Single(static i => i.IsRemoval && i.Text == "SUBSTRING").Origin.ShouldBe("deny.txt");
-			result.Items.Single(static i => i.Text == "ALSO_ALLOWED").IsRemoval.ShouldBeFalse();
+			result
+				.Items
+				.Where(static i => i.IsRemoval)
+				.Select(static i => (i.Kind, i.Text))
+				.ShouldBe(
+					[(SqlTextKind.Function, "SUBSTRING"), (SqlTextKind.QueryHint, "DENIED_QUOTED('{0}')")],
+					ignoreOrder: true);
+			result
+				.Items
+				.Single(static i => i.IsRemoval && i.Text == "SUBSTRING")
+				.Origin
+				.ShouldBe("deny.txt");
+			result
+				.Items
+				.Single(static i => i.Text == "ALSO_ALLOWED")
+				.IsRemoval
+				.ShouldBeFalse();
 		}
 
 		// The catalog contract of a linq2db that predates SqlTextItem.IsRemoval, declared in source.
@@ -531,8 +668,15 @@ namespace Tests.Analyzers
 				new(GeneratorVerifier.ProjectDir + "/deny.txt", "-\tQueryHint\tDENIED\n+\tQueryHint\tALLOWED"),
 			]);
 
-			result.Diagnostics.Single().Id.ShouldBe("L2DB1009");
-			result.Output.Errors().ShouldBeEmpty();
+			result
+				.Diagnostics
+				.Single()
+				.Id
+				.ShouldBe("L2DB1009");
+			result
+				.Output
+				.Errors()
+				.ShouldBeEmpty();
 			result.GeneratedSource!.ShouldContain("\"ALLOWED\"");
 			result.GeneratedSource!.ShouldNotContain("\"DENIED\"");
 		}
@@ -559,10 +703,15 @@ namespace Tests.Analyzers
 				}
 				""");
 
-			result.Output.Errors().ShouldBeEmpty();
-			result.Texts(SqlTextKind.DbType).ShouldBe(
-				["COLUMN_DBTYPE(10)", "DATATYPE_DBTYPE", "FLUENT_DBTYPE", "CTOR_DBTYPE", "WITH_DBTYPE"],
-				ignoreOrder: true);
+			result
+				.Output
+				.Errors()
+				.ShouldBeEmpty();
+			result
+				.Texts(SqlTextKind.DbType)
+				.ShouldBe(
+					["COLUMN_DBTYPE(10)", "DATATYPE_DBTYPE", "FLUENT_DBTYPE", "CTOR_DBTYPE", "WITH_DBTYPE"],
+					ignoreOrder: true);
 		}
 
 		#endregion
@@ -574,8 +723,13 @@ namespace Tests.Analyzers
 		{
 			var result = await GeneratorVerifier.RunAsync("class C { [LinqToDB.Sql.Function(\"FN_73\")] static int F() => 0; }", languageVersion: LanguageVersion.CSharp7_3);
 
-			result.Output.Errors().ShouldBeEmpty();
-			result.Texts(SqlTextKind.Function).ShouldContain("FN_73");
+			result
+				.Output
+				.Errors()
+				.ShouldBeEmpty();
+			result
+				.Texts(SqlTextKind.Function)
+				.ShouldContain("FN_73");
 		}
 
 		[Test]
@@ -585,15 +739,24 @@ namespace Tests.Analyzers
 				"[assembly: System.Runtime.CompilerServices.InternalsVisibleTo(\"Second\")] class A { [LinqToDB.Sql.Function(\"FN_A\")] static int F() => 0; }",
 				assemblyName: "First");
 
-			first.Output.Errors().ShouldBeEmpty();
+			first
+				.Output
+				.Errors()
+				.ShouldBeEmpty();
 
 			var second = await GeneratorVerifier.RunAsync(
 				"class B { [LinqToDB.Sql.Function(\"FN_B\")] static int F() => 0; }",
 				assemblyName: "Second",
 				extraReferences: [first.Output.ToMetadataReference()]);
 
-			second.Output.GetDiagnostics().ShouldNotContain(d => d.Id == "CS0436");
-			second.Output.Errors().ShouldBeEmpty();
+			second
+				.Output
+				.GetDiagnostics()
+				.ShouldNotContain(d => d.Id == "CS0436");
+			second
+				.Output
+				.Errors()
+				.ShouldBeEmpty();
 		}
 
 		#endregion

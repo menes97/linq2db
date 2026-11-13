@@ -120,27 +120,33 @@ namespace Tests.Analyzers
 		[Test]
 		public void EveryTextMemberHasADisposition()
 		{
-			var unclassified = Unclassified(EnumerateReflected().Concat(EnumerateTfmOnly())).ToList();
+			var unclassified = Unclassified(EnumerateReflected().Concat(EnumerateTfmOnly()))
+				.ToList();
 
 			var report = Environment.GetEnvironmentVariable("LINQ2DB_SQLTEXT_GUARD_REPORT");
 
 			if (!string.IsNullOrEmpty(report))
 				File.WriteAllLines(report, unclassified.Select(static m => m.Type + "\t" + m.Member + "\t" + m.Parameter));
 
-			unclassified.Select(static m => m.Type + "." + m.Member + "(" + m.Parameter + ")").Take(200).ShouldBeEmpty(
-				unclassified.Count + " public text members have no disposition; classify them in SqlTextCallSites or in this guard's rules");
+			unclassified
+				.Select(static m => m.Type + "." + m.Member + "(" + m.Parameter + ")")
+				.Take(200)
+				.ShouldBeEmpty(
+					unclassified.Count + " public text members have no disposition; classify them in SqlTextCallSites or in this guard's rules");
 		}
 
 		[Test]
 		public void UnseenMember_IsUnclassified()
 		{
-			Unclassified([new TextMember("LinqToDB.LinqExtensions", "NewHintApi", "neverSeenName", false, false, false)]).ShouldNotBeEmpty();
+			Unclassified([new TextMember("LinqToDB.LinqExtensions", "NewHintApi", "neverSeenName", false, false, false)])
+				.ShouldNotBeEmpty();
 		}
 
 		[Test]
 		public void SeenTextKey_OnUnmatchedType_IsUnclassified()
 		{
-			Unclassified([new TextMember("LinqToDB.Data.NewExtensions", "Merge", "hint", false, false, false)]).ShouldNotBeEmpty();
+			Unclassified([new TextMember("LinqToDB.Data.NewExtensions", "Merge", "hint", false, false, false)])
+				.ShouldNotBeEmpty();
 		}
 
 		static IEnumerable<TextMember> Unclassified(IEnumerable<TextMember> members)
@@ -191,21 +197,27 @@ namespace Tests.Analyzers
 					if (method.IsSpecialName && !method.IsConstructor && !method.Name.StartsWith("set_", StringComparison.Ordinal))
 						continue;
 
-					var isHint = method.GetCustomAttributesData().Any(static a => a.AttributeType.FullName == "LinqToDB.Sql+QueryExtensionAttribute");
+					var isHint = method
+						.GetCustomAttributesData()
+						.Any(static a => a.AttributeType.FullName == "LinqToDB.Sql+QueryExtensionAttribute");
 
 					foreach (var parameter in method.GetParameters())
 					{
 						if (parameter.Name == null || parameter.IsOut || !IsTextParameter(parameter.ParameterType, parameter.Name))
 							continue;
 
-						var annotated = parameter.GetCustomAttributesData().Any(static a => a.AttributeType.FullName == "LinqToDB.Remote.SqlTextAttribute");
+						var annotated = parameter
+							.GetCustomAttributesData()
+							.Any(static a => a.AttributeType.FullName == "LinqToDB.Remote.SqlTextAttribute");
 						var name      = method.IsConstructor ? ".ctor" : method.Name;
 
 						if (method.Name.StartsWith("set_", StringComparison.Ordinal))
 						{
 							var propertyName = method.Name.Substring(4);
 							var property     = type.GetProperty(propertyName, BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance | BindingFlags.DeclaredOnly);
-							var isAnnotated  = property?.GetCustomAttributesData().Any(static a => a.AttributeType.FullName == "LinqToDB.Remote.SqlTextAttribute") == true;
+							var isAnnotated  = property
+								?.GetCustomAttributesData()
+								.Any(static a => a.AttributeType.FullName == "LinqToDB.Remote.SqlTextAttribute") == true;
 
 							yield return new(typeName, propertyName, "value", false, isAnnotated, IsProperty: true);
 						}
@@ -308,7 +320,9 @@ namespace Tests.Analyzers
 
 		static string DisplayName(Type type)
 		{
-			return Regex.Replace(type.FullName ?? type.Name, @"`\d+", "").Replace('+', '.');
+			return Regex
+				.Replace(type.FullName ?? type.Name, @"`\d+", "")
+				.Replace('+', '.');
 		}
 
 		static string ThisFile([CallerFilePath] string path = "") => path;

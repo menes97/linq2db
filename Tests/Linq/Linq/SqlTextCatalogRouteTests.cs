@@ -58,16 +58,37 @@ namespace Tests.Linq
 			switch (shape)
 			{
 				case Shape.RawSql:
-					db.FromSql<Person>($"SELECT * FROM Person WHERE PersonID = {id} AND 17 = 17").ToList().Count.ShouldBe(1);
+					db
+						.FromSql<Person>($"SELECT * FROM Person WHERE PersonID = {id} AND 17 = 17")
+						.ToList()
+						.Count
+						.ShouldBe(1);
 					break;
 				case Shape.Expression:
-					db.GetTable<Person>().Where(p => p.ID == id).Select(p => Plus17(p.ID)).ToList().ShouldBe(new[] { 18 });
+					db
+						.GetTable<Person>()
+						.Where(p => p.ID == id)
+						.Select(p => Plus17(p.ID))
+						.ToList()
+						.ShouldBe(new[] { 18 });
 					break;
 				case Shape.TableExpression:
-					db.GetTable<Person>().WithTableExpression("{0} {1} NOT INDEXED").Where(p => p.ID == id).ToList().Count.ShouldBe(1);
+					db
+						.GetTable<Person>()
+						.WithTableExpression("{0} {1} NOT INDEXED")
+						.Where(p => p.ID == id)
+						.ToList()
+						.Count
+						.ShouldBe(1);
 					break;
 				case Shape.SchemaName:
-					db.GetTable<Person>().SchemaName("main").Where(p => p.ID == id).ToList().Count.ShouldBe(1);
+					db
+						.GetTable<Person>()
+						.SchemaName("main")
+						.Where(p => p.ID == id)
+						.ToList()
+						.Count
+						.ShouldBe(1);
 					break;
 			}
 		}
@@ -81,6 +102,7 @@ namespace Tests.Linq
 			_                     => throw new ArgumentOutOfRangeException(nameof(shape)),
 		};
 
+		// SQLite only: Run's shapes embed SQLite-specific text (NOT INDEXED, schema main); the catalog route is provider-independent.
 		[Test]
 		public void CatalogOnlyAssembly_AcceptsItsText([IncludeDataSources(ProviderName.SQLiteMS)] string context, [Values] Shape shape)
 		{
@@ -90,6 +112,7 @@ namespace Tests.Linq
 			Run(db, shape);
 		}
 
+		// SQLite only: as CatalogOnlyAssembly_AcceptsItsText, the same shapes.
 		[Test]
 		public void WithoutCatalog_RejectsItsText([IncludeDataSources(ProviderName.SQLiteMS)] string context, [Values] Shape shape)
 		{
@@ -102,6 +125,7 @@ namespace Tests.Linq
 			rejection.Kind.ShouldBe(KindOf(shape));
 		}
 
+		// SQLite only: as CatalogOnlyAssembly_AcceptsItsText, the same shapes.
 		[Test]
 		public void ExportedCatalog_LoadedByTheHost_AcceptsItsText([IncludeDataSources(ProviderName.SQLiteMS)] string context, [Values] Shape shape)
 		{
@@ -117,6 +141,7 @@ namespace Tests.Linq
 			Run(db, shape);
 		}
 
+		// SQLite only: the server admits or refuses the mapped type before any SQL is built, so no provider varies it.
 		[Test]
 		public void CatalogOnlyAssembly_AdmitsNoTypes([IncludeDataSources(ProviderName.SQLiteMS)] string context)
 		{
@@ -127,16 +152,24 @@ namespace Tests.Linq
 				.ShouldContain(static r => r.Reason == RemoteRejectionReason.TypeNotAllowed);
 		}
 
+		// SQLite only: as CatalogOnlyAssembly_AdmitsNoTypes.
 		[Test]
 		public void MappingAssembly_AdmitsItsTypes([IncludeDataSources(ProviderName.SQLiteMS)] string context)
 		{
 			using var backend = GetDataConnection(context);
 			using var db      = new RouteContext(backend.Options, "SqlTextRoute.Types.Mapping", static s => s.MappingAssemblies.Add(_tests));
 
-			db.GetTable<RoutePerson>().Where(p => p.Id == RouteId.First).ToList().Single().Id.ShouldBe(RouteId.First);
+			db
+				.GetTable<RoutePerson>()
+				.Where(p => p.Id == RouteId.First)
+				.ToList()
+				.Single()
+				.Id
+				.ShouldBe(RouteId.First);
 		}
 
-		static RemoteRejection Rejection(Action action) => Rejections(action).ShouldHaveSingleItem();
+		static RemoteRejection Rejection(Action action) => Rejections(action)
+			.ShouldHaveSingleItem();
 
 		static System.Collections.Generic.IReadOnlyList<RemoteRejection> Rejections(Action action)
 		{
