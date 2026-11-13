@@ -10,3 +10,4 @@ L2DB1006 | LinqToDB | Warning | SqlTextUserCatalogGenerator, [documentation](htt
 L2DB1007 | LinqToDB | Error | SqlTextUserCatalogGenerator, [documentation](https://github.com/linq2db/linq2db/wiki/L2DB1007)
 L2DB1008 | LinqToDB | Warning | SqlTextUserCatalogGenerator, [documentation](https://github.com/linq2db/linq2db/wiki/L2DB1008)
 L2DB1009 | LinqToDB | Warning | SqlTextUserCatalogGenerator, [documentation](https://github.com/linq2db/linq2db/wiki/L2DB1009)
+L2DB1010 | LinqToDB | Error | SqlTextUserCatalogGenerator, [documentation](https://github.com/linq2db/linq2db/wiki/L2DB1010)

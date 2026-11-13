@@ -20,14 +20,20 @@ namespace LinqToDB.Analyzers
 	{
 		public static void Read(AdditionalText file, SqlTextUserCatalogGenerator.Settings settings, SqlTextCollector collector, CancellationToken cancellationToken)
 		{
-			if (!TryGetOrigin(file.Path, settings, out var origin))
+			// a '-' line only narrows, so every way of losing one is an error (L2DB1010); a lost '+' line only refuses
+			if (file.GetText(cancellationToken) is not { } text)
 			{
-				collector.Report(Diagnostic.Create(SqlTextUserCatalogGenerator.FileLocationRule, Location.None, file.Path));
+				collector.Report(Diagnostic.Create(SqlTextUserCatalogGenerator.DenialNotAppliedRule, Location.None,
+					"'" + file.Path + "' cannot be read, so no denial in it is applied"));
 				return;
 			}
 
-			if (file.GetText(cancellationToken) is not { } text)
+			if (!TryGetOrigin(file.Path, settings, out var origin))
+			{
+				collector.Report(Diagnostic.Create(SqlTextUserCatalogGenerator.FileLocationRule, Location.None, file.Path));
+				ReportIgnoredDenials(file, text, collector);
 				return;
+			}
 
 			foreach (var line in text.Lines)
 			{
@@ -54,9 +60,23 @@ namespace LinqToDB.Analyzers
 				else if (collector.SupportsRemoval)
 					collector.AddRemoval(kind, value, origin);
 				else
-					// a linq2db without SqlTextItem.IsRemoval cannot carry the removal; reported, never dropped silently
-					collector.Report(Diagnostic.Create(SqlTextUserCatalogGenerator.UnsupportedRule, location,
-						prefix + "removes an entry, which the referenced linq2db cannot express in a generated catalog"));
+					// a linq2db without SqlTextItem.IsRemoval cannot carry the removal
+					collector.Report(Diagnostic.Create(SqlTextUserCatalogGenerator.DenialNotAppliedRule, location,
+						prefix + "removes an entry, which the referenced linq2db cannot express in a generated catalog, so the denial is not applied"));
+			}
+		}
+
+		static void ReportIgnoredDenials(AdditionalText file, SourceText text, SqlTextCollector collector)
+		{
+			foreach (var line in text.Lines)
+			{
+				if (!SqlTextLineFormat.TryParseEntry(line.ToString(), out var add, out _, out _, out _) || add)
+					continue;
+
+				var location = Location.Create(file.Path, line.Span, text.Lines.GetLinePositionSpan(line.Span));
+
+				collector.Report(Diagnostic.Create(SqlTextUserCatalogGenerator.DenialNotAppliedRule, location,
+					"Line " + (line.LineNumber + 1).ToString(CultureInfo.InvariantCulture) + " of '" + file.Path + "' removes an entry, but the file is ignored (L2DB1008), so the denial is not applied"));
 			}
 		}
 

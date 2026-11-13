@@ -692,6 +692,36 @@ namespace Tests.Analyzers
 				.ShouldBeFalse();
 		}
 
+		[Test]
+		public async Task DenyLine_InIgnoredFile_ReportsL2DB1010()
+		{
+			var result = await GeneratorVerifier.RunAsync("class C { }", files:
+			[
+				new("/proj2/deny.txt", "-\tQueryHint\tDENIED\n+\tQueryHint\tOUTSIDE"),
+			]);
+
+			result
+				.Diagnostics
+				.Select(static d => d.Id)
+				.ShouldBe(["L2DB1008", "L2DB1010"], ignoreOrder: true);
+			result.Items.ShouldBeEmpty();
+		}
+
+		[Test]
+		public async Task UnreadableFile_ReportsL2DB1010()
+		{
+			var result = await GeneratorVerifier.RunAsync("class C { }", files:
+			[
+				new(GeneratorVerifier.ProjectDir + "/deny.txt", null),
+			]);
+
+			result
+				.Diagnostics
+				.Single()
+				.Id
+				.ShouldBe("L2DB1010");
+		}
+
 		// The catalog contract of a linq2db that predates SqlTextItem.IsRemoval, declared in source.
 		const string CatalogWithoutRemovals = """
 			namespace LinqToDB.Remote
@@ -705,18 +735,19 @@ namespace Tests.Analyzers
 			""";
 
 		[Test]
-		public async Task DenyLine_WithoutRemovalSupport_ReportsL2DB1009()
+		public async Task DenyLine_WithoutRemovalSupport_ReportsL2DB1010()
 		{
 			var result = await GeneratorVerifier.RunAsync(CatalogWithoutRemovals, withLinqToDB: false, files:
 			[
 				new(GeneratorVerifier.ProjectDir + "/deny.txt", "-\tQueryHint\tDENIED\n+\tQueryHint\tALLOWED"),
 			]);
 
-			result
+			var diagnostic = result
 				.Diagnostics
-				.Single()
-				.Id
-				.ShouldBe("L2DB1009");
+				.Single();
+
+			diagnostic.Id.ShouldBe("L2DB1010");
+			diagnostic.Severity.ShouldBe(DiagnosticSeverity.Error);
 			result
 				.Output
 				.Errors()

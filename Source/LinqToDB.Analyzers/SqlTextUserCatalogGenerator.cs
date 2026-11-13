@@ -87,6 +87,16 @@ namespace LinqToDB.Analyzers
 			description:        "LinqToDBSqlTextCatalog is enabled, but the referenced linq2db lacks the catalog types this generator targets, so no catalog is generated and untrusted LinqService clients sending this project's SQL text are rejected.",
 			helpLinkUri:        "https://github.com/linq2db/linq2db/wiki/L2DB1009");
 
+		internal static readonly DiagnosticDescriptor DenialNotAppliedRule = new(
+			id:                 "L2DB1010",
+			title:              "SQL text denial is not applied",
+			messageFormat:      "{0}",
+			category:           "LinqToDB",
+			defaultSeverity:    DiagnosticSeverity.Error,
+			isEnabledByDefault: true,
+			description:        "A '-' line in a LinqToDBSqlText file only narrows what untrusted LinqService clients may send, so losing one widens it: a denial in a file outside the project and the LinqToDBSqlTextRoots directories, in a file that cannot be read, or that the referenced linq2db cannot carry in a generated catalog is an error.",
+			helpLinkUri:        "https://github.com/linq2db/linq2db/wiki/L2DB1010");
+
 		/// <inheritdoc/>
 		public void Initialize(IncrementalGeneratorInitializationContext context)
 		{

@@ -19,7 +19,7 @@ using Microsoft.CodeAnalysis.Text;
 namespace Tests.Analyzers
 {
 	/// <summary>A <c>LinqToDBSqlText</c> file passed to the generator.</summary>
-	internal sealed record SqlTextFile(string Path, string Text, bool IsCatalogFile = true);
+	internal sealed record SqlTextFile(string Path, string? Text, bool IsCatalogFile = true);
 
 	/// <summary>Result of one generator run: diagnostics, the updated compilation and, when it compiles, the catalog items.</summary>
 	internal sealed record GeneratorResult(
@@ -129,13 +129,14 @@ namespace Tests.Analyzers
 				.Where(static d => d.Severity == DiagnosticSeverity.Error);
 		}
 
-		sealed class TestAdditionalText(string path, string text, bool isCatalogFile) : AdditionalText
+		// a null text stands for a file the compiler cannot read
+		sealed class TestAdditionalText(string path, string? text, bool isCatalogFile) : AdditionalText
 		{
 			public override string Path { get; } = path;
 
 			public bool IsCatalogFile { get; } = isCatalogFile;
 
-			public override SourceText GetText(CancellationToken cancellationToken = default) => SourceText.From(text);
+			public override SourceText? GetText(CancellationToken cancellationToken = default) => text == null ? null : SourceText.From(text);
 		}
 
 		sealed class TestOptions(IReadOnlyDictionary<string, string> values) : AnalyzerConfigOptions
