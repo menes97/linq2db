@@ -160,7 +160,7 @@ namespace Tests.xUpdate
 		// oracle native tests could fail due to bug in provider:
 		// InitialLONGFetchSize option makes it read garbage for String/StringNullable testcases
 		[Test]
-		[RejectedWhenUntrusted(RemoteRejectionReason.TypeNotAllowed)]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TypeNotAllowed, Partial = true)]
 		public void TestCreateTableColumnType(
 			[DataSources] string context,
 			[ValueSource(nameof(TestCases))] TestCreateTableColumnTypeParameters testCase)

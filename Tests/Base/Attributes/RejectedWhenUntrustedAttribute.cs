@@ -41,6 +41,12 @@ namespace Tests
 		/// <summary>Restricts the expectation to remote cases of contexts containing this text, e.g. a provider name.</summary>
 		public string? Context { get; set; }
 
+		/// <summary>
+		/// Only some cases of the test are rejected (those whose arguments send the text): an accepted case passes as usual, a
+		/// rejected one must still match. A stale mark is then not reported, so use it only where the cases differ.
+		/// </summary>
+		public bool Partial { get; set; }
+
 		public TestCommand Wrap(TestCommand command) => new RejectedWhenUntrustedCommand(command, this);
 
 		bool Matches(RemoteRejection rejection) => rejection.Reason == Reason && rejection.Kind == Kind;
@@ -100,6 +106,8 @@ namespace Tests
 
 						context.CurrentResult = testResult = passed;
 					}
+					else if (rejections.Length == 0 && _attribute.Partial)
+						return testResult;
 					else if (rejections.Length == 0)
 						testResult.SetResult(ResultState.Failure, $"Expected an untrusted-client rejection {expected}, but the request was accepted. Remove the stale [{nameof(RejectedWhenUntrustedAttribute)}].\n\n{testResult.Message}");
 					else

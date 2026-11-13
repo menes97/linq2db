@@ -18,8 +18,6 @@ using NUnit.Framework;
 
 using Shouldly;
 
-using LinqToDB.Remote;
-
 namespace Tests.Identity
 {
 	// Consumer-side customization, both shapes the package readme describes: substituting your own model types,
@@ -612,7 +610,6 @@ namespace Tests.Identity
 		}
 
 		[Test]
-		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName)]
 		public async Task RenamedSchemaRoundTrips([DataSources] string context)
 		{
 			using var setup  = new RenamedIdentityConnection(new DataOptions().UseConfiguration(context.StripRemote()));

@@ -719,7 +719,7 @@ namespace Tests.Linq
 		}
 
 		[Test]
-		[RejectedWhenUntrusted(RemoteRejectionReason.TextAllowedForOtherKind, SqlTextKind.Fragment)]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextAllowedForOtherKind, SqlTextKind.Fragment, Partial = true)]
 		public void EnableConstantExpressionInOrderByTest([DataSources(TestProvName.AllYdb, ProviderName.SqlCe)] string context, [Values] bool enableConstantExpressionInOrderBy)
 		{
 			using var db  = GetDataContext(context, o => o.UseEnableConstantExpressionInOrderBy(enableConstantExpressionInOrderBy));
@@ -741,7 +741,7 @@ namespace Tests.Linq
 		}
 
 		[Test]
-		[RejectedWhenUntrusted(RemoteRejectionReason.TextAllowedForOtherKind, SqlTextKind.Fragment)]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextAllowedForOtherKind, SqlTextKind.Fragment, Partial = true)]
 		public void EnableConstantExpressionInOrderByTest2([DataSources(TestProvName.AllYdb, ProviderName.SqlCe)] string context, [Values] bool enableConstantExpressionInOrderBy)
 		{
 			using var db  = GetDataContext(context, o => o.UseEnableConstantExpressionInOrderBy(enableConstantExpressionInOrderBy));
@@ -763,7 +763,7 @@ namespace Tests.Linq
 		}
 
 		[Test]
-		[RejectedWhenUntrusted(RemoteRejectionReason.TextAllowedForOtherKind, SqlTextKind.Fragment)]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextAllowedForOtherKind, SqlTextKind.Fragment, Partial = true)]
 		public void EnableConstantExpressionInOrderByTest3([DataSources(TestProvName.AllYdb, ProviderName.SqlCe)] string context, [Values] bool enableConstantExpressionInOrderBy)
 		{
 			using var db  = GetDataContext(context, o => o.UseEnableConstantExpressionInOrderBy(enableConstantExpressionInOrderBy));

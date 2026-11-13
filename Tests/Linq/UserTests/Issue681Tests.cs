@@ -43,7 +43,7 @@ namespace Tests.UserTests
 		}
 
 		[Test]
-		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName)]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName, Partial = true)]
 		public async Task TestITable(
 			[DataSources] string context,
 			[Values] bool withServer,
@@ -54,7 +54,7 @@ namespace Tests.UserTests
 		}
 
 		[Test]
-		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName)]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName, Partial = true)]
 		public async Task TestInsert(
 			[DataSources] string context,
 			[Values] bool withServer,
@@ -69,7 +69,7 @@ namespace Tests.UserTests
 		}
 
 		[Test]
-		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName)]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName, Partial = true)]
 		public async Task TestUpdate(
 			[DataSources] string context,
 			[Values] bool withServer,
@@ -84,7 +84,7 @@ namespace Tests.UserTests
 		}
 
 		[Test]
-		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName)]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName, Partial = true)]
 		public async Task TestDelete(
 			[DataSources] string context,
 			[Values] bool withServer,
@@ -99,7 +99,7 @@ namespace Tests.UserTests
 		}
 
 		[Test]
-		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName)]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName, Partial = true)]
 		public async Task TestInsertOrReplace(
 			[InsertOrUpdateDataSources] string context,
 			[Values] bool withServer,
@@ -118,7 +118,7 @@ namespace Tests.UserTests
 		}
 
 		[Test]
-		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName)]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName, Partial = true)]
 		public async Task TestInsertWithIdentity(
 			[DataSources(TestProvName.AllClickHouse)] string context,
 			[Values] bool withServer,
