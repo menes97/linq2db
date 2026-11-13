@@ -431,6 +431,25 @@ namespace LinqToDB.Internal.Remote
 				: null;
 		}
 
+		/// <summary>
+		/// Gets the root of the inheritance hierarchy <paramref name="descriptor"/> belongs to, or <see langword="null"/>. A derived type's
+		/// descriptor learns its root only once the root's descriptor is built, so an unset root is looked up through the base types.
+		/// </summary>
+		internal EntityDescriptor? GetInheritanceRoot(EntityDescriptor? descriptor)
+		{
+			if (descriptor == null)
+				return null;
+
+			if (descriptor.InheritanceRoot != null)
+				return descriptor.InheritanceRoot;
+
+			for (var type = descriptor.ObjectType.BaseType; type != null; type = type.BaseType)
+				if (GetEntityDescriptor(type)?.InheritanceRoot is { } root)
+					return root;
+
+			return null;
+		}
+
 		internal void CheckText(SqlTextKind kind, string text, int argumentCount, string node)
 		{
 			var reason = _catalog.Check(kind, text, _sources, _dialect);

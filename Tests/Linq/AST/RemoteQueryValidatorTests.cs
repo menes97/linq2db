@@ -79,6 +79,33 @@ namespace Tests.AST
 			public int Id { get; set; }
 		}
 
+		// no [Table]: the hierarchy is stored in the root's table, named after the root
+		[InheritanceMapping(Code = 1, Type = typeof(DerivedRow))]
+		[InheritanceMapping(Code = 2, Type = typeof(OtherRow))]
+		abstract class RootRow
+		{
+			[PrimaryKey]                       public int Id       { get; set; }
+			[Column(IsDiscriminator = true)]   public int Code     { get; set; }
+			[Column]                           public int ParentId { get; set; }
+		}
+
+		sealed class DerivedRow : RootRow
+		{
+			[Column] public string? Name { get; set; }
+		}
+
+		sealed class OtherRow : RootRow
+		{
+		}
+
+		sealed class ParentRow
+		{
+			[PrimaryKey] public int Id { get; set; }
+
+			[Association(ThisKey = nameof(Id), OtherKey = nameof(RootRow.ParentId))]
+			public List<RootRow> Children { get; set; } = null!;
+		}
+
 		sealed class LocalBuilder : ISqlQueryExtensionBuilder
 		{
 			public void Build(NullabilityContext nullability, ISqlBuilder sqlBuilder, System.Text.StringBuilder stringBuilder, SqlQueryExtension sqlQueryExtension)
@@ -566,6 +593,39 @@ namespace Tests.AST
 			var exception = Assert.Throws<RemoteRequestRejectedException>(() => RoundTrip(db, statement, Untrusted(db)))!;
 
 			exception.Rejections[0].Reason.ShouldBe(RemoteRejectionReason.TypeNotAllowed);
+		}
+
+		[Test]
+		public void DerivedTypeOfInheritanceHierarchyIsAccepted([Values] bool derived)
+		{
+			using var db = CreateConnection();
+
+			var statement = derived
+				? db.GetTable<RootRow>().OfType<DerivedRow>().GetStatement()
+				: db.GetTable<RootRow>().GetStatement();
+
+			RoundTrip(db, statement, Untrusted(db, _thisAssembly));
+		}
+
+		// an association to a hierarchy builds the derived type's table under the root's name
+		[Test]
+		public void DerivedTypeTableNamedAfterTheRootIsAccepted()
+		{
+			using var db = CreateConnection();
+
+			var table = new SqlTable(db.MappingSchema.GetEntityDescriptor(typeof(DerivedRow))) { TableName = new SqlObjectName(nameof(RootRow)) };
+
+			RoundTrip(db, SelectFrom(table), Untrusted(db, _thisAssembly));
+		}
+
+		[Test]
+		public void DerivedTypeTableWithOtherNameIsRejected()
+		{
+			using var db = CreateConnection();
+
+			var table = new SqlTable(db.MappingSchema.GetEntityDescriptor(typeof(DerivedRow))) { TableName = new SqlObjectName("NOT_A_MAPPED_NAME") };
+
+			Rejected(db, SelectFrom(table)).Rejections.ShouldContain(static r => r.Kind == SqlTextKind.TableName && r.Text == "NOT_A_MAPPED_NAME");
 		}
 
 		[Test]

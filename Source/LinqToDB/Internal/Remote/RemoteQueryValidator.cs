@@ -296,20 +296,23 @@ namespace LinqToDB.Internal.Remote
 				}
 			}
 
-			var mapped = policy.GetEntityDescriptor(table.ObjectType)?.Name;
-			var name   = table.TableName;
+			var descriptor = policy.GetEntityDescriptor(table.ObjectType);
+			var mapped     = descriptor?.Name;
+			// an association to an inheritance hierarchy builds the derived type's table under the root's name
+			var root       = policy.GetInheritanceRoot(descriptor)?.Name;
+			var name       = table.TableName;
 
-			CheckNamePart(policy, name.Name,     mapped?.Name,     nameIsShapeOnly, mappedNames);
-			CheckNamePart(policy, name.Schema,   mapped?.Schema,   nameIsShapeOnly, mappedNames);
-			CheckNamePart(policy, name.Database, mapped?.Database, nameIsShapeOnly, mappedNames);
-			CheckNamePart(policy, name.Server,   mapped?.Server,   nameIsShapeOnly, mappedNames);
-			CheckNamePart(policy, name.Package,  mapped?.Package,  nameIsShapeOnly, mappedNames);
+			CheckNamePart(policy, name.Name,     mapped?.Name,     root?.Name,     nameIsShapeOnly, mappedNames);
+			CheckNamePart(policy, name.Schema,   mapped?.Schema,   root?.Schema,   nameIsShapeOnly, mappedNames);
+			CheckNamePart(policy, name.Database, mapped?.Database, root?.Database, nameIsShapeOnly, mappedNames);
+			CheckNamePart(policy, name.Server,   mapped?.Server,   root?.Server,   nameIsShapeOnly, mappedNames);
+			CheckNamePart(policy, name.Package,  mapped?.Package,  root?.Package,  nameIsShapeOnly, mappedNames);
 		}
 
 		// each part is rendered as written, so a part the mapping does not supply needs its own catalog entry
-		static void CheckNamePart(RemoteQueryPolicy policy, string? part, string? mappedPart, bool shapeOnly, HashSet<string> mappedNames)
+		static void CheckNamePart(RemoteQueryPolicy policy, string? part, string? mappedPart, string? rootPart, bool shapeOnly, HashSet<string> mappedNames)
 		{
-			if (part == null || string.Equals(part, mappedPart, StringComparison.Ordinal))
+			if (part == null || string.Equals(part, mappedPart, StringComparison.Ordinal) || string.Equals(part, rootPart, StringComparison.Ordinal))
 				return;
 
 			if (shapeOnly)
