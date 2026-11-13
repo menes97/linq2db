@@ -21,6 +21,8 @@ using Shouldly;
 
 using Tests.Model;
 
+using LinqToDB.Remote;
+
 namespace Tests.Linq
 {
 	// Runs twice: once with combined multi-statement execution off (the 6.x default) and once with it on. Eager loading on
@@ -1680,6 +1682,7 @@ namespace Tests.Linq
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableExpression)]
 		public void TableExpressionAfterLoadWithTable([DataSources] string context)
 		{
 			using (var db = GetDataContext(context))
@@ -1699,6 +1702,7 @@ namespace Tests.Linq
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableExpression)]
 		public void TableExpressionFirst([DataSources] string context)
 		{
 			using (var db = GetDataContext(context))

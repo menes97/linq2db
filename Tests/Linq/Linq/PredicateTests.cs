@@ -10,6 +10,8 @@ using NUnit.Framework;
 
 using Shouldly;
 
+using LinqToDB.Remote;
+
 namespace Tests.Linq
 {
 	public class PredicateTests : TestBase
@@ -1067,6 +1069,7 @@ namespace Tests.Linq
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.Expression)]
 		public void Test_PredicateVsPredicate_TriStrate([DataSources] string context)
 		{
 			using var db = GetDataContext(context);
@@ -1219,6 +1222,7 @@ namespace Tests.Linq
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.Expression)]
 		public void Test_ComplexPredicateComparisonWithUnknown([DataSources] string context, [Values] bool inline)
 		{
 			using var db = GetDataContext(context);
@@ -1284,6 +1288,7 @@ namespace Tests.Linq
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.Expression)]
 		public void Test_NestedComparisonBesideNullablePredicate([DataSources] string context, [Values] bool inline)
 		{
 			using var db = GetDataContext(context);

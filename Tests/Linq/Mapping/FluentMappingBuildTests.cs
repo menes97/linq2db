@@ -6,12 +6,15 @@ using LinqToDB.Data;
 
 using NUnit.Framework;
 
+using LinqToDB.Remote;
+
 namespace Tests.Mapping
 {
 	[TestFixture]
 	public class FluentMappingBuildTests : TestBase
 	{
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName)]
 		public void InsertOrUpdatePrimaryKeyTest([InsertOrUpdateDataSources(TestProvName.AllOracle)] string context)
 		{
 			using var db  = GetDataContext(context);
@@ -36,6 +39,7 @@ namespace Tests.Mapping
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.IdentifierNotMapped)]
 		public void UpdateTest([DataSources] string context)
 		{
 			using var db  = GetDataContext(context);
@@ -60,6 +64,7 @@ namespace Tests.Mapping
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.IdentifierNotMapped)]
 		public async Task UpdateTestAsync([DataSources] string context)
 		{
 			await using var db  = GetDataContext(context);
@@ -112,6 +117,7 @@ namespace Tests.Mapping
 		}
 
 		[Test, QueryCacheTest]
+		[RejectedWhenUntrusted(RemoteRejectionReason.IdentifierNotMapped)]
 		public void CacheTest([DataSources] string context)
 		{
 			var count = Test("Value");

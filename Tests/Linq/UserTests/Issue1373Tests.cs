@@ -6,6 +6,8 @@ using LinqToDB.Mapping;
 
 using NUnit.Framework;
 
+using LinqToDB.Remote;
+
 namespace Tests.UserTests
 {
 	[TestFixture]
@@ -59,6 +61,7 @@ namespace Tests.UserTests
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TypeNotAllowed)]
 		public void Test1([DataSources] string context)
 		{
 			var ms = new MappingSchema();
@@ -89,6 +92,7 @@ namespace Tests.UserTests
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TypeNotAllowed)]
 		public void Test2([DataSources] string context)
 		{
 			var ms = new MappingSchema();
@@ -122,6 +126,7 @@ namespace Tests.UserTests
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TypeNotAllowed)]
 		public void Test3([DataSources] string context)
 		{
 			var ms = new MappingSchema();
@@ -153,6 +158,7 @@ namespace Tests.UserTests
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TypeNotAllowed)]
 		public void TestExpr1([DataSources] string context)
 		{
 			var ms = new MappingSchema();
@@ -184,6 +190,7 @@ namespace Tests.UserTests
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TypeNotAllowed)]
 		public void TestExpr2([DataSources] string context)
 		{
 			var ms = new MappingSchema();
@@ -218,6 +225,7 @@ namespace Tests.UserTests
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TypeNotAllowed)]
 		public void TestExpr3([DataSources] string context)
 		{
 			var ms = new MappingSchema();

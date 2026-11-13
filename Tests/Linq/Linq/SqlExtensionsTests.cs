@@ -15,6 +15,8 @@ using NUnit.Framework;
 
 using Shouldly;
 
+using LinqToDB.Remote;
+
 namespace Tests.Linq
 {
 	[TestFixture]
@@ -28,6 +30,7 @@ namespace Tests.Linq
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName)]
 		public void FieldNameTests1([IncludeDataSources(true, TestProvName.AllSQLite)] string context)
 		{
 			using var db = GetDataContext(context);
@@ -50,6 +53,7 @@ namespace Tests.Linq
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName)]
 		public void FieldNameTests2([IncludeDataSources(true, TestProvName.AllSQLite)] string context)
 		{
 			using var db = GetDataContext(context);
@@ -210,6 +214,7 @@ namespace Tests.Linq
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName)]
 		public void ExprPredicateTest([IncludeDataSources(true, TestProvName.AllSQLite, TestProvName.AllClickHouse)] string context)
 		{
 			var sampleData = new[]
@@ -589,6 +594,7 @@ namespace Tests.Linq
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.Expression)]
 		public void TestSqlCollate1(
 			[DataSources(
 				ProviderName.SqlCe,
@@ -608,6 +614,7 @@ namespace Tests.Linq
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.Expression)]
 		public void TestSqlCollate2(
 			[DataSources(
 				ProviderName.SqlCe,

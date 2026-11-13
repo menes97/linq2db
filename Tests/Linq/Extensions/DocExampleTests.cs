@@ -11,6 +11,8 @@ using LinqToDB.DataProvider.SqlServer;
 
 using NUnit.Framework;
 
+using LinqToDB.Remote;
+
 namespace Tests.Extensions
 {
 	[TestFixture]
@@ -127,6 +129,7 @@ namespace Tests.Extensions
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.ExtensionArgument)]
 		public void SQLiteTest([IncludeDataSources(true, TestProvName.AllSQLite)] string context)
 		{
 			using var db = GetDataContext(context);

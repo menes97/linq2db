@@ -6,12 +6,15 @@ using LinqToDB;
 
 using NUnit.Framework;
 
+using LinqToDB.Remote;
+
 namespace Tests.UserTests
 {
 	[TestFixture]
 	public class Issue3506Tests : TestBase
 	{
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName)]
 		public void Test1([IncludeDataSources(true, TestProvName.AllSQLite, TestProvName.AllClickHouse)] string context)
 		{
 			var cats = new[]
@@ -41,6 +44,7 @@ namespace Tests.UserTests
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName)]
 		public void Test2([IncludeDataSources(true, TestProvName.AllSQLite, TestProvName.AllClickHouse)] string context)
 		{
 			var cats = new[]

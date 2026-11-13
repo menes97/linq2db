@@ -12,6 +12,8 @@ using Shouldly;
 
 using Tests.Model;
 
+using LinqToDB.Remote;
+
 namespace Tests.Linq
 {
 	public class CteTests : TestBase
@@ -513,6 +515,7 @@ namespace Tests.Linq
 			ErrorMessage = "Cursor must be declared on an INSERT statement with a VALUES clause.",
 			Details = "Informix will not take an INSERT ... SELECT whose source is a CTE.")]
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName)]
 		public void TestInsert([CteContextSource(true, ProviderName.DB2)] string context)
 		{
 			using var db = GetDataContext(context);

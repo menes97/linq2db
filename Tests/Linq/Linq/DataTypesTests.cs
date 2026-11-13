@@ -11,6 +11,8 @@ using NUnit.Framework;
 
 using Tests.Model;
 
+using LinqToDB.Remote;
+
 namespace Tests.Linq
 {
 	// TODO: delete this test when we implement type tests for all databases similar to CLickHouse tests
@@ -270,6 +272,7 @@ namespace Tests.Linq
 			TestProvName.AllInformix, TestProvName.AllFirebird, TestProvName.AllMySql, ProviderName.DB2],
 			Details = "no-declaration: unvalidated: not reachable from this workstation - no container for most, and Informix/DB2 evidence is inadmissible here because the IBM CLI driver replaces the server text with a codepage-conversion message.")]
 		[Test(Description = "https://github.com/linq2db/linq2db/issues/1918")]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TypeNotAllowed)]
 		public void Issue1918Test([DataSources] string context)
 		{
 			using var db = GetDataContext(context);

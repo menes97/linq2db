@@ -10,6 +10,8 @@ using NUnit.Framework;
 
 using Tests.UserTests.MCC.WMS.ServiceInterfaces.DTO;
 
+using LinqToDB.Remote;
+
 namespace Tests.UserTests
 {
 	namespace MCC.Common.ServiceInterfaces.DTO
@@ -237,6 +239,7 @@ namespace Tests.UserTests
 		public class Issue1347Tests : TestBase
 		{
 			[Test]
+			[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName)]
 			public void Test5([DataSources] string context)
 			{
 				using var db = GetDataContext(context);
@@ -265,6 +268,7 @@ namespace Tests.UserTests
 			}
 
 			[Test]
+			[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName)]
 			public void Test4([DataSources] string context)
 			{
 				using var db = GetDataContext(context);
@@ -288,6 +292,7 @@ namespace Tests.UserTests
 			}
 
 			[Test]
+			[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName)]
 			public void Test3([DataSources] string context)
 			{
 				using var db = GetDataContext(context);
@@ -331,6 +336,7 @@ namespace Tests.UserTests
 			}
 
 			[Test]
+			[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName)]
 			public void Test2([DataSources] string context)
 			{
 				using var db = GetDataContext(context);
@@ -379,6 +385,7 @@ namespace Tests.UserTests
 			}
 
 			[Test]
+			[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName)]
 			public void Test([DataSources] string context)
 			{
 				using var db = GetDataContext(context);

@@ -9,6 +9,8 @@ using NUnit.Framework;
 
 using Shouldly;
 
+using LinqToDB.Remote;
+
 namespace Tests.Linq
 {
 	public partial class IntervalTranslationTests
@@ -1150,6 +1152,7 @@ namespace Tests.Linq
 		/// <c>DateDiff</c> derived once it is passed on, so the operand has to be recognised as one that can be null.
 		/// </remarks>
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName)]
 		public void DateDifferenceAcrossAnOuterJoin([DataSources(UnsupportedDifferenceProviders)] string context)
 		{
 			var started = new DateTime(2026, 1, 1, 10, 0, 0);

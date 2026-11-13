@@ -6,6 +6,8 @@ using LinqToDB.Mapping;
 
 using NUnit.Framework;
 
+using LinqToDB.Remote;
+
 namespace Tests.xUpdate
 {
 	[TestFixture]
@@ -165,6 +167,7 @@ namespace Tests.xUpdate
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName)]
 		public void TestDataGenerationTest([DataSources] string context)
 		{
 			using var db = GetDataContext(context);

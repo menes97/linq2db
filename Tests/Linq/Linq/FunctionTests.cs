@@ -14,6 +14,8 @@ using Tests.Model;
 
 // ReSharper disable UnusedMember.Local
 
+using LinqToDB.Remote;
+
 namespace Tests.Linq
 {
 	[TestFixture]
@@ -706,6 +708,7 @@ namespace Tests.Linq
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.Function)]
 		public void TestDefaultFunctionNullability([IncludeDataSources(true, TestProvName.AllSQLite)] string context)
 		{
 			using var db = GetDataContext(context);

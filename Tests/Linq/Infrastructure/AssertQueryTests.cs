@@ -8,6 +8,8 @@ using NUnit.Framework;
 
 using Tests.Model;
 
+using LinqToDB.Remote;
+
 namespace Tests.Infrastructure
 {
 	/// <summary>
@@ -22,6 +24,7 @@ namespace Tests.Infrastructure
 		static int Shifted(int value) => value;
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.Expression)]
 		public void ScalarQuery_WrongValues_Fails([DataSources] string context)
 		{
 			using var db = GetDataContext(context);

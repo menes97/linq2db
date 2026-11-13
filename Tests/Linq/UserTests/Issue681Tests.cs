@@ -15,6 +15,8 @@ using LinqToDB.Mapping;
 
 using NUnit.Framework;
 
+using LinqToDB.Remote;
+
 namespace Tests.UserTests
 {
 	[TestFixture]
@@ -41,6 +43,7 @@ namespace Tests.UserTests
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName)]
 		public async Task TestITable(
 			[DataSources] string context,
 			[Values] bool withServer,
@@ -51,6 +54,7 @@ namespace Tests.UserTests
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName)]
 		public async Task TestInsert(
 			[DataSources] string context,
 			[Values] bool withServer,
@@ -65,6 +69,7 @@ namespace Tests.UserTests
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName)]
 		public async Task TestUpdate(
 			[DataSources] string context,
 			[Values] bool withServer,
@@ -79,6 +84,7 @@ namespace Tests.UserTests
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName)]
 		public async Task TestDelete(
 			[DataSources] string context,
 			[Values] bool withServer,
@@ -93,6 +99,7 @@ namespace Tests.UserTests
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName)]
 		public async Task TestInsertOrReplace(
 			[InsertOrUpdateDataSources] string context,
 			[Values] bool withServer,
@@ -111,6 +118,7 @@ namespace Tests.UserTests
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName)]
 		public async Task TestInsertWithIdentity(
 			[DataSources(TestProvName.AllClickHouse)] string context,
 			[Values] bool withServer,
@@ -125,6 +133,7 @@ namespace Tests.UserTests
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName)]
 		public async Task TestCreate(
 			[DataSources] string context,
 			[Values] bool withServer,
@@ -156,6 +165,7 @@ namespace Tests.UserTests
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName)]
 		public async Task TestCreateAsync(
 			[DataSources] string context,
 			[Values] bool withServer,
@@ -185,6 +195,7 @@ namespace Tests.UserTests
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName)]
 		public async Task TestDrop(
 			[DataSources] string context,
 			[Values] bool withServer,

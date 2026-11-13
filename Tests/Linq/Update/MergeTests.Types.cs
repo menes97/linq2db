@@ -7,6 +7,8 @@ using LinqToDB.Mapping;
 
 using NUnit.Framework;
 
+using LinqToDB.Remote;
+
 namespace Tests.xUpdate
 {
 	public partial class MergeTests : TestBase
@@ -347,6 +349,7 @@ namespace Tests.xUpdate
 		[ActiveIssue(Configuration = TestProvName.Oracle21DevartDirect,
 			Details = "no-declaration: unvalidated: the Devart client needs a licence key this machine does not have, so even CreateDatabase cannot connect. The gate's original prose covered only YDB, so nothing on record says why this provider was gated.")]
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName)]
 		public void TestMergeTypes([DataSources(true)] string context)
 		{
 			var isIDS = IsIDSProvider(context);

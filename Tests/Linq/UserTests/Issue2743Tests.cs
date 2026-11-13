@@ -5,6 +5,8 @@ using LinqToDB.Mapping;
 
 using NUnit.Framework;
 
+using LinqToDB.Remote;
+
 namespace Tests.UserTests
 {
 	[TestFixture]
@@ -24,6 +26,7 @@ namespace Tests.UserTests
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName)]
 		public void IssueTestInsertViaSelect([DataSources] string context)
 		{
 			using var db = GetDataContext(context);
@@ -48,6 +51,7 @@ namespace Tests.UserTests
 		[ActiveIssue(ErrorTypeName = "LinqToDB.LinqToDBException", ErrorMessage = "does not have primary key",
 			Details = "no-issue: #2743's own repro is the insert above, which passes. This delete variant is an adjacent shape added beside it and has no tracker of its own - a delete through a projection over a complex object cannot resolve the target table.")]
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName)]
 		public void IssueTestDeleteViaSelect([DataSources] string context)
 		{
 			using var db = GetDataContext(context);

@@ -8,6 +8,8 @@ using LinqToDB.Mapping;
 
 using NUnit.Framework;
 
+using LinqToDB.Remote;
+
 namespace Tests.UserTests
 {
 	[TestFixture]
@@ -56,6 +58,7 @@ namespace Tests.UserTests
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TypeNotAllowed)]
 		public void Test([DataSources] string context)
 		{
 			ResetPersonIdentity(context);

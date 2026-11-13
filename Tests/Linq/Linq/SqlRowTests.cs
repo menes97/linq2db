@@ -14,6 +14,8 @@ using static LinqToDB.Sql;
 using DT = System.DateTime;
 using DTO = System.DateTimeOffset;
 
+using LinqToDB.Remote;
+
 namespace Tests.Linq
 {
 	[TestFixture]
@@ -457,6 +459,7 @@ namespace Tests.Linq
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName)]
 		public void EqualToSelect(
 			[IncludeDataSources(true,
 				TestProvName.AllMySql,
@@ -503,6 +506,7 @@ namespace Tests.Linq
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName)]
 		public void CompareToSelect(
 			[IncludeDataSources(true,
 				TestProvName.AllMySql,

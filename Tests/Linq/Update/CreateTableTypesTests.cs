@@ -17,6 +17,8 @@ using DefaultValueBuilder = System.Action<string, Tests.xUpdate.CreateTableTypes
 using ValueBuilder = System.Action<Tests.xUpdate.CreateTableTypesTests.CreateTableTypes>;
 
 // ReSharper disable once CheckNamespace
+using LinqToDB.Remote;
+
 namespace Tests.xUpdate
 {
 	[TestFixture]
@@ -158,6 +160,7 @@ namespace Tests.xUpdate
 		// oracle native tests could fail due to bug in provider:
 		// InitialLONGFetchSize option makes it read garbage for String/StringNullable testcases
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TypeNotAllowed)]
 		public void TestCreateTableColumnType(
 			[DataSources] string context,
 			[ValueSource(nameof(TestCases))] TestCreateTableColumnTypeParameters testCase)

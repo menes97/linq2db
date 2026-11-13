@@ -13,6 +13,8 @@ using NUnit.Framework;
 
 using Shouldly;
 
+using LinqToDB.Remote;
+
 namespace Tests.xUpdate
 {
 	[TestFixture]
@@ -80,6 +82,7 @@ namespace Tests.xUpdate
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName)]
 		public void TruncateIdentityNoResetTest([DataSources(TestProvName.AllClickHouse)] string context)
 		{
 			using var db = GetDataContext(context);

@@ -20,6 +20,8 @@ using Shouldly;
 
 using Tests.Model;
 
+using LinqToDB.Remote;
+
 namespace Tests.Linq
 {
 	[TestFixture]
@@ -101,6 +103,7 @@ namespace Tests.Linq
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.RawSqlTable)]
 		public void TestFormattable([DataSources(ProviderName.DB2, TestProvName.AllSapHana)] string context, [Values(14, 15)] int endId)
 		{
 			using var db = GetDataContext(context);
@@ -125,6 +128,7 @@ namespace Tests.Linq
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.RawSqlTable)]
 		public void TestFormattable2([DataSources(ProviderName.DB2, TestProvName.AllSapHana)] string context, [Values(14, 15)] int endId)
 		{
 			using var db = GetDataContext(context);
@@ -150,6 +154,7 @@ namespace Tests.Linq
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.RawSqlTable)]
 		public void TestFormattableSameParam([DataSources(ProviderName.DB2, TestProvName.AllSapHana)] string context, [Values(14, 15)] int endId)
 		{
 			using var db = GetDataContext(context);
@@ -175,6 +180,7 @@ namespace Tests.Linq
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.RawSqlTable)]
 		public void TestFormattableInExpr([DataSources(ProviderName.DB2, TestProvName.AllSapHana)] string context, [Values(14, 15)] int endId)
 		{
 			using var db = GetDataContext(context);
@@ -203,6 +209,7 @@ namespace Tests.Linq
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.RawSqlTable)]
 		public void TestFormattableInExpr2([DataSources(ProviderName.DB2, TestProvName.AllSapHana)] string context, [Values(14, 15)] int endId)
 		{
 			using var db = GetDataContext(context);
@@ -231,6 +238,7 @@ namespace Tests.Linq
 		}
 
 		[Test, QueryCacheTest]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.RawSqlTable)]
 		public void TestParameters([DataSources(ProviderName.DB2, TestProvName.AllSapHana)] string context, [Values(1, 2)] int iteration, [Values(14, 15)] int endId)
 		{
 			using var db = GetDataContext(context);
@@ -264,6 +272,7 @@ namespace Tests.Linq
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.RawSqlTable)]
 		public void TestParametersInExpr([DataSources(ProviderName.DB2, TestProvName.AllSapHana)] string context, [Values(14, 15)] int endId)
 		{
 			using var db = GetDataContext(context);
@@ -293,6 +302,7 @@ namespace Tests.Linq
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.RawSqlTable)]
 		public void TestParametersInExpr2([DataSources(ProviderName.DB2, TestProvName.AllSapHana)] string context, [Values(14, 15)] int endId)
 		{
 			using var db = GetDataContext(context);
@@ -1021,6 +1031,7 @@ namespace Tests.Linq
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.RawSqlTable)]
 		public void TestBasicScalarQuery([DataSources(TestProvName.AllAccess)] string context)
 		{
 			using var db = GetDataContext(context);
@@ -1468,6 +1479,7 @@ namespace Tests.Linq
 		}
 
 		[Test(Description = "https://github.com/linq2db/linq2db/issues/6000")]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.RawSqlTable)]
 		public void FromSql_ArgumentsOutOfFormatOrder([DataSources] string context, [Values] bool repeated)
 		{
 			using var db = GetDataContext(context);
@@ -1479,6 +1491,7 @@ namespace Tests.Linq
 		}
 
 		[Test(Description = "https://github.com/linq2db/linq2db/issues/6000")]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.RawSqlTable)]
 		public void FromSql_Nested_Captured_ArgumentsOutOfFormatOrder([DataSources] string context, [Values] bool repeated)
 		{
 			using var db = GetDataContext(context);
@@ -1870,6 +1883,7 @@ namespace Tests.Linq
 		}
 
 		[Test(Description = "https://github.com/linq2db/linq2db/pull/6008")]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.RawSqlTable)]
 		public void UnreferencedArgumentIsNotSent([DataSources(TestProvName.AllAccess, TestProvName.AllSapHana, ProviderName.Informix)] string context)
 		{
 			using var db = GetDataContext(context);
@@ -1895,6 +1909,7 @@ namespace Tests.Linq
 		}
 
 		[Test(Description = "https://github.com/linq2db/linq2db/pull/6008")]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextAllowedForOtherKind, SqlTextKind.Expression)]
 		public void UnreferencedExprArgumentIsNotSent([DataSources(TestProvName.AllAccess, TestProvName.AllSapHana, ProviderName.Informix)] string context)
 		{
 			using var db = GetDataContext(context);
@@ -1961,6 +1976,7 @@ namespace Tests.Linq
 
 		// a hand-built tree can pass the FormattableString as a constant, which expose leaves as is
 		[Test(Description = "https://github.com/linq2db/linq2db/pull/6008")]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.RawSqlTable)]
 		public void FromSql_ConstantFormattableString([IncludeDataSources(true, TestProvName.AllSQLite)] string context)
 		{
 			using var db = GetDataContext(context);
@@ -1976,6 +1992,7 @@ namespace Tests.Linq
 		}
 
 		[Test(Description = "https://github.com/linq2db/linq2db/pull/6008")]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextAllowedForOtherKind, SqlTextKind.Expression)]
 		public void Expr_ConstantFormattableString([IncludeDataSources(true, TestProvName.AllSQLite)] string context)
 		{
 			using var db = GetDataContext(context);
@@ -1993,6 +2010,7 @@ namespace Tests.Linq
 		}
 
 		[Test(Description = "https://github.com/linq2db/linq2db/pull/6008")]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.RawSqlTable)]
 		public void ArgumentReferencedByNameIsSent([IncludeDataSources(true, TestProvName.AllSqlServer, TestProvName.AllSQLite, TestProvName.AllMySql, TestProvName.AllPostgreSQL, TestProvName.AllOracle)] string context)
 		{
 			using var db = GetDataContext(context);
@@ -2031,6 +2049,7 @@ namespace Tests.Linq
 		}
 
 		[Test(Description = "https://github.com/linq2db/linq2db/pull/6008")]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.RawSqlTable)]
 		public void ArgumentReferencedByPositionIsSent([IncludeDataSources(true, TestProvName.AllAccess, TestProvName.AllSapHana, TestProvName.AllSQLiteClassic, TestProvName.AllMySql)] string context, [Values] bool dataParameter)
 		{
 			using var db = GetDataContext(context);
@@ -2086,6 +2105,7 @@ namespace Tests.Linq
 		}
 
 		[Test(Description = "https://github.com/linq2db/linq2db/pull/6007")]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.RawSqlTable)]
 		public void NestedScalar_InToExists_SqlExpressionArgument([DataSources(TestProvName.AllAccess)] string context)
 		{
 			using var db = GetDataContext(context, o => o.UsePreferExistsForScalar(true));
@@ -2108,6 +2128,7 @@ namespace Tests.Linq
 		}
 
 		[Test(Description = "https://github.com/linq2db/linq2db/pull/6007")]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.RawSqlTable)]
 		public void NestedScalar_InToExists_NullableSqlExpressionArgument([DataSources(TestProvName.AllAccess)] string context)
 		{
 			using var db = GetDataContext(context);

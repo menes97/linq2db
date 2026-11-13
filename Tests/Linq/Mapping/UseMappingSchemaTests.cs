@@ -6,6 +6,8 @@ using LinqToDB.Mapping;
 
 using NUnit.Framework;
 
+using LinqToDB.Remote;
+
 namespace Tests.Mapping
 {
 	public class UseMappingSchemaTests : TestBase
@@ -21,6 +23,7 @@ namespace Tests.Mapping
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.IdentifierNotMapped)]
 		public void Test1([DataSources] string context)
 		{
 			using var db  = GetDataContext(context);
@@ -54,6 +57,7 @@ namespace Tests.Mapping
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.IdentifierNotMapped)]
 		public void Test2([DataSources] string context)
 		{
 			using var db  = GetDataContext(context);

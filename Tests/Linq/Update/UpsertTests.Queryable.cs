@@ -8,6 +8,8 @@ using NUnit.Framework;
 
 using Shouldly;
 
+using LinqToDB.Remote;
+
 namespace Tests.xUpdate
 {
 	/// <summary>
@@ -22,6 +24,7 @@ namespace Tests.xUpdate
 			TestProvName.AllSapHana, TestProvName.AllSqlServer2005, TestProvName.AllSQLite, TestProvName.AllPostgreSQL14Minus,
 			TestProvName.AllMySql, TestProvName.AllSqlCe, TestProvName.AllAccess,
 			ErrorMessage = ErrorHelper.Error_Upsert_MergeLowering_NotSupported)]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName)]
 		public void Queryable_Upsert([InsertOrUpdateDataSources] string context)
 		{
 			using var db = GetDataContext(context);
@@ -47,6 +50,7 @@ namespace Tests.xUpdate
 			TestProvName.AllSapHana, TestProvName.AllSqlServer2005, TestProvName.AllSQLite, TestProvName.AllPostgreSQL14Minus,
 			TestProvName.AllMySql, TestProvName.AllSqlCe, TestProvName.AllAccess,
 			ErrorMessage = ErrorHelper.Error_Upsert_MergeLowering_NotSupported)]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName)]
 		public void Queryable_Update_Set_UsesBothTargetAndSource([InsertOrUpdateDataSources] string context)
 		{
 			using var db = GetDataContext(context);
@@ -75,6 +79,7 @@ namespace Tests.xUpdate
 			TestProvName.AllSapHana, TestProvName.AllSqlServer2005, TestProvName.AllSQLite, TestProvName.AllPostgreSQL14Minus,
 			TestProvName.AllMySql, TestProvName.AllSqlCe, TestProvName.AllAccess,
 			ErrorMessage = ErrorHelper.Error_Upsert_MergeLowering_NotSupported)]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName)]
 		public async Task Queryable_Async_Upsert([InsertOrUpdateDataSources] string context)
 		{
 			using var db = GetDataContext(context);

@@ -94,9 +94,7 @@ namespace Tests.AST
 			[Column] public string? Name { get; set; }
 		}
 
-		sealed class OtherRow : RootRow
-		{
-		}
+		sealed class OtherRow : RootRow;
 
 		sealed class ParentRow
 		{

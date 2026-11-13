@@ -5,11 +5,14 @@ using LinqToDB.Mapping;
 
 using NUnit.Framework;
 
+using LinqToDB.Remote;
+
 namespace Tests.UserTests
 {
 	public class IndexOutOfRangeInUnions : TestBase
 	{
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName)]
 		public void ErrorInUinon([DataSources] string context)
 		{
 			using (var db = GetDataContext(context))

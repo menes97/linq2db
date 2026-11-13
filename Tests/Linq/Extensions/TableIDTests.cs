@@ -5,6 +5,8 @@ using LinqToDB;
 
 using NUnit.Framework;
 
+using LinqToDB.Remote;
+
 namespace Tests.Extensions
 {
 	[TestFixture]
@@ -17,6 +19,7 @@ namespace Tests.Extensions
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.Expression)]
 		public void TableTest([DataSources(TestProvName.AllAccess)] string context)
 		{
 			using var db = GetDataContext(context);

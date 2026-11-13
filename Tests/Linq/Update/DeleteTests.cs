@@ -15,6 +15,8 @@ using Tests.Model;
 // ReSharper disable ConvertToConstant.Local
 #endregion
 
+using LinqToDB.Remote;
+
 namespace Tests.xUpdate
 {
 	[TestFixture]
@@ -523,6 +525,7 @@ namespace Tests.xUpdate
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName)]
 		public void DeleteByTableName([DataSources] string context)
 		{
 			var tableName  = "xxPerson";
@@ -557,6 +560,7 @@ namespace Tests.xUpdate
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName)]
 		public async Task DeleteByTableNameAsync([DataSources] string context)
 		{
 			const string? schemaName = null;
