@@ -10,15 +10,12 @@ using NUnit.Framework;
 
 using Shouldly;
 
-using LinqToDB.Remote;
-
 namespace Tests.UserTests
 {
 	[TestFixture]
 	public class Issue4336Tests : TestBase
 	{
 		[Test]
-		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.Expression)]
 		public void Issue4336Test([DataSources(TestProvName.AllAccess)] string context)
 		{
 			using var db = GetDataContext(context);

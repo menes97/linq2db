@@ -14,7 +14,6 @@ namespace Tests.Mapping
 	public class FluentMappingBuildTests : TestBase
 	{
 		[Test]
-		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName)]
 		public void InsertOrUpdatePrimaryKeyTest([InsertOrUpdateDataSources(TestProvName.AllOracle)] string context)
 		{
 			using var db  = GetDataContext(context);

@@ -5,8 +5,6 @@ using LinqToDB;
 
 using NUnit.Framework;
 
-using LinqToDB.Remote;
-
 namespace Tests.UserTests
 {
 	[TestFixture]
@@ -19,7 +17,6 @@ namespace Tests.UserTests
 		}
 
 		[Test]
-		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.Expression)]
 		public void NegativeWhereTest([SupportsAnalyticFunctionsContext] string context)
 		{
 			using var db = GetDataContext(context);
