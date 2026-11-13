@@ -70,10 +70,12 @@
 
 	<!-- Remote tests run with TrustedClient = false: the generated SQL text catalog lets the server accept this
 	     assembly's own mappings and constant query text, as it would for a user project. Tests send dynamic text on
-	     purpose (L2DB1005), and some templates are refused by design for a format item inside quotes (L2DB1006). -->
+	     purpose (L2DB1005), and some templates are refused by design for a format item inside quotes (L2DB1006).
+	     Attaching the analyzer for the generator also attaches the shipped rules, which the tests break on purpose
+	     (legacy APIs under test) and the bulk severity = error would fail the Release build on. -->
 	<PropertyGroup>
 		<LinqToDBSqlTextCatalog>true</LinqToDBSqlTextCatalog>
-		<NoWarn>$(NoWarn);L2DB1005;L2DB1006</NoWarn>
+		<NoWarn>$(NoWarn);L2DB1001;L2DB1002;L2DB1003;L2DB1004;L2DB1005;L2DB1006</NoWarn>
 	</PropertyGroup>
 
 	<ItemGroup>
