@@ -658,6 +658,22 @@ namespace Tests.Analyzers
 				.ShouldContain("INSIDE");
 		}
 
+		// never the absolute path, which would put the build machine's directory into the assembly
+		[TestCase("/shared/allow.txt",          "/shared",      "../shared/allow.txt")]
+		[TestCase("/work/shared/sql/allow.txt", "/work/shared", "../work/shared/sql/allow.txt")]
+		[TestCase("D:/shared/allow.txt",        "D:/shared",    "allow.txt")]
+		public async Task AllowFile_UnderRoot_HasProjectRelativeOrigin(string path, string roots, string origin)
+		{
+			var result = await GeneratorVerifier.RunAsync("class C { }", files: [new(path, "+\tQueryHint\tROOTED")], roots: roots);
+
+			result.Diagnostics.ShouldBeEmpty();
+			result
+				.Items
+				.Single(static i => i.Text == "ROOTED")
+				.Origin
+				.ShouldBe(origin);
+		}
+
 		[Test]
 		public async Task DenyLine_EmitsRemoval()
 		{

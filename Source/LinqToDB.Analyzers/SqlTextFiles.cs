@@ -109,12 +109,35 @@ namespace LinqToDB.Analyzers
 
 				if (IsUnder(full, rootDir))
 				{
-					origin = full;
+					// never the absolute path: it would put the build machine's directory into the assembly
+					origin = RelativeTo(full, projectDir) ?? full.Substring(rootDir.Length).TrimStart('/');
 					return true;
 				}
 			}
 
 			return false;
+		}
+
+		// '../'-relative from the project directory; null when the two share no directory (another drive).
+		static string? RelativeTo(string path, string baseDir)
+		{
+			var comparison = _ignoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+			var target     = path.Split('/');
+			var source     = baseDir.Split('/');
+			var common     = 0;
+
+			while (common < target.Length - 1 && common < source.Length && string.Equals(target[common], source[common], comparison))
+				common++;
+
+			if (common == 0)
+				return null;
+
+			var sb = new StringBuilder();
+
+			for (var i = common; i < source.Length; i++)
+				sb.Append("../");
+
+			return sb.Append(string.Join("/", target, common, target.Length - common)).ToString();
 		}
 
 		static readonly bool _ignoreCase = Path.DirectorySeparatorChar == '\\';
