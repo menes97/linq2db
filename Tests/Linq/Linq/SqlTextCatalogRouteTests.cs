@@ -166,9 +166,11 @@ namespace Tests.Linq
 					break;
 				case Shape.WithInTree:
 				{
-					var query =
+					// the second from is a SelectMany lambda, so With stays in the expression tree
+					var children = db.GetTable<Child>();
+					var query    =
 						from p in db.GetTable<Person>()
-						from c in db.GetTable<Child>().With("ROUTE_WITH_TREE")
+						from c in children.With("ROUTE_WITH_TREE")
 						where p.ID == id && c.ParentID == p.ID
 						select c;
 
@@ -337,6 +339,7 @@ namespace Tests.Linq
 				.ToList();
 		}
 
+		// PostgreSQL only: see PostgreSQLHint2.
 		[Test]
 		public void PostgreSQLHint2_CatalogOnlyAssembly_IsAccepted([IncludeDataSources(TestProvName.AllPostgreSQL)] string context)
 		{
@@ -355,6 +358,7 @@ namespace Tests.Linq
 			}
 		}
 
+		// PostgreSQL only: see PostgreSQLHint2.
 		[Test]
 		public void PostgreSQLHint2_WithoutCatalog_IsRejected([IncludeDataSources(TestProvName.AllPostgreSQL)] string context)
 		{
