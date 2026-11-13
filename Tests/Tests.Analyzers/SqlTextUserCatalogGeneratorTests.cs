@@ -398,6 +398,50 @@ namespace Tests.Analyzers
 			result.Diagnostics.ShouldNotContain(d => d.Id == "L2DB1005");
 		}
 
+		// With arguments, an interpolated string binds as string to the RawSqlString overload: the client sends the formatted
+		// text, so that is the entry, and a dynamic hole is dynamic text.
+		[Test]
+		public async Task InterpolatedStringAsRawSqlString_IsTheFormattedText()
+		{
+			var result = await GeneratorVerifier.RunAsync(Body("""
+				db.FromSql<Row>($"SELECT * FROM {ConstHint} WHERE id = {{0}}", id).ToList();
+				table.Select(r => Sql.Expr<int>($"FN({ConstHint}, {{0}})", r.Id)).ToList();
+				db.FromSql<Row>($"SELECT * FROM {dynamicText} WHERE id = {{0}}", id).ToList();
+				"""));
+
+			result
+				.Texts(SqlTextKind.RawSqlTable)
+				.ShouldBe(["SELECT * FROM CONST_HINT WHERE id = {0}"]);
+			result
+				.Texts(SqlTextKind.Expression)
+				.ShouldContain("FN(CONST_HINT, {0})");
+			result
+				.Diagnostics
+				.Count(static d => d.Id == "L2DB1005")
+				.ShouldBe(1);
+		}
+
+		[Test]
+		public async Task FormattableStringLocal_IsItsFormat()
+		{
+			var result = await GeneratorVerifier.RunAsync(Body("""
+				FormattableString query = $"SELECT * FROM local WHERE id = {id}";
+				db.FromSql<Row>(query).ToList();
+
+				FormattableString reassigned = $"SELECT * FROM first WHERE id = {id}";
+				reassigned = $"SELECT * FROM {dynamicText}";
+				db.FromSql<Row>(reassigned).ToList();
+				"""));
+
+			result
+				.Texts(SqlTextKind.RawSqlTable)
+				.ShouldBe(["SELECT * FROM local WHERE id = {0}"]);
+			result
+				.Diagnostics
+				.Count(static d => d.Id == "L2DB1005")
+				.ShouldBe(1);
+		}
+
 		[Test]
 		public async Task Hints()
 		{

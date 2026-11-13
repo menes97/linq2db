@@ -492,11 +492,22 @@ namespace LinqToDB.Analyzers
 		/// Rebuilds the composite format the runtime sends for a <c>FormattableString</c> (<c>FormattableString.Format</c>) or a
 		/// <c>RawSqlString</c> (its text as written).
 		/// </summary>
-		static bool TryResolveFormat(IOperation value, SemanticModel model, List<string> values)
+		static bool TryResolveFormat(IOperation value, SemanticModel model, List<string> values, bool formattable = false)
 		{
-			value = Unwrap(value);
+			// Only a conversion to FormattableString keeps the composite format: bound as string (the RawSqlString overloads with
+			// arguments), the client sends the formatted text.
+			for (; value is IConversionOperation conversion; value = conversion.Operand)
+				formattable |= IsFormattableString(conversion.Type);
 
-			if (value is IInterpolatedStringOperation interpolated)
+			// a FormattableString local: the declaration's conversion is not part of the initializer's operation
+			if (value is ILocalReferenceOperation { Local: var local } && IsFormattableString(local.Type))
+			{
+				return TryGetInitializer(local, model, out var initializer)
+					&& !HasReassignment(local, model)
+					&& TryResolveFormat(initializer, model, values, formattable: true);
+			}
+
+			if (value is IInterpolatedStringOperation interpolated && (formattable || IsFormattableString(interpolated.Type)))
 			{
 				var sb    = new StringBuilder();
 				var index = 0;
@@ -541,6 +552,11 @@ namespace LinqToDB.Analyzers
 			}
 
 			return value.Type?.SpecialType == SpecialType.System_String && CodeGenerators.SqlTextFlow.TryResolve(value, model, values);
+		}
+
+		static bool IsFormattableString(ITypeSymbol? type)
+		{
+			return type is { Name: "FormattableString", ContainingNamespace: { Name: "System", ContainingNamespace.IsGlobalNamespace: true } };
 		}
 	}
 }
