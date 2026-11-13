@@ -115,7 +115,8 @@ namespace Tests.Analyzers
 			"hint", "hint2", "hintFormat", "values", "expression", "hintParameter", "hintParameters", "indexName",
 		};
 
-		internal readonly record struct TextMember(string Type, string Member, string Parameter, bool IsHintMethod, bool IsAnnotated, bool IsProperty);
+		// IsTextType: string or string[], the only argument types the generator reads as hint text (SqlTextCallSites.IsTextType)
+		internal readonly record struct TextMember(string Type, string Member, string Parameter, bool IsHintMethod, bool IsAnnotated, bool IsProperty, bool IsTextType = true);
 
 		[Test]
 		public void EveryTextMemberHasADisposition()
@@ -149,6 +150,14 @@ namespace Tests.Analyzers
 				.ShouldNotBeEmpty();
 		}
 
+		// the generator reads hint text only from string or string[]: an object 'hint' is not catalogued, so it needs a disposition
+		[Test]
+		public void ObjectHintKey_IsUnclassified()
+		{
+			Unclassified([new TextMember("LinqToDB.LinqExtensions", "NewHintApi", "hint", true, false, false, IsTextType: false)])
+				.ShouldNotBeEmpty();
+		}
+
 		static IEnumerable<TextMember> Unclassified(IEnumerable<TextMember> members)
 		{
 			foreach (var member in members)
@@ -172,7 +181,7 @@ namespace Tests.Analyzers
 		{
 			var method = _callSites.GetMethod("Classify", BindingFlags.Static | BindingFlags.NonPublic)!;
 
-			return (IEnumerable<(string, string)>)method.Invoke(null, [member.Type, member.Member, member.Parameter, member.IsHintMethod, true])!;
+			return (IEnumerable<(string, string)>)method.Invoke(null, [member.Type, member.Member, member.Parameter, member.IsHintMethod, member.IsTextType])!;
 		}
 
 		static string? ClassifyProperty(string type, string property)
@@ -223,7 +232,10 @@ namespace Tests.Analyzers
 						}
 						else
 						{
-							yield return new(typeName, name, parameter.Name, isHint, annotated, IsProperty: false);
+							var parameterType = parameter.ParameterType.IsByRef ? parameter.ParameterType.GetElementType()! : parameter.ParameterType;
+							var isTextType    = parameterType == typeof(string) || parameterType == typeof(string[]);
+
+							yield return new(typeName, name, parameter.Name, isHint, annotated, IsProperty: false, isTextType);
 						}
 					}
 				}
@@ -233,12 +245,13 @@ namespace Tests.Analyzers
 		static readonly Regex _apiLine = new(@"^(?:static |override |virtual |abstract )*(?<member>LinqToDB\.[\w.`]+?)\.(?<name>[\w.]+|\.ctor)\((?<params>[^)]*)\)", RegexOptions.Compiled);
 		static readonly Regex _apiParam = new(@"(?<type>[\w.`<>?!\[\],]+) (?<name>\w+)(?: = [^,]+)?$", RegexOptions.Compiled);
 
-		// Members a TFM other than net8.0 declares: absent from the reflected net8.0 assembly, so only the PublicAPI text sees them.
+		// Members another TFM declares are absent from the reflected assembly (this project's TFM), so only the PublicAPI text
+		// sees them. Every TFM folder is read, so an added TFM cannot be missed.
 		static IEnumerable<TextMember> EnumerateTfmOnly()
 		{
 			var root = Path.Combine(Path.GetDirectoryName(ThisFile())!, "..", "..", "Source", "LinqToDB", "PublicAPI");
 
-			foreach (var tfm in new[] { "net462", "netstandard2.0", "net9.0", "net10.0" })
+			foreach (var tfm in Directory.GetDirectories(root).Select(static d => Path.GetFileName(d)))
 			{
 				foreach (var file in new[] { "PublicAPI.Shipped.txt", "PublicAPI.Unshipped.txt" })
 				{
@@ -262,7 +275,9 @@ namespace Tests.Analyzers
 							if (text.StartsWith("out ", StringComparison.Ordinal) || !param.Success || !IsTextTypeName(param.Groups["type"].Value, param.Groups["name"].Value))
 								continue;
 
-							yield return new(match.Groups["member"].Value, match.Groups["name"].Value, param.Groups["name"].Value, false, false, false);
+							var isTextType = param.Groups["type"].Value.TrimEnd('?', '!') is "string" or "string[]" or "string![]" or "string?[]";
+
+							yield return new(match.Groups["member"].Value, match.Groups["name"].Value, param.Groups["name"].Value, false, false, false, isTextType);
 						}
 					}
 				}
