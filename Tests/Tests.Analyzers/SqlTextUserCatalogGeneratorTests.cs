@@ -632,6 +632,10 @@ namespace Tests.Analyzers
 		[TestCase("/proj/obj/allow.txt",        null)]
 		[TestCase("obj/allow.txt",              null)]
 		[TestCase("/shared/allow.txt",          null)]
+		[TestCase("/shared/allow.txt",          "/other")]
+		[TestCase("/shared2/allow.txt",         "/shared")]
+		// a Link item: the compiler sees the real path, outside the project, not the link name
+		[TestCase("/elsewhere/linked.txt",      null)]
 		public async Task AllowFile_OutsideProject_ReportsL2DB1008(string path, string? roots)
 		{
 			var result = await GeneratorVerifier.RunAsync("class C { }", files: [new(path, "+\tQueryHint\tOUTSIDE")], roots: roots);
@@ -656,6 +660,23 @@ namespace Tests.Analyzers
 			result
 				.Texts(SqlTextKind.QueryHint)
 				.ShouldContain("INSIDE");
+		}
+
+		// the project check follows the file system: case-insensitive only where paths are (Windows)
+		[Test]
+		public async Task AllowFile_CaseDifference_FollowsTheFileSystem()
+		{
+			var insensitive = Path.DirectorySeparatorChar == '\\';
+			var result      = await GeneratorVerifier.RunAsync("class C { }", files: [new("/PROJ/allow.txt", "+\tQueryHint\tCASED")]);
+
+			result
+				.Texts(SqlTextKind.QueryHint)
+				.Contains("CASED")
+				.ShouldBe(insensitive);
+			result
+				.Diagnostics
+				.Any(static d => d.Id == "L2DB1008")
+				.ShouldBe(!insensitive);
 		}
 
 		// never the absolute path, which would put the build machine's directory into the assembly
