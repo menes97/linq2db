@@ -240,6 +240,7 @@ namespace LinqToDB.Analyzers
 						collector.AddResolved(propertyKind, assignment.Value, assignment.Syntax.GetLocation());
 					}
 
+					CollectHintListIndexer(assignment, collector);
 					break;
 			}
 		}
@@ -374,15 +375,22 @@ namespace LinqToDB.Analyzers
 			collector.AddResolved(kind, argument.Value, argument.Syntax.GetLocation());
 		}
 
-		// db.QueryHints.Add("..."), on the interface or an implementing property, directly or through a local initialized from it.
+		// db.QueryHints.Add("..."), on the interface or an implementing property, directly, through a local initialized from it,
+		// or in a collection initializer: new DataConnection() { QueryHints = { "..." } }.
 		static void CollectHintList(IInvocationOperation invocation, SqlTextCollector collector)
 		{
-			if (invocation.TargetMethod.Name is not ("Add" or "AddRange" or "Insert") || invocation.Instance is not { } instance)
+			if (invocation.TargetMethod.Name is not ("Add" or "AddRange" or "Insert" or "InsertRange") || invocation.Instance is not { } instance)
 				return;
 
 			var isAlias = false;
 
 			instance = Unwrap(instance);
+
+			if (instance is IInstanceReferenceOperation { ReferenceKind: InstanceReferenceKind.ImplicitReceiver }
+				&& invocation.Parent is IObjectOrCollectionInitializerOperation { Parent: IMemberInitializerOperation member })
+			{
+				instance = member.InitializedMember;
+			}
 
 			if (instance is ILocalReferenceOperation local)
 			{
@@ -404,25 +412,53 @@ namespace LinqToDB.Analyzers
 
 			var value = invocation.TargetMethod.Name switch
 			{
-				"Insert" => invocation.Arguments.Length > 1 ? invocation.Arguments[1].Value : null,
-				_        => invocation.Arguments.Length > 0 ? invocation.Arguments[0].Value : null,
+				"Insert" or "InsertRange" => invocation.Arguments.Length > 1 ? invocation.Arguments[1].Value : null,
+				_                         => invocation.Arguments.Length > 0 ? invocation.Arguments[0].Value : null,
 			};
 
 			if (value == null)
 				return;
 
-			if (string.Equals(invocation.TargetMethod.Name, "AddRange", StringComparison.Ordinal))
+			if (invocation.TargetMethod.Name is "AddRange" or "InsertRange")
 			{
-				if (Unwrap(value) is IArrayCreationOperation { Initializer: { } initializer })
-					foreach (var element in initializer.ElementValues)
-						collector.AddResolved("QueryHint", element, element.Syntax.GetLocation());
-				else
-					collector.ReportNotConstant(value, value.Syntax.GetLocation());
+				switch (Unwrap(value))
+				{
+					case IArrayCreationOperation { Initializer: { } initializer }:
+						foreach (var element in initializer.ElementValues)
+							collector.AddResolved("QueryHint", element, element.Syntax.GetLocation());
+						break;
+
+					case ICollectionExpressionOperation collection:
+						foreach (var element in collection.Elements)
+						{
+							if (element is ISpreadOperation)
+								collector.ReportNotConstant(element, element.Syntax.GetLocation());
+							else
+								collector.AddResolved("QueryHint", element, element.Syntax.GetLocation());
+						}
+
+						break;
+
+					default:
+						collector.ReportNotConstant(value, value.Syntax.GetLocation());
+						break;
+				}
 
 				return;
 			}
 
 			collector.AddResolved("QueryHint", value, value.Syntax.GetLocation());
+		}
+
+		// db.QueryHints[i] = "...": the indexer of a hint list replaces a hint
+		static void CollectHintListIndexer(ISimpleAssignmentOperation assignment, SqlTextCollector collector)
+		{
+			if (assignment.Target is IPropertyReferenceOperation { Property.IsIndexer: true, Instance: { } list }
+				&& Unwrap(list) is IPropertyReferenceOperation { Property: var property }
+				&& IsHintList(property))
+			{
+				collector.AddResolved("QueryHint", assignment.Value, assignment.Syntax.GetLocation());
+			}
 		}
 
 		static bool IsHintList(IPropertySymbol property)

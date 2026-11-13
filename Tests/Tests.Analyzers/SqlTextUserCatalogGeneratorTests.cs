@@ -521,6 +521,26 @@ namespace Tests.Analyzers
 				.ShouldBe(["QH_ADD", "QH_INSERT", "QH_RANGE_1", "QH_RANGE_2", "QH_ALIAS", "QH_IMPL"], ignoreOrder: true);
 		}
 
+		[Test]
+		public async Task QueryHintLists_OtherShapes()
+		{
+			var result = await GeneratorVerifier.RunAsync(Body("""
+				using var dc = new DataConnection() { QueryHints = { "QH_INIT" } };
+				db.QueryHints.AddRange(["QH_COLLECTION_1", "QH_COLLECTION_2"]);
+				db.QueryHints.InsertRange(0, new[] { "QH_INSERT_RANGE" });
+				db.QueryHints[0] = "QH_INDEXER";
+				db.QueryHints.AddRange([.. dynamicText.Split(',')]);
+				"""));
+
+			result
+				.Texts(SqlTextKind.QueryHint)
+				.ShouldBe(["QH_INIT", "QH_COLLECTION_1", "QH_COLLECTION_2", "QH_INSERT_RANGE", "QH_INDEXER"], ignoreOrder: true);
+			result
+				.Diagnostics
+				.Count(static d => d.Id == "L2DB1005")
+				.ShouldBe(1);
+		}
+
 		#endregion
 
 		// A target-typed new(...) spells no type name, so the member filter binds it regardless (Tests/Linq's ClickHouse
