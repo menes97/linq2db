@@ -1188,6 +1188,23 @@ namespace Tests.AST
 				.Rejections[0].Reason.ShouldBe(RemoteRejectionReason.TypeNotAllowed);
 		}
 
+		// FromSqlScalar<string> builds its raw table over the scalar type itself
+		[Test]
+		public void ScalarRawTableKeepsItsObjectType()
+		{
+			using var db = CreateConnection();
+
+			// as RawSqlContext builds it for FromSqlScalar<string>
+			var raw     = new SqlRawSqlTable(db.MappingSchema.GetEntityDescriptor(typeof(string)), InertText, true, [One]);
+			var catalog = new SqlTextCatalog();
+
+			catalog.Add(SqlTextKind.RawSqlTable, InertText);
+
+			var query = RoundTrip(db, SelectFrom(raw), RemoteQueryPolicy.Create(db, [], null, catalog));
+
+			((SqlRawSqlTable)query.Statement.SelectQuery!.From.Tables[0].Source).ObjectType.ShouldBe(typeof(string));
+		}
+
 		// MergeBuilder's output action pseudo-field: a table-less field with a fixed name the builders replace
 		[Test]
 		public void MergeActionPseudoFieldIsAccepted()

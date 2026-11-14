@@ -381,8 +381,9 @@ namespace LinqToDB.Internal.Remote
 					Reject(RemoteRejectionReason.TypeNotAllowed, entry, role, "Add the assembly declaring the type to LinqService.MappingAssemblies if it is your own type.");
 					return typeof(object);
 
+				// a scalar raw table (FromSqlScalar<T>) is typed by the scalar itself, which is never constructed as an entity
 				case RemoteTypeRole.Object:
-					return type != null && (_entityAssemblies.Contains(type.Assembly) || _definedTypes.Contains(type)) ? type : null;
+					return type != null && (_entityAssemblies.Contains(type.Assembly) || _definedTypes.Contains(type) || IsValueType(type)) ? type : null;
 
 				case RemoteTypeRole.Builder:
 					if (type != null && _builderAssemblies.Contains(type.Assembly) && typeof(ISqlExtensionBuilder).IsAssignableFrom(type))
