@@ -24,7 +24,6 @@ namespace Tests.xUpdate
 		}
 
 		[Test]
-		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName)]
 		public void CreateTable1([DataSources] string context)
 		{
 			using var db = GetDataContext(context);
@@ -47,7 +46,6 @@ namespace Tests.xUpdate
 		}
 
 		[Test]
-		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName)]
 		public void CreateTable2([DataSources] string context)
 		{
 			using var db = GetDataContext(context);
@@ -69,7 +67,6 @@ namespace Tests.xUpdate
 		}
 
 		[Test]
-		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName)]
 		public void CreateTable3([DataSources] string context)
 		{
 			using var db = GetDataContext(context);
@@ -93,7 +90,6 @@ namespace Tests.xUpdate
 		}
 
 		[Test]
-		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName)]
 		public async ValueTask CreateTable3Async([DataSources] string context)
 		{
 			await using var db = GetDataContext(context);
@@ -182,7 +178,6 @@ namespace Tests.xUpdate
 		}
 
 		[Test]
-		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName)]
 		public async Task CreateTableAsync([DataSources] string context)
 		{
 			using var db = GetDataContext(context);

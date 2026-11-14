@@ -281,7 +281,6 @@ namespace Tests.Linq
 		}
 
 		[Test]
-		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.Expression)]
 		public void TestPositionedParameters([DataSources] string context)
 		{
 			using var db = GetDataContext(context);

@@ -1804,7 +1804,6 @@ namespace Tests.Linq
 		private static bool SomeComparison(string? column, Issue1622Enum value) => throw new ServerSideOnlyException(nameof(SomeComparison));
 
 		[Test]
-		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.Expression)]
 		public void Issue1622Test([DataSources] string context)
 		{
 			var ms = new MappingSchema();

@@ -985,7 +985,6 @@ namespace Tests.Linq
 		// extension keeps its argument set-wise. Option off only: with the option on, a non-server-side-only extension inside a
 		// moved calculation keeps today's divergence.
 		[Test]
-		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.Expression)]
 		public void ExtensionScalarArgumentOverMissedLeftJoinKeepsNull([DataSources] string context)
 		{
 			using var db    = GetDataContext(context, o => o.UsePreferClientCalculation(false));
@@ -1767,7 +1766,6 @@ namespace Tests.Linq
 		// Every shape the projection calculates with reads a missed row's non-nullable member as default(T), directly, through
 		// a numeric cast, a conditional's branch or an identity function, and whether the option moves the calculation or not.
 		[Test]
-		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.Function)]
 		public void EveryCalculationOverMissedLeftJoinReadsDefault([DataSources] string context, [Values] bool preferClient)
 		{
 			using var db    = GetDataContext(context, o => o.UsePreferClientCalculation(preferClient));
@@ -2950,7 +2948,6 @@ namespace Tests.Linq
 		}
 
 		[Test]
-		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.Function)]
 		public void ProjectionResultsMatchAcrossProviders([DataSources] string context, [Values] bool preferClient)
 		{
 			using var db    = GetDataContext(context, o => o.UsePreferClientCalculation(preferClient));

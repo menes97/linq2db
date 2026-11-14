@@ -46,7 +46,7 @@ namespace Tests.Linq
 		private const string DateOnlySkipProviders = $"{TestProvName.AllAccess},{ProviderName.SqlCe},{TestProvName.AllSqlServer2005},{ProviderName.PostgreSQL92},{ProviderName.PostgreSQL93}";
 
 		[Test]
-		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.Expression)]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.Expression, Context = "SQLite")]
 		public void Parse1([DataSources(DateOnlySkipProviders)] string context)
 		{
 			using var db    = GetDataContext(context);

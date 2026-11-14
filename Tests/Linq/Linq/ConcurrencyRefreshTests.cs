@@ -13,8 +13,6 @@ using NUnit.Framework;
 
 using Shouldly;
 
-using LinqToDB.Remote;
-
 namespace Tests.Linq
 {
 	[TestFixture]
@@ -742,7 +740,6 @@ namespace Tests.Linq
 		// (set in its DataProvider) needs updating.
 		[Test]
 		[NoBaselines("probes provider capability")]
-		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName)]
 		public void OutputSupportSurface([DataSources] string context)
 		{
 			using var db = GetDataContext(context);
@@ -787,7 +784,6 @@ namespace Tests.Linq
 		// that the provider's flag (set in its DataProvider) needs updating.
 		[Test]
 		[NoBaselines("probes provider capability")]
-		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName)]
 		public void AffectedRowsCountSurface([DataSources] string context)
 		{
 			using var db = GetDataContext(context);

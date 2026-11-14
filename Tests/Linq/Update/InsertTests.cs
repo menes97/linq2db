@@ -23,8 +23,6 @@ using Tests.Model;
 // ReSharper disable ConvertToConstant.Local
 #endregion
 
-using LinqToDB.Remote;
-
 namespace Tests.xUpdate
 {
 	[TestFixture]
@@ -1663,7 +1661,6 @@ namespace Tests.xUpdate
 		}
 
 		[Test]
-		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName)]
 		public void InsertByTableName([DataSources] string context)
 		{
 			const string? schemaName = null;
@@ -1706,7 +1703,6 @@ namespace Tests.xUpdate
 		}
 
 		[Test]
-		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName)]
 		public async Task InsertByTableNameAsync([DataSources] string context)
 		{
 			const string? schemaName = null;
@@ -1749,7 +1745,6 @@ namespace Tests.xUpdate
 		}
 
 		[Test]
-		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName)]
 		public void InsertOrReplaceByTableName([InsertOrUpdateDataSources] string context)
 		{
 			const string? schemaName = null;
@@ -1787,7 +1782,6 @@ namespace Tests.xUpdate
 		}
 
 		[Test]
-		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName)]
 		public async Task InsertOrReplaceByTableNameAsync([InsertOrUpdateDataSources] string context)
 		{
 			const string? schemaName = null;

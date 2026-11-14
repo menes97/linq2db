@@ -20,8 +20,6 @@ using Tests.Model;
 // ReSharper disable ConvertToConstant.Local
 #endregion
 
-using LinqToDB.Remote;
-
 namespace Tests.xUpdate
 {
 	[TestFixture]
@@ -1446,7 +1444,6 @@ namespace Tests.xUpdate
 		}
 
 		[Test]
-		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName)]
 		public void UpdateByTableName([DataSources] string context)
 		{
 			const string? schemaName = null;
@@ -1484,7 +1481,6 @@ namespace Tests.xUpdate
 		}
 
 		[Test]
-		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName)]
 		public async Task UpdateByTableNameAsync([DataSources] string context)
 		{
 			const string? schemaName = null;
@@ -1634,7 +1630,6 @@ namespace Tests.xUpdate
 		[Obsolete("Remove test after API removed")]
 		[Test]
 		[ThrowsRequiresCorrelatedSubquery(simple: true)]
-		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName)]
 		public void TestUpdateFromJoinDifferentTableOld([DataSources(
 			TestProvName.AllAccess, // access doesn't have Replace mapping
 			TestProvName.AllClickHouse,
@@ -1679,7 +1674,6 @@ namespace Tests.xUpdate
 
 		[Test]
 		[ThrowsRequiresCorrelatedSubquery(simple: true)]
-		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName)]
 		public void TestUpdateFromJoinDifferentTable([DataSources(
 			TestProvName.AllAccess, // access doesn't have Replace mapping
 			TestProvName.AllClickHouse,

@@ -20,8 +20,6 @@ using Shouldly;
 
 using Tests.Model;
 
-using LinqToDB.Remote;
-
 namespace Tests.Linq
 {
 	[TestFixture]
@@ -1168,7 +1166,6 @@ namespace Tests.Linq
 		static bool Issue5505IsPositive(int x) => throw new ServerSideOnlyException(nameof(Issue5505IsPositive));
 
 		[Test(Description = "https://github.com/linq2db/linq2db/issues/5505")]
-		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.Expression)]
 		public void UpdateValuesWithUnrelatedFunctionConversion([DataSources] string context, [Values] bool inline)
 		{
 			using var db        = GetDataContext(context);

@@ -7,8 +7,6 @@ using LinqToDB.Mapping;
 
 using NUnit.Framework;
 
-using LinqToDB.Remote;
-
 namespace Tests.xUpdate
 {
 	public partial class MergeTests : TestBase
@@ -351,7 +349,6 @@ namespace Tests.xUpdate
 		[ActiveIssue(Configuration = TestProvName.AllAccessLibRed,
 			Details = "no-declaration: LibRed keeps sub-second precision that Access truncates, so a DATETIME round-trip returns 09:44:34.6530000 where the Microsoft drivers return 09:44:34 - an assertion failure, not a throw. LibRed.Ado 11.0.0-alpha.3 to beta.1; re-check when a newer LibRed ships.")]
 		[Test]
-		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName)]
 		public void TestMergeTypes([DataSources(true)] string context)
 		{
 			var isIDS = IsIDSProvider(context);

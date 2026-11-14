@@ -9,8 +9,6 @@ using NUnit.Framework;
 
 using Tests.Model;
 
-using LinqToDB.Remote;
-
 namespace Tests.Linq
 {
 	[TestFixture]
@@ -701,7 +699,6 @@ namespace Tests.Linq
 		}
 
 		[Test]
-		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.Function)]
 		public void TestAsSqlBoolTranslation([DataSources] string context)
 		{
 			using var db = GetDataContext(context);
@@ -712,7 +709,6 @@ namespace Tests.Linq
 		}
 
 		[Test]
-		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.Function)]
 		public void TestNoAsSqlBoolTranslation([DataSources] string context)
 		{
 			using var db = GetDataContext(context);

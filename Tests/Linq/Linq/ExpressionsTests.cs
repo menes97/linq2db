@@ -21,6 +21,8 @@ using Shouldly;
 
 using Tests.Model;
 
+using LinqToDB.Remote;
+
 namespace Tests.Linq
 {
 	[TestFixture]
@@ -1026,6 +1028,7 @@ namespace Tests.Linq
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TypeNotAllowed, Context = "PostgreSQL")]
 		public void Issue2431Test([IncludeDataSources(true, TestProvName.AllPostgreSQL93Plus)] string context)
 		{
 			using var db = GetDataContext(context);

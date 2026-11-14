@@ -133,7 +133,7 @@ namespace Tests.UserTests
 		}
 
 		[Test]
-		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName)]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName, Context = "SQLite", Partial = true)]
 		public async Task TestCreate(
 			[DataSources] string context,
 			[Values] bool withServer,
@@ -165,7 +165,7 @@ namespace Tests.UserTests
 		}
 
 		[Test]
-		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName)]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName, Context = "SQLite", Partial = true)]
 		public async Task TestCreateAsync(
 			[DataSources] string context,
 			[Values] bool withServer,
@@ -195,7 +195,7 @@ namespace Tests.UserTests
 		}
 
 		[Test]
-		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName)]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName, Context = "SQLite", Partial = true)]
 		public async Task TestDrop(
 			[DataSources] string context,
 			[Values] bool withServer,

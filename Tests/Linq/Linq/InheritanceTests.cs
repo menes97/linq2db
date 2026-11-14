@@ -13,6 +13,8 @@ using NUnit.Framework;
 
 using Tests.Model;
 
+using LinqToDB.Remote;
+
 namespace Tests.Linq
 {
 	[TestFixture]
@@ -1162,6 +1164,7 @@ namespace Tests.Linq
 		[ActiveIssue(4666, ErrorTypeName = "System.InvalidOperationException", ErrorMessage = "Member 'System.String Type1EntityProp' not found in type",
 			Details = "merging into a TPH table cannot resolve the derived member - #4666's subject. The fragment stops before the type name.")]
 		[Test(Description = "https://github.com/linq2db/linq2db/issues/4666")]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName, Context = "PostgreSQL")]
 		public void Issue4666Test([MergeDataContextSource] string context)
 		{
 			using var db = GetDataContext(context);
