@@ -396,6 +396,14 @@ namespace LinqToDB.Internal.Remote
 			}
 		}
 
+		static bool IsSqlRow(Type type)
+		{
+			return type.IsGenericType
+				&& type.Assembly == typeof(Sql).Assembly
+				&& type.DeclaringType == typeof(Sql)
+				&& type.Name.StartsWith("SqlRow`", StringComparison.Ordinal);
+		}
+
 		bool IsValueType(Type type)
 		{
 			if (type.IsArray)
@@ -403,6 +411,10 @@ namespace LinqToDB.Internal.Remote
 
 			if (type == typeof(Sql.SqlID) || _schema.IsScalarType(type))
 				return true;
+
+			// a row value (Sql.Row(...) in a list, sent as an array of rows) holds only its own values
+			if (IsSqlRow(type))
+				return type.GetGenericArguments().All(IsValueType);
 
 			var unwrapped = Nullable.GetUnderlyingType(type) ?? type;
 

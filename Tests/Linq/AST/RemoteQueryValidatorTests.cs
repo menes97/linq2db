@@ -1138,6 +1138,56 @@ namespace Tests.AST
 			RoundTrip(db, new SqlSelectStatement(query), RemoteQueryPolicy.Create(db, [_thisAssembly], null));
 		}
 
+		// Sql.GroupBy's GROUPING({fields, ', '}): a list token is accepted with up to MaxListItems items
+		[TestCase(1), TestCase(2), TestCase(8)]
+		public void ListTemplateIsAcceptedWithinTheBound(int items)
+		{
+			using var db = CreateConnection();
+
+			var text = "GROUPING(" + string.Join(", ", Enumerable.Range(0, items).Select(static i => $"{{{i}}}")) + ")";
+
+			RoundTrip(db, SelectOf(new SqlExpression(new DbDataType(typeof(int)), text, Enumerable.Repeat<ISqlExpression>(One, items).ToArray())), Untrusted(db));
+		}
+
+		[Test]
+		public void ListTemplateBeyondTheBoundIsRejected()
+		{
+			using var db = CreateConnection();
+
+			var text = "GROUPING(" + string.Join(", ", Enumerable.Range(0, 9).Select(static i => $"{{{i}}}")) + ")";
+
+			RejectedSingle(db, SelectOf(new SqlExpression(new DbDataType(typeof(int)), text, Enumerable.Repeat<ISqlExpression>(One, 9).ToArray())))
+				.Reason.ShouldBe(RemoteRejectionReason.TextNotInCatalog);
+		}
+
+		[Test]
+		public void RowOfAllowedValuesIsAccepted()
+		{
+			using var db = CreateConnection();
+
+			var policy = Untrusted(db);
+
+			policy.TryResolveName(typeof(Sql.SqlRow<string, int>[]).AssemblyQualifiedName!, out var type).ShouldBeTrue();
+
+			var rows = new[] { Sql.Row("a", 1), Sql.Row("b", 2) };
+
+			// the role check runs before conversion; a hand-built row value then fails to convert, trusted or not
+			var exception = Assert.Catch(() => RoundTrip(db, SelectOf(new SqlValue(new DbDataType(typeof(Sql.SqlRow<string, int>[])), rows)), policy));
+
+			exception.ShouldNotBeOfType<RemoteRequestRejectedException>();
+		}
+
+		[Test]
+		public void RowOfDisallowedValueIsRejected()
+		{
+			using var db = CreateConnection();
+
+			var statement = SelectOf(new SqlValue(new DbDataType(typeof(Sql.SqlRow<string, RecordingValue>[])), new[] { Sql.Row("a", new RecordingValue("x")) }));
+
+			Assert.Throws<RemoteRequestRejectedException>(() => RoundTrip(db, statement, Untrusted(db, _thisAssembly)))!
+				.Rejections[0].Reason.ShouldBe(RemoteRejectionReason.TypeNotAllowed);
+		}
+
 		// MergeBuilder's output action pseudo-field: a table-less field with a fixed name the builders replace
 		[Test]
 		public void MergeActionPseudoFieldIsAccepted()

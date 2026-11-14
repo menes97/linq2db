@@ -356,47 +356,83 @@ namespace LinqToDB.Remote
 		}
 
 		const int MaxOptionalTokens = 6;
+		/// <summary>A list token is accepted with up to this many items; a longer list is rejected.</summary>
+		internal const int MaxListItems = 8;
+		const int MaxExpansions     = 4096;
 
+		/// <summary>
+		/// Every text a template with named tokens renders: an optional token present or absent, and a list token with 1 to
+		/// <see cref="MaxListItems"/> items joined by its delimiter, as <c>Sql.ExtensionAttribute</c> builds it. A template
+		/// with more renderings than the bound expands to nothing, so it is not accepted at all.
+		/// </summary>
 		internal static IReadOnlyList<string> ExpandTemplate(string template)
 		{
-			var tokens   = new List<string>();
-			var hasList  = false;
+			var tokens = new List<string>();
+			var lists  = new List<string>();
 
 			Sql.ExpressionAttribute.ResolveExpressionValues(
 				(object?)null,
 				template,
 				(_, name, delimiter) =>
 				{
-					hasList |= delimiter != null;
-
 					if (!tokens.Contains(name, StringComparer.Ordinal))
 						tokens.Add(name);
+
+					if (delimiter != null && !lists.Contains(name, StringComparer.Ordinal))
+						lists.Add(name);
 
 					return "{0}";
 				},
 				out _);
-
-			if (hasList)
-				return [];
 
 			var optional = tokens.Where(t => template.Contains("{" + t + "?", StringComparison.Ordinal)).ToList();
 
 			if (optional.Count > MaxOptionalTokens)
 				return [];
 
-			var results = new List<string>(1 << optional.Count);
+			var total = (long)(1 << optional.Count);
+
+			foreach (var _ in lists)
+				if ((total *= MaxListItems) > MaxExpansions)
+					return [];
+
+			var results = new List<string>((int)total);
+			var counts  = new int[lists.Count];
 
 			for (var mask = 0; mask < 1 << optional.Count; mask++)
 			{
 				var absent = new HashSet<string>(optional.Where((_, i) => (mask & (1 << i)) != 0), StringComparer.Ordinal);
 
-				var text = Sql.ExpressionAttribute.ResolveExpressionValues(
-					absent,
-					template,
-					static (a, name, _) => a.Contains(name) ? null : "{0}",
-					out _);
+				for (var k = 0; k < counts.Length; k++)
+					counts[k] = 1;
 
-				results.Add(text);
+				while (true)
+				{
+					var text = Sql.ExpressionAttribute.ResolveExpressionValues(
+						absent,
+						template,
+						(a, name, delimiter) =>
+						{
+							if (a.Contains(name))
+								return null;
+
+							var index = lists.IndexOf(name);
+
+							return index < 0 || delimiter == null ? "{0}" : string.Join(delimiter, Enumerable.Repeat("{0}", counts[index]));
+						},
+						out _);
+
+					results.Add(text);
+
+					// next combination of list item counts
+					var next = 0;
+
+					while (next < counts.Length && ++counts[next] > MaxListItems)
+						counts[next++] = 1;
+
+					if (next == counts.Length)
+						break;
+				}
 			}
 
 			return results;
