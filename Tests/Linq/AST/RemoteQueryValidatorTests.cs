@@ -1138,6 +1138,27 @@ namespace Tests.AST
 			RoundTrip(db, new SqlSelectStatement(query), RemoteQueryPolicy.Create(db, [_thisAssembly], null));
 		}
 
+		// MergeBuilder's output action pseudo-field: a table-less field with a fixed name the builders replace
+		[Test]
+		public void MergeActionPseudoFieldIsAccepted()
+		{
+			using var db = CreateConnection();
+
+			var field = new SqlField(PseudoFunctions.MERGE_ACTION, PseudoFunctions.MERGE_ACTION) { Type = new DbDataType(typeof(string)) };
+
+			RoundTrip(db, SelectOf(field), RemoteQueryPolicy.Create(db, [_thisAssembly], null));
+		}
+
+		[Test]
+		public void OtherTablelessFieldOutsideShapeIsRejected()
+		{
+			using var db = CreateConnection();
+
+			var field = new SqlField("$other$", "$other$") { Type = new DbDataType(typeof(string)) };
+
+			Rejected(db, SelectOf(field)).Rejections.ShouldContain(static r => r.Reason == RemoteRejectionReason.IdentifierNotMapped && r.Text == "$other$");
+		}
+
 		// every builder in the validator's argument table, with the identifier key it accepts, if any
 		static readonly (string Builder, string? IdentifierKey)[] _builders =
 		[

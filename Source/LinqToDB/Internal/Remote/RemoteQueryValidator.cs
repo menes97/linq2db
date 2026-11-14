@@ -329,6 +329,10 @@ namespace LinqToDB.Internal.Remote
 			if (string.Equals(field.Name, "*", StringComparison.Ordinal) && string.Equals(field.PhysicalName, "*", StringComparison.Ordinal))
 				return;
 
+			// the MERGE output action pseudo-field: a fixed name the SQL builders replace with the provider's action function
+			if (field.Table == null && string.Equals(field.PhysicalName, PseudoFunctions.MERGE_ACTION, StringComparison.Ordinal))
+				return;
+
 			var isMappedOwner = field.Table is SqlTable { ObjectType: not null } && !field.IsDynamic;
 
 			if (isMappedOwner)

@@ -490,10 +490,10 @@ namespace LinqToDB.Internal.Remote
 
 		/// <summary>Rejects a result column type the server would build a reader for, unless it is a value type of the server schema.</summary>
 		/// <param name="type">Type from <see cref="GetResultFieldType(MappingSchema, ISqlExpression)"/>.</param>
-		internal void CheckResultType(Type type)
+		internal void CheckResultType(Type? type)
 		{
 			// read as the raw provider value, with no conversion
-			if (type == typeof(object))
+			if (type == null || type == typeof(object))
 				return;
 
 			if (!IsValueType(type))
@@ -510,13 +510,13 @@ namespace LinqToDB.Internal.Remote
 		{
 			var fieldType = expression.SystemType;
 
-			if (fieldType == null)
-				return null;
-
 			// value converter applied on client side for both directions
-			// here on read we need to prepare expected by converter type
+			// here on read we need to prepare expected by converter type; it also supplies a type the expression lacks
 			if (QueryHelper.GetValueConverter(expression) is { } valueConverter)
 				fieldType = valueConverter.FromProviderExpression.Parameters[0].Type;
+
+			if (fieldType == null)
+				return null;
 
 			// async compiled query support
 			if (fieldType.IsGenericType && fieldType.GetGenericTypeDefinition() == typeof(Task<>))
