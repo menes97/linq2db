@@ -5,6 +5,8 @@ using LinqToDB.Mapping;
 
 using NUnit.Framework;
 
+using LinqToDB.Remote;
+
 namespace Tests.xUpdate
 {
 	public partial class MergeTests
@@ -167,6 +169,8 @@ namespace Tests.xUpdate
 		}
 
 		[Test]
+		// known limitation: PostgreSQL MERGE takes the source's VALUES field names from the members, and an explicit interface member's dotted name is outside the identifier shape
+		[RejectedWhenUntrusted(RemoteRejectionReason.IdentifierNotMapped, Context = "PostgreSQL")]
 		public void ExplicitInterfaceProperty_UpdateWhenMatched([MergeDataContextSource] string context)
 		{
 			var ms = new MappingSchema();
