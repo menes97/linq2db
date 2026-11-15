@@ -47,6 +47,7 @@ namespace Tests.Linq
 
 		[Test]
 		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.Expression, Context = "SQLite")]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.Expression, Context = "SqlServer")]
 		public void Parse1([DataSources(DateOnlySkipProviders)] string context)
 		{
 			using var db    = GetDataContext(context);

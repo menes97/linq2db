@@ -11,6 +11,8 @@ using NUnit.Framework;
 
 using Shouldly;
 
+using LinqToDB.Remote;
+
 namespace Tests.xUpdate
 {
 	[TestFixture]
@@ -671,6 +673,7 @@ namespace Tests.xUpdate
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName, Context = "SqlServer")]
 		public void UpdateITableWithDefaultOutputIntoTest([IncludeDataSources(true, FeatureUpdateOutputInto)] string context)
 		{
 			var sourceData    = GetSourceData();
@@ -693,6 +696,7 @@ namespace Tests.xUpdate
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName, Context = "SqlServer")]
 		public async Task UpdateITableWithDefaultOutputIntoTestAsync([IncludeDataSources(true, FeatureUpdateOutputInto)] string context)
 		{
 			var sourceData    = GetSourceData();
@@ -763,6 +767,7 @@ namespace Tests.xUpdate
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName, Context = "SqlServer")]
 		public void UpdateITableWithProjectionOutputIntoTest([IncludeDataSources(true, FeatureUpdateOutputInto)] string context)
 		{
 			var sourceData    = GetSourceData();
@@ -797,6 +802,7 @@ namespace Tests.xUpdate
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName, Context = "SqlServer")]
 		public async Task UpdateITableWithProjectionOutputIntoTestAsync([IncludeDataSources(true, FeatureUpdateOutputInto)] string context)
 		{
 			var sourceData    = GetSourceData();
@@ -1453,6 +1459,7 @@ namespace Tests.xUpdate
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName, Context = "SqlServer")]
 		public void UpdateExpressionWithDefaultOutputIntoTest([IncludeDataSources(true, FeatureUpdateOutputInto)] string context)
 		{
 			var sourceData    = GetSourceData();
@@ -1475,6 +1482,7 @@ namespace Tests.xUpdate
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName, Context = "SqlServer")]
 		public async Task UpdateExpressionWithDefaultOutputIntoTestAsync([IncludeDataSources(true, FeatureUpdateOutputInto)] string context)
 		{
 			var sourceData    = GetSourceData();
@@ -1549,6 +1557,7 @@ namespace Tests.xUpdate
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName, Context = "SqlServer")]
 		public void UpdateExpressionWithProjectionOutputIntoTest([IncludeDataSources(true, FeatureUpdateOutputInto)] string context)
 		{
 			var sourceData    = GetSourceData();
@@ -1583,6 +1592,7 @@ namespace Tests.xUpdate
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName, Context = "SqlServer")]
 		public async Task UpdateExpressionWithProjectionOutputIntoTestAsync([IncludeDataSources(true, FeatureUpdateOutputInto)] string context)
 		{
 			var sourceData    = GetSourceData();
@@ -2009,6 +2019,7 @@ namespace Tests.xUpdate
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName, Context = "SqlServer")]
 		public void UpdateSourceWithDefaultOutputIntoTest([IncludeDataSources(true, FeatureUpdateOutputInto)] string context)
 		{
 			var sourceData         = GetSourceData();
@@ -2033,6 +2044,7 @@ namespace Tests.xUpdate
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName, Context = "SqlServer")]
 		public async Task UpdateSourceWithDefaultOutputIntoTestAsync([IncludeDataSources(true, FeatureUpdateOutputInto)] string context)
 		{
 			var sourceData         = GetSourceData();
@@ -2113,6 +2125,7 @@ namespace Tests.xUpdate
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName, Context = "SqlServer")]
 		public void UpdateSourceWithProjectionOutputIntoTest([IncludeDataSources(true, FeatureUpdateOutputInto)] string context)
 		{
 			var sourceData         = GetSourceData();
@@ -2138,6 +2151,7 @@ namespace Tests.xUpdate
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName, Context = "SqlServer")]
 		public async Task UpdateSourceWithProjectionOutputTestIntoAsync([IncludeDataSources(true, FeatureUpdateOutputInto)] string context)
 		{
 			var sourceData         = GetSourceData();
@@ -2569,6 +2583,7 @@ namespace Tests.xUpdate
 		}
 		
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName, Context = "SqlServer")]
 		public void UpdateIUpdatableWithDefaultOutputIntoTest([IncludeDataSources(true, FeatureUpdateOutputInto)] string context)
 		{
 			var sourceData         = GetSourceData();
@@ -2595,6 +2610,7 @@ namespace Tests.xUpdate
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName, Context = "SqlServer")]
 		public async Task UpdateIUpdatableWithDefaultOutputIntoTestAsync([IncludeDataSources(true, FeatureUpdateOutputInto)] string context)
 		{
 			var sourceData         = GetSourceData();
@@ -2677,6 +2693,7 @@ namespace Tests.xUpdate
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName, Context = "SqlServer")]
 		public void UpdateIUpdatableWithProjectionOutputIntoTest([IncludeDataSources(true, FeatureUpdateOutputInto)] string context)
 		{
 			var sourceData         = GetSourceData();
@@ -2704,6 +2721,7 @@ namespace Tests.xUpdate
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName, Context = "SqlServer")]
 		public async Task UpdateIUpdatableWithProjectionOutputTestIntoAsync([IncludeDataSources(true, FeatureUpdateOutputInto)] string context)
 		{
 			var sourceData         = GetSourceData();
@@ -2927,6 +2945,7 @@ namespace Tests.xUpdate
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName, Context = "SqlServer")]
 		public void Issue5450_UpdateOverCte_WithMultiTableQuery([IncludeDataSources(true, TestProvName.AllSqlServer2008Plus)] string context)
 		{
 			// Regression: BasicCorrectUpdate previously bailed unless Update.Table was a

@@ -80,6 +80,7 @@ namespace Tests.Linq
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName, Context = "SqlServer")]
 		public void TableNameTests1([IncludeDataSources(true, TestProvName.AllSqlServer2012Plus)] string context)
 		{
 			using var db = GetDataContext(context);
@@ -147,6 +148,7 @@ namespace Tests.Linq
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName, Context = "SqlServer")]
 		public void TableExprTests1([IncludeDataSources(true, TestProvName.AllSqlServer2012Plus)] string context)
 		{
 			using var db = GetDataContext(context);

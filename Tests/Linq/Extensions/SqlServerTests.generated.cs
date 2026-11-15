@@ -9,6 +9,8 @@ using LinqToDB.DataProvider.SqlServer;
 
 using NUnit.Framework;
 
+using LinqToDB.Remote;
+
 namespace Tests.Extensions
 {
 	partial class SqlServerTests
@@ -763,6 +765,7 @@ namespace Tests.Extensions
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.ExtensionArgument, Context = "SqlServer")]
 		public void OptionFastTest([IncludeDataSources(true, TestProvName.AllSqlServer)] string context)
 		{
 			using var db = GetDataContext(context);
@@ -858,6 +861,7 @@ namespace Tests.Extensions
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.ExtensionArgument, Context = "SqlServer")]
 		public void OptionMaxGrantPercentTest([IncludeDataSources(true, TestProvName.AllSqlServer2016Plus)] string context)
 		{
 			using var db = GetDataContext(context);
@@ -877,6 +881,7 @@ namespace Tests.Extensions
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.ExtensionArgument, Context = "SqlServer")]
 		public void OptionMinGrantPercentTest([IncludeDataSources(true, TestProvName.AllSqlServer2016Plus)] string context)
 		{
 			using var db = GetDataContext(context);
@@ -896,6 +901,7 @@ namespace Tests.Extensions
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.ExtensionArgument, Context = "SqlServer")]
 		public void OptionMaxDopTest([IncludeDataSources(true, TestProvName.AllSqlServer)] string context)
 		{
 			using var db = GetDataContext(context);
@@ -915,6 +921,7 @@ namespace Tests.Extensions
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.ExtensionArgument, Context = "SqlServer")]
 		public void OptionMaxRecursionTest([IncludeDataSources(true, TestProvName.AllSqlServer)] string context)
 		{
 			using var db = GetDataContext(context);
@@ -972,6 +979,7 @@ namespace Tests.Extensions
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.ExtensionArgument, Context = "SqlServer")]
 		public void OptionQueryTraceOnTest([IncludeDataSources(true, TestProvName.AllSqlServerNoAzure)] string context)
 		{
 			using var db = GetDataContext(context);

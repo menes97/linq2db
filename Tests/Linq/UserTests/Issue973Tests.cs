@@ -99,7 +99,7 @@ namespace Tests.UserTests
 		}
 
 		[Test]
-		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.Expression)]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.Expression, Context = "SQLite")]
 		public void Test([DataSources] string context)
 		{
 			using var db = GetDataContext(context);
@@ -116,7 +116,7 @@ namespace Tests.UserTests
 		}
 
 		[Test, QueryCacheTest]
-		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.Expression)]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.Expression, Context = "SQLite")]
 		public void TestCache([DataSources] string context)
 		{
 			using var db = GetDataContext(context);

@@ -8,6 +8,8 @@ using NUnit.Framework;
 
 using Shouldly;
 
+using LinqToDB.Remote;
+
 namespace Tests.Extensions
 {
 	[TestFixture]
@@ -78,6 +80,7 @@ namespace Tests.Extensions
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.ExtensionArgument, Context = "SqlServer")]
 		public void TableHintSpatialWindowMaxCellsTest([IncludeDataSources(true, TestProvName.AllSqlServer2012Plus)] string context)
 		{
 			using var db = GetDataContext(context);
@@ -92,6 +95,7 @@ namespace Tests.Extensions
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.ExtensionArgument, Context = "SqlServer")]
 		public void TableHintSpatialWindowMaxCellsTest2([IncludeDataSources(true, TestProvName.AllSqlServer2012Plus)] string context)
 		{
 			using var db = GetDataContext(context);
@@ -337,6 +341,7 @@ namespace Tests.Extensions
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.ExtensionArgument, Context = "SqlServer")]
 		public void QueryHintFastTest(
 			[IncludeDataSources(true, TestProvName.AllSqlServer)] string context)
 		{
@@ -357,6 +362,7 @@ namespace Tests.Extensions
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.ExtensionArgument, Context = "SqlServer")]
 		public void QueryHintMaxGrantPercentTest(
 			[IncludeDataSources(true, TestProvName.AllSqlServer2016Plus)] string context)
 		{
@@ -376,6 +382,7 @@ namespace Tests.Extensions
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.ExtensionArgument, Context = "SqlServer")]
 		public void QueryHintMinGrantPercentTest(
 			[IncludeDataSources(true, TestProvName.AllSqlServer2016Plus)] string context)
 		{
@@ -395,6 +402,7 @@ namespace Tests.Extensions
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.ExtensionArgument, Context = "SqlServer")]
 		public void QueryHintMaxDopTest(
 			[IncludeDataSources(true, TestProvName.AllSqlServer2008Plus)] string context)
 		{
@@ -414,6 +422,7 @@ namespace Tests.Extensions
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.ExtensionArgument, Context = "SqlServer")]
 		public void QueryHintMaxRecursionTest(
 			[IncludeDataSources(true, TestProvName.AllSqlServer2012Plus)] string context)
 		{
@@ -433,6 +442,7 @@ namespace Tests.Extensions
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.ExtensionArgument, Context = "SqlServer")]
 		public void QueryHintOptimizeForTest(
 			[IncludeDataSources(true, TestProvName.AllSqlServer2012Plus)] string context)
 		{
@@ -454,6 +464,7 @@ namespace Tests.Extensions
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.ExtensionArgument, Context = "SqlServer")]
 		public void QueryHintQueryTraceOnTest(
 			[IncludeDataSources(true, TestProvName.AllSqlServer2012PlusNoAzure)] string context)
 		{
@@ -543,6 +554,7 @@ namespace Tests.Extensions
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.ExtensionArgument, Context = "SqlServer")]
 		public void DeleteTest([IncludeDataSources(true, TestProvName.AllSqlServer)] string context)
 		{
 			using var db = GetDataContext(context);
@@ -561,6 +573,7 @@ namespace Tests.Extensions
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.ExtensionArgument, Context = "SqlServer")]
 		public void InsertTest([IncludeDataSources(true, TestProvName.AllSqlServer)] string context)
 		{
 			using var db = GetDataContext(context);
@@ -583,6 +596,7 @@ namespace Tests.Extensions
 
 		[Obsolete("Remove test after API removed")]
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.ExtensionArgument, Context = "SqlServer")]
 		public void UpdateTestOld([IncludeDataSources(true, TestProvName.AllSqlServer)] string context)
 		{
 			using var db = GetDataContext(context);
@@ -604,6 +618,7 @@ namespace Tests.Extensions
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.ExtensionArgument, Context = "SqlServer")]
 		public void UpdateTest([IncludeDataSources(true, TestProvName.AllSqlServer)] string context)
 		{
 			using var db = GetDataContext(context);
@@ -625,6 +640,7 @@ namespace Tests.Extensions
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.ExtensionArgument, Context = "SqlServer")]
 		public void MergeTest([IncludeDataSources(true, TestProvName.AllSqlServer2008Plus)] string context)
 		{
 			using var db = GetDataContext(context);
@@ -650,6 +666,7 @@ namespace Tests.Extensions
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.ExtensionArgument, Context = "SqlServer")]
 		public void CteTest([IncludeDataSources(true, TestProvName.AllSqlServer)] string context)
 		{
 			using var db = GetDataContext(context);

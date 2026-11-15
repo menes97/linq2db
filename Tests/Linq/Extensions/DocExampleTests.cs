@@ -143,6 +143,7 @@ namespace Tests.Extensions
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.ExtensionArgument, Context = "SqlServer")]
 		public void SqlServerTest([IncludeDataSources(true, TestProvName.AllSqlServer2012Plus)] string context)
 		{
 			using var db = GetDataContext(context);

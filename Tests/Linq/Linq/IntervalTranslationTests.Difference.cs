@@ -1218,6 +1218,7 @@ namespace Tests.Linq
 		/// </para>
 		/// </remarks>
 		[Test(Description = "https://github.com/linq2db/linq2db/issues/5777")]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName, Context = "SqlServer")]
 		public void DateDifferenceFromCoarseSqlServerTypes(
 			[IncludeDataSources(true, TestProvName.AllSqlServer2008Plus)] string context)
 		{

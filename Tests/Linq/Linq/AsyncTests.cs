@@ -184,7 +184,7 @@ namespace Tests.Linq
 		}
 
 		[Test]
-		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.Expression)]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.Expression, Context = "SQLite")]
 		public async Task TestFirstOrDefault([DataSources] string context)
 		{
 			using var db = GetDataContext(context);

@@ -1165,6 +1165,7 @@ namespace Tests.Linq
 			Details = "merging into a TPH table cannot resolve the derived member - #4666's subject. The fragment stops before the type name.")]
 		[Test(Description = "https://github.com/linq2db/linq2db/issues/4666")]
 		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName, Context = "PostgreSQL")]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName, Context = "SqlServer")]
 		public void Issue4666Test([MergeDataContextSource] string context)
 		{
 			using var db = GetDataContext(context);
@@ -1592,6 +1593,7 @@ namespace Tests.Linq
 		// updated table's, so it reaches EnsureDeclaringType by a route no other test covers. Unlike the
 		// row-returning form above it materializes nothing, so this one can assert success.
 		[Test(Description = "https://github.com/linq2db/linq2db/issues/5729")]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName, Context = "SqlServer")]
 		public void UpdateWithOutputIntoDerivedThroughBaseTable([IncludeDataSources(true, TestProvName.AllSqlServer)] string context)
 		{
 			using var db          = GetDataContext(context);
