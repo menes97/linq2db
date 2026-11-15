@@ -1205,6 +1205,30 @@ namespace Tests.AST
 			((SqlRawSqlTable)query.Statement.SelectQuery!.From.Tables[0].Source).ObjectType.ShouldBe(typeof(string));
 		}
 
+		// its value field maps no column of the scalar type, so it is checked by shape, as before the type was kept
+		[Test]
+		public void ScalarRawTableFieldIsAccepted()
+		{
+			using var db = CreateConnection();
+
+			var raw     = new SqlRawSqlTable(db.MappingSchema.GetEntityDescriptor(typeof(string)), InertText, true, [One]);
+			var catalog = new SqlTextCatalog();
+
+			catalog.Add(SqlTextKind.RawSqlTable, InertText);
+
+			// the builder adds the scalar's column as the field "value"
+			var value = new SqlField(new DbDataType(typeof(string)), "value", true);
+
+			raw.Add(value);
+
+			var query = new SelectQuery();
+
+			query.From.Tables.Add(new SqlTableSource(raw, "t"));
+			query.Select.Add(value);
+
+			RoundTrip(db, new SqlSelectStatement(query), RemoteQueryPolicy.Create(db, [], null, catalog));
+		}
+
 		// MergeBuilder's output action pseudo-field: a table-less field with a fixed name the builders replace
 		[Test]
 		public void MergeActionPseudoFieldIsAccepted()

@@ -333,7 +333,8 @@ namespace LinqToDB.Internal.Remote
 			if (field.Table == null && string.Equals(field.PhysicalName, PseudoFunctions.MERGE_ACTION, StringComparison.Ordinal))
 				return;
 
-			var isMappedOwner = field.Table is SqlTable { ObjectType: not null } && !field.IsDynamic;
+			// a scalar raw table (FromSqlScalar<T>) is typed by its scalar, which maps no columns: its field gets the shape check
+			var isMappedOwner = field.Table is SqlTable { ObjectType: not null } and not SqlRawSqlTable { IsScalar: true } && !field.IsDynamic;
 
 			if (isMappedOwner)
 			{
