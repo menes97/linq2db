@@ -973,6 +973,7 @@ Function	-	COVAR_POP
 Function	-	COVAR_SAMP
 Function	-	CUME_DIST
 Function	-	date_diff
+Function	-	DateDiff
 Function	-	DATEDIFF
 Function	-	Days
 Function	-	Days_Between
@@ -1049,6 +1050,7 @@ Function	-	SUBSTRING
 Function	-	SUM
 Function	-	Tan
 Function	-	Tanh
+Function	-	TIMESTAMPDIFF
 Function	-	ToDate
 Function	-	Trim
 Function	-	Truncate

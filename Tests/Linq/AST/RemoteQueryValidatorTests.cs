@@ -12,6 +12,7 @@ using System.Xml.Linq;
 using LinqToDB;
 using LinqToDB.Common;
 using LinqToDB.Data;
+using LinqToDB.DataProvider.MySql;
 using LinqToDB.DataProvider.SQLite;
 using LinqToDB.DataProvider.SqlServer;
 using LinqToDB.Internal.DataProvider;
@@ -95,6 +96,13 @@ namespace Tests.AST
 		}
 
 		sealed class OtherRow : RootRow;
+
+		sealed class DateRow
+		{
+			[PrimaryKey] public int      Id    { get; set; }
+			[Column]     public DateTime Start { get; set; }
+			[Column]     public DateTime End   { get; set; }
+		}
 
 		sealed class ParentRow
 		{
@@ -614,6 +622,17 @@ namespace Tests.AST
 			var table = new SqlTable(db.MappingSchema.GetEntityDescriptor(typeof(DerivedRow))) { TableName = new SqlObjectName(nameof(RootRow)) };
 
 			RoundTrip(db, SelectFrom(table), Untrusted(db, _thisAssembly));
+		}
+
+		// Sql.DateDiff on MySQL: DateDiffBuilder renders TIMESTAMPDIFF as a function
+		[Test]
+		public void LibraryDateDiffIsAccepted()
+		{
+			using var db = new DataConnection(new DataOptions().UseMySql("Server=offline", MySqlVersion.MySql80, MySqlProvider.MySqlConnector));
+
+			var statement = db.GetTable<DateRow>().Select(r => Sql.DateDiff(Sql.DateParts.Day, r.Start, r.End)).GetStatement();
+
+			RoundTrip(db, statement, Untrusted(db, _thisAssembly));
 		}
 
 		[Test]

@@ -153,11 +153,10 @@ namespace LinqToDB
 
 				var partSql   = new SqlFragment(DatePartToStr(part));
 
-				// the extension's Expression text is used as a function name: accepted from untrusted clients only where the
-				// same text is also catalogued as Function text
-				#pragma warning disable LINQ2DB0007
-				builder.ResultExpression = new SqlFunction(builder.Mapping.GetDbDataType(typeof(int)), builder.Expression, partSql, startdate, endDate);
-				#pragma warning restore LINQ2DB0007
+				// a literal name, not builder.Expression: the catalog holds Expression text, and this renders a function name
+				var name      = string.Equals(builder.Expression, "TIMESTAMPDIFF", StringComparison.Ordinal) ? "TIMESTAMPDIFF" : "DateDiff";
+
+				builder.ResultExpression = new SqlFunction(builder.Mapping.GetDbDataType(typeof(int)), name, partSql, startdate, endDate);
 			}
 		}
 
