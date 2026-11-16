@@ -38,7 +38,10 @@ namespace Tests
 		public RemoteRejectionReason Reason { get; }
 		public SqlTextKind?          Kind   { get; }
 
-		/// <summary>Restricts the expectation to remote cases of contexts containing this text, e.g. a provider name.</summary>
+		/// <summary>
+		/// Restricts the expectation to remote cases of contexts starting with this text, e.g. a provider family: a prefix, so
+		/// <c>"MySql"</c> does not govern <c>ClickHouse.MySql</c>.
+		/// </summary>
 		public string? Context { get; set; }
 
 		/// <summary>
@@ -59,7 +62,7 @@ namespace Tests
 
 			var context = test.Arguments.OfType<string>().FirstOrDefault(static a => a.EndsWith(TestBase.LinqServiceSuffix, StringComparison.Ordinal));
 
-			return context != null && (Context == null || context.Contains(Context)) ? context.StripRemote() : null;
+			return context != null && (Context == null || context.StartsWith(Context, StringComparison.Ordinal)) ? context.StripRemote() : null;
 		}
 
 		sealed class RejectedWhenUntrustedCommand : DelegatingTestCommand

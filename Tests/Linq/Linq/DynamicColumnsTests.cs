@@ -11,7 +11,6 @@ using LinqToDB.DataProvider.Firebird;
 using LinqToDB.Internal.Mapping;
 using LinqToDB.Mapping;
 using LinqToDB.Metadata;
-using LinqToDB.Remote;
 
 using NUnit.Framework;
 
@@ -490,7 +489,6 @@ namespace Tests.Linq
 		}
 
 		[Test]
-		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName)]
 		public void TestConcatWithDynamic([IncludeDataSources(true, TestProvName.AllSQLiteClassic, TestProvName.AllClickHouse)] string context)
 		{
 			var mappingSchema = new MappingSchema();
