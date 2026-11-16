@@ -49,4 +49,16 @@
 		<PackageReference Remove="System.Security.Cryptography.Pkcs" />
 	</ItemGroup>
 
+	<!-- the test helpers' own SQL text (TestUtils) reaches untrusted remote hosts too; see Tests/Linq/Tests.csproj -->
+	<PropertyGroup>
+		<LinqToDBSqlTextCatalog>true</LinqToDBSqlTextCatalog>
+		<NoWarn>$(NoWarn);L2DB1001;L2DB1002;L2DB1003;L2DB1004;L2DB1005;L2DB1006</NoWarn>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\..\Source\LinqToDB.Analyzers\LinqToDB.Analyzers.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+	</ItemGroup>
+
+	<Import Project="..\..\Source\LinqToDB.Analyzers.CodeFixes\build\linq2db.Analyzers.targets" />
+
 </Project>

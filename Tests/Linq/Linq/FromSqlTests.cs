@@ -1049,6 +1049,7 @@ namespace Tests.Linq
 
 		[Test]
 		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.RawSqlTable, Context = "PostgreSQL")]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.RawSqlTable, Context = "MySql")]
 		public void TestBasicScalarQueryWithoutExplicitAlias([DataSources(
 			TestProvName.AllAccess, 
 			TestProvName.AllMySql57,
@@ -1972,7 +1973,6 @@ namespace Tests.Linq
 
 		// a hand-built tree can pass the FormattableString as a constant, which expose leaves as is
 		[Test(Description = "https://github.com/linq2db/linq2db/pull/6008")]
-		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.RawSqlTable)]
 		public void FromSql_ConstantFormattableString([IncludeDataSources(true, TestProvName.AllSQLite)] string context)
 		{
 			using var db = GetDataContext(context);
@@ -2036,6 +2036,7 @@ namespace Tests.Linq
 
 		[Test(Description = "https://github.com/linq2db/linq2db/pull/6008")]
 		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.RawSqlTable, Context = "PostgreSQL")]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.RawSqlTable, Context = "MySql")]
 		public void ArgumentReferencedByAlternateNameIsSent([IncludeDataSources(true, TestProvName.AllPostgreSQL, TestProvName.AllMySql)] string context)
 		{
 			using var db = GetDataContext(context);

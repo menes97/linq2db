@@ -9,6 +9,8 @@ using NUnit.Framework;
 
 using Tests.Model;
 
+using LinqToDB.Remote;
+
 namespace Tests.Extensions
 {
 	[TestFixture]
@@ -65,6 +67,7 @@ namespace Tests.Extensions
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.IdentifierNotMapped, Context = "MySql")]
 		public void TableSubQueryHintTest([IncludeDataSources(true, TestProvName.AllMySql)] string context,
 			[Values(
 				MySqlHints.Query.SemiJoin, MySqlHints.Query.NoSemiJoin
@@ -113,6 +116,7 @@ namespace Tests.Extensions
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.IdentifierNotMapped, Context = "MySql")]
 		public void SetVarHintTest([IncludeDataSources(true, TestProvName.AllMySql)] string context)
 		{
 			using var db = GetDataContext(context);
@@ -160,6 +164,7 @@ namespace Tests.Extensions
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.ExtensionArgument, Context = "MySql")]
 		public void QueryHintFirstRowsTest([IncludeDataSources(true, TestProvName.AllMySql)] string context)
 		{
 			using var db = GetDataContext(context);
@@ -178,6 +183,7 @@ namespace Tests.Extensions
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.ExtensionArgument, Context = "MySql")]
 		public void TableIndexHintTest([IncludeDataSources(true, TestProvName.AllMySql)] string context,
 			[Values(
 				"USE INDEX",
@@ -200,6 +206,7 @@ namespace Tests.Extensions
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.IdentifierNotMapped, Context = "MySql")]
 		public void QueryHintSemiJoinWithQueryBlockTest([IncludeDataSources(true, TestProvName.AllMySql)] string context)
 		{
 			using var db = GetDataContext(context);
@@ -224,6 +231,7 @@ namespace Tests.Extensions
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.IdentifierNotMapped, Context = "MySql")]
 		public void QueryHintNoSemiJoinWithQueryBlockTest([IncludeDataSources(true, TestProvName.AllMySql)] string context)
 		{
 			using var db = GetDataContext(context);

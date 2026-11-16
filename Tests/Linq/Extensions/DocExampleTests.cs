@@ -34,6 +34,7 @@ namespace Tests.Extensions
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.IdentifierNotMapped, Context = "MySql")]
 		public void MySqlTest([IncludeDataSources(true, TestProvName.AllMySql)] string context)
 		{
 			using var db = GetDataContext(context);
@@ -170,6 +171,7 @@ namespace Tests.Extensions
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.ExtensionArgument, Context = "MySql")]
 		public void DatabaseSpecificTest([DataSources] string context)
 		{
 			using var db = GetDataContext(context);

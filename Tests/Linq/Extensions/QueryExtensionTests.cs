@@ -15,6 +15,8 @@ using Tests.Linq;
 
 using Tests.Model;
 
+using LinqToDB.Remote;
+
 namespace Tests.Extensions
 {
 	[TestFixture]
@@ -54,6 +56,7 @@ namespace Tests.Extensions
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.ExtensionArgument, Context = "MySql")]
 		public void DatabaseSpecificTest([DataSources] string context)
 		{
 			using var db = GetDataContext(context);
@@ -123,6 +126,7 @@ namespace Tests.Extensions
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.ExtensionArgument, Context = "MySql")]
 		public void UnionTest([DataSources(TestProvName.AllPostgreSQL)] string context)
 		{
 			using var db = GetDataContext(context);

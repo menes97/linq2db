@@ -9,6 +9,8 @@ using LinqToDB.DataProvider.MySql;
 
 using NUnit.Framework;
 
+using LinqToDB.Remote;
+
 namespace Tests.Extensions
 {
 	partial class MySqlTests
@@ -1280,6 +1282,7 @@ namespace Tests.Extensions
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.ExtensionArgument, Context = "MySql")]
 		public void QueryHintMaxExecutionTimeTest2([IncludeDataSources(true, TestProvName.AllMySql)] string context)
 		{
 			using var db = GetDataContext(context);
