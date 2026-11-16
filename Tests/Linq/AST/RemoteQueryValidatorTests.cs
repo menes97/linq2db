@@ -13,6 +13,7 @@ using LinqToDB;
 using LinqToDB.Common;
 using LinqToDB.Data;
 using LinqToDB.DataProvider.MySql;
+using LinqToDB.DataProvider.Oracle;
 using LinqToDB.DataProvider.SQLite;
 using LinqToDB.DataProvider.SqlServer;
 using LinqToDB.Internal.DataProvider;
@@ -633,6 +634,23 @@ namespace Tests.AST
 			var statement = db.GetTable<DateRow>().Select(r => Sql.DateDiff(Sql.DateParts.Day, r.Start, r.End)).GetStatement();
 
 			RoundTrip(db, statement, Untrusted(db, _thisAssembly));
+		}
+
+		// OracleHints.ParallelDefaultHint / ParallelAutoHint / ParallelManualHint send a fixed hint text
+		[Test]
+		public void LibraryOracleParallelHintIsAccepted([Values("DEFAULT", "AUTO", "MANUAL")] string degree)
+		{
+			using var db = new DataConnection(new DataOptions().UseOracle("Data Source=offline", OracleVersion.v12, OracleProvider.Managed));
+
+			var query  = db.GetTable<DateRow>().AsQueryable().AsOracle();
+			var hinted = degree switch
+			{
+				"DEFAULT" => query.ParallelDefaultHint(),
+				"AUTO"    => query.ParallelAutoHint(),
+				_         => query.ParallelManualHint(),
+			};
+
+			RoundTrip(db, hinted.GetStatement(), Untrusted(db, _thisAssembly));
 		}
 
 		[Test]

@@ -186,40 +186,45 @@ namespace LinqToDB.DataProvider.Oracle
 			return (query, hint) => QueryHint(query, Hint.Containers(hint));
 		}
 
+		// constants, so the SQL text catalog holds these hints for untrusted remote clients
+		const string ParallelDefault = Hint.Parallel + "(DEFAULT)";
+		const string ParallelAuto    = Hint.Parallel + "(AUTO)";
+		const string ParallelManual  = Hint.Parallel + "(MANUAL)";
+
 		[ExpressionMethod(nameof(ParallelDefaultHintImpl))]
 		public static IOracleSpecificQueryable<TSource> ParallelDefaultHint<TSource>(this IOracleSpecificQueryable<TSource> query)
 			where TSource : notnull
 		{
-			return QueryHint(query, $"{Hint.Parallel}(DEFAULT)");
+			return QueryHint(query, ParallelDefault);
 		}
 		static Expression<Func<IOracleSpecificQueryable<TSource>,IOracleSpecificQueryable<TSource>>> ParallelDefaultHintImpl<TSource>()
 			where TSource : notnull
 		{
-			return query => QueryHint(query, $"{Hint.Parallel}(DEFAULT)");
+			return query => QueryHint(query, ParallelDefault);
 		}
 
 		[ExpressionMethod(nameof(ParallelAutoHintImpl))]
 		public static IOracleSpecificQueryable<TSource> ParallelAutoHint<TSource>(this IOracleSpecificQueryable<TSource> query)
 			where TSource : notnull
 		{
-			return QueryHint(query, $"{Hint.Parallel}(AUTO)");
+			return QueryHint(query, ParallelAuto);
 		}
 		static Expression<Func<IOracleSpecificQueryable<TSource>,IOracleSpecificQueryable<TSource>>> ParallelAutoHintImpl<TSource>()
 			where TSource : notnull
 		{
-			return query => QueryHint(query, $"{Hint.Parallel}(AUTO)");
+			return query => QueryHint(query, ParallelAuto);
 		}
 
 		[ExpressionMethod(nameof(ParallelManualHintImpl))]
 		public static IOracleSpecificQueryable<TSource> ParallelManualHint<TSource>(this IOracleSpecificQueryable<TSource> query)
 			where TSource : notnull
 		{
-			return QueryHint(query, $"{Hint.Parallel}(MANUAL)");
+			return QueryHint(query, ParallelManual);
 		}
 		static Expression<Func<IOracleSpecificQueryable<TSource>,IOracleSpecificQueryable<TSource>>> ParallelManualHintImpl<TSource>()
 			where TSource : notnull
 		{
-			return query => QueryHint(query, $"{Hint.Parallel}(MANUAL)");
+			return query => QueryHint(query, ParallelManual);
 		}
 
 		[ExpressionMethod(nameof(ParallelHintImpl2))]

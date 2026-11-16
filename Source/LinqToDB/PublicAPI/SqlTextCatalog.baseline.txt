@@ -773,6 +773,9 @@ ExtensionArgument	Oracle	OPT_PARAM
 ExtensionArgument	Oracle	ORDERED
 ExtensionArgument	Oracle	PARALLEL
 ExtensionArgument	Oracle	PARALLEL_INDEX
+ExtensionArgument	Oracle	PARALLEL(AUTO)
+ExtensionArgument	Oracle	PARALLEL(DEFAULT)
+ExtensionArgument	Oracle	PARALLEL(MANUAL)
 ExtensionArgument	Oracle	PQ_CONCURRENT_UNION
 ExtensionArgument	Oracle	PQ_DISTRIBUTE
 ExtensionArgument	Oracle	PQ_FILTER(HASH)
