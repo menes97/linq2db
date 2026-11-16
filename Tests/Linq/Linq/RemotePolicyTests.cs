@@ -49,56 +49,56 @@ namespace Tests.Linq
 		const string Blocked = "Blocked.Configuration";
 
 		[Test]
-		public void DisallowedConfigurationIsRejectedBeforeCreatingContext([Values("GetInfo", "NonQuery", "Scalar", "Reader", "Batch")] string entryPoint)
+		public async Task DisallowedConfigurationIsRejectedBeforeCreatingContext([Values("GetInfo", "NonQuery", "Scalar", "Reader", "Batch")] string entryPoint)
 		{
 			var service = new CountingService();
 
-			var exception = Assert.ThrowsAsync<RemoteRequestRejectedException>(async () => await Call(service, entryPoint, Blocked))!;
+			var exception = await Shouldly.Should.ThrowAsync<RemoteRequestRejectedException>(async () => await Call(service, entryPoint, Blocked));
 
 			service.Created.ShouldBe(0);
 			exception.Rejections[0].Reason.ShouldBe(RemoteRejectionReason.ConfigurationNotAllowed);
 		}
 
 		[Test]
-		public void DefaultConfigurationIsAcceptedWhenListIsEmpty()
+		public async Task DefaultConfigurationIsAcceptedWhenListIsEmpty()
 		{
 			var service = new CountingService();
 
-			Assert.ThrowsAsync<InvalidOperationException>(async () => await Call(service, "Reader", null));
+			await Assert.ThatAsync(async () => await Call(service, "Reader", null), Throws.TypeOf<InvalidOperationException>());
 
 			service.Created.ShouldBe(1);
 		}
 
 		[Test]
-		public void DefaultConfigurationIsRejectedWhenListOmitsIt()
+		public async Task DefaultConfigurationIsRejectedWhenListOmitsIt()
 		{
 			var service = new CountingService();
 
 			service.AllowedConfigurations.Add("Allowed");
 
-			Assert.ThrowsAsync<RemoteRequestRejectedException>(async () => await Call(service, "Reader", null));
+			await Assert.ThatAsync(async () => await Call(service, "Reader", null), Throws.TypeOf<RemoteRequestRejectedException>());
 
 			service.Created.ShouldBe(0);
 		}
 
 		[Test]
-		public void ListedConfigurationIsAccepted()
+		public async Task ListedConfigurationIsAccepted()
 		{
 			var service = new CountingService();
 
 			service.AllowedConfigurations.Add("Allowed");
 
-			Assert.ThrowsAsync<InvalidOperationException>(async () => await Call(service, "Reader", "Allowed"));
+			await Assert.ThatAsync(async () => await Call(service, "Reader", "Allowed"), Throws.TypeOf<InvalidOperationException>());
 
 			service.Created.ShouldBe(1);
 		}
 
 		[Test]
-		public void ConfigurationNameIsEscapedInMessage()
+		public async Task ConfigurationNameIsEscapedInMessage()
 		{
 			var service = new CountingService();
 
-			var exception = Assert.ThrowsAsync<RemoteRequestRejectedException>(async () => await Call(service, "Reader", "MARKER\r\nFORGED LINE"))!;
+			var exception = await Shouldly.Should.ThrowAsync<RemoteRequestRejectedException>(async () => await Call(service, "Reader", "MARKER\r\nFORGED LINE"));
 
 			// the message has a line per rejection; none may start with text the client chose
 			exception.Message.Split('\n').ShouldNotContain(static line => line.TrimStart().StartsWith("FORGED", StringComparison.Ordinal));
@@ -122,27 +122,27 @@ namespace Tests.Linq
 		}
 
 		[Test]
-		public void GetInfoGateHoldsForAnOverrideThatSkipsBase()
+		public async Task GetInfoGateHoldsForAnOverrideThatSkipsBase()
 		{
 			var service = new GetInfoOverride();
 
 			// control: the override itself runs no check
-			Assert.DoesNotThrowAsync(async () => await service.GetInfoAsync(Blocked));
+			await service.GetInfoAsync(Blocked);
 
-			Assert.ThrowsAsync<RemoteRequestRejectedException>(async () => await ((ILinqService)service).GetInfoAsync(Blocked));
+			await Assert.ThatAsync(async () => await ((ILinqService)service).GetInfoAsync(Blocked), Throws.TypeOf<RemoteRequestRejectedException>());
 
 			service.Handled.ShouldHaveSingleItem().ShouldBeOfType<RemoteRequestRejectedException>();
 		}
 
 		[Test]
-		public void OversizedElementCountIsRejectedBeforeAllocation([Values] bool trusted)
+		public async Task OversizedElementCountIsRejectedBeforeAllocation([Values] bool trusted)
 		{
 			var service = new SQLiteService { TrustedClient = trusted };
 
 			// the batch path reads a count of request strings before anything else; the count is bounded by the request length
-			var exception = Assert.CatchAsync<LinqToDBException>(async () => await service.ExecuteBatchAsync(null, " 2000000000 "))!;
-
-			exception.Message.ShouldContain("element count");
+			await Assert.ThatAsync(
+				async () => await service.ExecuteBatchAsync(null, " 2000000000 "),
+				Throws.InstanceOf<LinqToDBException>().With.Message.Contains("element count"));
 		}
 
 		sealed class ConnectionFactory : IDataContextFactory<DataConnection>
@@ -159,11 +159,11 @@ namespace Tests.Linq
 		}
 
 		[Test]
-		public void TrustedClientIgnoresList()
+		public async Task TrustedClientIgnoresList()
 		{
 			var service = new CountingService { TrustedClient = true };
 
-			Assert.ThrowsAsync<InvalidOperationException>(async () => await Call(service, "Reader", Blocked));
+			await Assert.ThatAsync(async () => await Call(service, "Reader", Blocked), Throws.TypeOf<InvalidOperationException>());
 
 			service.Created.ShouldBe(1);
 		}
@@ -257,14 +257,14 @@ namespace Tests.Linq
 		{
 			var service = new SQLiteService();
 
-			Assert.Throws<FormatException>(() => service.SqlText.Load(new StringReader($"+\tExpression\t{HostText}\n+\tNotAKind\tX")));
+			Assert.That(() => service.SqlText.Load(new StringReader($"+\tExpression\t{HostText}\n+\tNotAKind\tX")), Throws.TypeOf<FormatException>());
 
 			service.DumpSqlText().ShouldNotContain(static e => e.Text == HostText);
 		}
 
 		// NonParallelizable: swaps the process-global DataConnection.WriteTraceLine
 		[Test, NonParallelizable]
-		public void StaleRemovalIsReportedInDumpAndTrace()
+		public async Task StaleRemovalIsReportedInDumpAndTrace()
 		{
 			var service = new SQLiteService();
 			var library = LibraryEntry(service);
@@ -290,8 +290,8 @@ namespace Tests.Linq
 				};
 
 				// the policy is created before the empty request fails to parse; it reports once per catalog version
-				Assert.CatchAsync(async () => await service.ExecuteScalarAsync(null, ""));
-				Assert.CatchAsync(async () => await service.ExecuteScalarAsync(null, ""));
+				await Assert.ThatAsync(async () => await service.ExecuteScalarAsync(null, ""), Throws.Exception);
+				await Assert.ThatAsync(async () => await service.ExecuteScalarAsync(null, ""), Throws.Exception);
 			}
 			finally
 			{
@@ -328,7 +328,7 @@ namespace Tests.Linq
 		{
 			var service = new SQLiteService();
 
-			Assert.Throws<ArgumentException>(() => service.SqlText.Add(SqlTextKind.Expression, text));
+			Assert.That(() => service.SqlText.Add(SqlTextKind.Expression, text), Throws.TypeOf<ArgumentException>());
 
 			service.DumpSqlText().ShouldNotContain(static e => e.Source == SqlTextCatalog.HostSource);
 		}
@@ -357,10 +357,10 @@ namespace Tests.Linq
 			// a query hint is written on a line of its own, so its comment ends there
 			service.SqlText.Add(SqlTextKind.QueryHint, "-- MARKER comment");
 
-			Assert.Throws<ArgumentException>(() => service.SqlText.Add(SqlTextKind.QueryHint, "-- MARKER {0}"));
+			Assert.That(() => service.SqlText.Add(SqlTextKind.QueryHint, "-- MARKER {0}"), Throws.TypeOf<ArgumentException>());
 
 			// the same text in a position written inline still leaves the comment open
-			Assert.Throws<ArgumentException>(() => service.SqlText.Add(SqlTextKind.Expression, "-- MARKER comment"));
+			Assert.That(() => service.SqlText.Add(SqlTextKind.Expression, "-- MARKER comment"), Throws.TypeOf<ArgumentException>());
 
 			service.DumpSqlText().ShouldContain(static e => e.Kind == SqlTextKind.QueryHint && e.State == SqlTextEntryState.Allowed);
 		}
@@ -370,7 +370,7 @@ namespace Tests.Linq
 		{
 			var service = new SQLiteService();
 
-			Assert.Throws<FormatException>(() => service.SqlText.Load(new StringReader($"+\tExpression\t{HostText}\n+\tExpression\tMARKER('{{0}}')")));
+			Assert.That(() => service.SqlText.Load(new StringReader($"+\tExpression\t{HostText}\n+\tExpression\tMARKER('{{0}}')")), Throws.TypeOf<FormatException>());
 
 			service.DumpSqlText().ShouldNotContain(static e => e.Text == HostText);
 		}
@@ -569,7 +569,7 @@ namespace Tests.Linq
 		{
 			var service = new SQLiteService();
 
-			Assert.Throws<FormatException>(() => service.SqlText.Load(new StringReader("-\tExtensionArgument\t, ")));
+			Assert.That(() => service.SqlText.Load(new StringReader("-\tExtensionArgument\t, ")), Throws.TypeOf<FormatException>());
 		}
 	}
 }

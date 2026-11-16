@@ -177,7 +177,7 @@ namespace Tests.AST
 		// TO-15: what an untrusted client is refused, a trusted client (no policy) still sends
 		static RemoteRequestRejectedException RejectedUnlessTrusted(DataConnection db, SqlStatement statement, RemoteQueryPolicy policy)
 		{
-			var exception = Assert.Throws<RemoteRequestRejectedException>(() => RoundTrip(db, statement, policy))!;
+			var exception = Shouldly.Should.Throw<RemoteRequestRejectedException>(() => RoundTrip(db, statement, policy));
 
 			RoundTrip(db, statement, null);
 
@@ -453,7 +453,7 @@ namespace Tests.AST
 
 			var data = (string)serialize.Invoke(null, [schema, SelectOf(One), null, new[] { "NOT_IN_CATALOG" }, db.Options])!;
 
-			var exception = Assert.Throws<TargetInvocationException>(() => deserialize.Invoke(null, [schema, db.MappingSchema, db.Options, data, Untrusted(db)]))!;
+			var exception = Shouldly.Should.Throw<TargetInvocationException>(() => deserialize.Invoke(null, [schema, db.MappingSchema, db.Options, data, Untrusted(db)]));
 
 			exception.InnerException.ShouldBeOfType<RemoteRequestRejectedException>();
 		}
@@ -529,7 +529,7 @@ namespace Tests.AST
 			RecordingValue.StartCounting();
 
 			// not RejectedUnlessTrusted: its trusted run constructs the value; ValueTypeIsConvertedWhenTrusted is the control
-			var exception = Assert.Throws<RemoteRequestRejectedException>(() => RoundTrip(db, statement, Untrusted(db)))!;
+			var exception = Shouldly.Should.Throw<RemoteRequestRejectedException>(() => RoundTrip(db, statement, Untrusted(db)));
 
 			RecordingValue.Constructed.ShouldBe(0);
 			exception.Rejections[0].Reason.ShouldBe(RemoteRejectionReason.TypeNotAllowed);
@@ -550,7 +550,7 @@ namespace Tests.AST
 			RecordingValue.StartCounting();
 
 			// not RejectedUnlessTrusted: its trusted run constructs the value; ValueTypeIsConvertedWhenTrusted is the control
-			var exception = Assert.Throws<RemoteRequestRejectedException>(() => RoundTrip(db, statement, policy))!;
+			var exception = Shouldly.Should.Throw<RemoteRequestRejectedException>(() => RoundTrip(db, statement, policy));
 
 			RecordingValue.Constructed.ShouldBe(0);
 			exception.Rejections[0].Reason.ShouldBe(RemoteRejectionReason.TypeNotAllowed);
@@ -565,7 +565,7 @@ namespace Tests.AST
 			var document  = XDocument.Parse("<!DOCTYPE r [<!ENTITY e \"inert\">]><r>&e;</r>");
 			var statement = SelectOf(new SqlValue(new DbDataType(typeof(XDocument), DataType.Xml), document));
 
-			var exception = Assert.Catch(() => RoundTrip(db, statement, trusted ? null : Untrusted(db)))!;
+			var exception = Shouldly.Should.Throw<Exception>(() => RoundTrip(db, statement, trusted ? null : Untrusted(db)));
 
 			for (Exception? e = exception; ; e = e.InnerException)
 			{
@@ -597,7 +597,7 @@ namespace Tests.AST
 			var statement = SelectOf(new SqlValue(new DbDataType(typeof(XElement), DataType.Xml), new XElement("r", "inert")));
 
 			// not RejectedUnlessTrusted: a trusted server cannot read an XElement value back either
-			var exception = Assert.Throws<RemoteRequestRejectedException>(() => RoundTrip(db, statement, Untrusted(db)))!;
+			var exception = Shouldly.Should.Throw<RemoteRequestRejectedException>(() => RoundTrip(db, statement, Untrusted(db)));
 
 			exception.Rejections[0].Reason.ShouldBe(RemoteRejectionReason.TypeNotAllowed);
 		}
@@ -755,7 +755,7 @@ namespace Tests.AST
 			var statement = SelectOf(new SqlValue(new DbDataType(typeof(int)), new LocalEntity()));
 
 			// not RejectedUnlessTrusted: a trusted server cannot convert an entity value from its text either
-			var exception = Assert.Throws<RemoteRequestRejectedException>(() => RoundTrip(db, statement, Untrusted(db, _thisAssembly)))!;
+			var exception = Shouldly.Should.Throw<RemoteRequestRejectedException>(() => RoundTrip(db, statement, Untrusted(db, _thisAssembly)));
 
 			exception.Rejections[0].Reason.ShouldBe(RemoteRejectionReason.TypeNotAllowed);
 		}
@@ -1077,7 +1077,7 @@ namespace Tests.AST
 			// control: a count the remaining input can hold is read as is
 			ReadCount(db, " 3 abc").ShouldBe(3);
 
-			Assert.Throws<LinqToDBException>(() => ReadCount(db, " 2000000000 abc"));
+			Assert.That(() => ReadCount(db, " 2000000000 abc"), Throws.TypeOf<LinqToDBException>());
 		}
 
 		[Test]
@@ -1209,7 +1209,7 @@ namespace Tests.AST
 			var rows = new[] { Sql.Row("a", 1), Sql.Row("b", 2) };
 
 			// the role check runs before conversion; a hand-built row value then fails to convert, trusted or not
-			var exception = Assert.Catch(() => RoundTrip(db, SelectOf(new SqlValue(new DbDataType(typeof(Sql.SqlRow<string, int>[])), rows)), policy));
+			var exception = Shouldly.Should.Throw<Exception>(() => RoundTrip(db, SelectOf(new SqlValue(new DbDataType(typeof(Sql.SqlRow<string, int>[])), rows)), policy));
 
 			exception.ShouldNotBeOfType<RemoteRequestRejectedException>();
 		}
@@ -1221,7 +1221,7 @@ namespace Tests.AST
 
 			var statement = SelectOf(new SqlValue(new DbDataType(typeof(Sql.SqlRow<string, RecordingValue>[])), new[] { Sql.Row("a", new RecordingValue("x")) }));
 
-			Assert.Throws<RemoteRequestRejectedException>(() => RoundTrip(db, statement, Untrusted(db, _thisAssembly)))!
+			Shouldly.Should.Throw<RemoteRequestRejectedException>(() => RoundTrip(db, statement, Untrusted(db, _thisAssembly)))
 				.Rejections[0].Reason.ShouldBe(RemoteRejectionReason.TypeNotAllowed);
 		}
 
@@ -1648,7 +1648,7 @@ namespace Tests.AST
 		// of the first branch), so the folded branch's type never reaches it, and LinqService's check at the reader is a second
 		// line behind validation. The assertion that matters is that the folded branch's type is never constructed.
 		[Test, NonParallelizable]
-		public void FoldedResultColumnNeverBuildsTheFoldedBranchType()
+		public async Task FoldedResultColumnNeverBuildsTheFoldedBranchType()
 		{
 			var service = new SQLiteService();
 
@@ -1662,7 +1662,7 @@ namespace Tests.AST
 			var data                   = (string)serialize.Invoke(null, [schema, SelectOf(column), null, null, db.Options])!;
 			var constructed            = ProbeResult.Constructed;
 
-			Assert.CatchAsync<LinqToDBException>(async () => await service.ExecuteReaderAsync(null, data));
+			await Assert.ThatAsync(async () => await service.ExecuteReaderAsync(null, data), Throws.InstanceOf<LinqToDBException>());
 
 			ProbeResult.Constructed.ShouldBe(constructed);
 		}
@@ -2011,7 +2011,7 @@ namespace Tests.AST
 				new SqlValue(new DbDataType(typeof(string)), new LocalEntity()));
 
 			// not RejectedUnlessTrusted: a trusted server cannot convert an entity value from its text either
-			var exception = Assert.Throws<RemoteRequestRejectedException>(() => RoundTrip(db, statement, Untrusted(db)))!;
+			var exception = Shouldly.Should.Throw<RemoteRequestRejectedException>(() => RoundTrip(db, statement, Untrusted(db)));
 
 			exception.Rejections.Count.ShouldBe(2);
 			exception.Provider.ShouldBe(db.DataProvider.Name);
