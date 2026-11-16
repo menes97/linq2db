@@ -398,7 +398,7 @@ namespace Tests.Linq
 
 		static System.Collections.Generic.IReadOnlyList<RemoteRejection> Rejections(Action action)
 		{
-			var exception = Assert.Catch<Exception>(() => action());
+			var exception = Shouldly.Should.Throw<Exception>(action);
 
 			for (Exception? e = exception; e != null; e = e.InnerException)
 				if (e is RemoteRequestRejectedException rejected)
