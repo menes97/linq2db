@@ -1445,6 +1445,9 @@ namespace Tests.Linq
 			query.GetCompiledQueryInfo().ShouldNotBeNull();
 		}
 
+		[ActiveIssue(Configuration = TestProvName.AllAccessLibRed, ErrorTypeName = "System.NotSupportedException",
+			ErrorMessage = "Positional ('?') parameters are not supported yet",
+			Details = "LibRed binds parameters by name only. LibRed.Ado 11.0.0-alpha.4 and beta.1; re-check when a newer LibRed ships.")]
 		[Test(Description = "https://github.com/linq2db/linq2db/issues/6000")]
 		public void FromSql_PositionalPlaceholder_DataParameter([IncludeDataSources(TestProvName.AllAccess)] string context)
 		{
@@ -2048,6 +2051,9 @@ namespace Tests.Linq
 			AssertArgumentReferencedByName(db, context, prefix);
 		}
 
+		[ActiveIssue(Configuration = TestProvName.AllAccessLibRed, ErrorTypeName = "System.NotSupportedException",
+			ErrorMessage = "Positional ('?') parameters are not supported yet",
+			Details = "LibRed binds parameters by name only. LibRed.Ado 11.0.0-alpha.4 and beta.1; re-check when a newer LibRed ships.")]
 		[Test(Description = "https://github.com/linq2db/linq2db/pull/6008")]
 		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.RawSqlTable)]
 		public void ArgumentReferencedByPositionIsSent([IncludeDataSources(true, TestProvName.AllAccess, TestProvName.AllSapHana, TestProvName.AllSQLiteClassic, TestProvName.AllMySql)] string context, [Values] bool dataParameter)
@@ -2064,8 +2070,9 @@ namespace Tests.Linq
 				.ShouldBe([2]);
 		}
 
+		// positional binding only: on a provider that binds by name (LibRed) an argument no {n} references is not sent
 		[Test(Description = "https://github.com/linq2db/linq2db/pull/6008")]
-		public void PlainArgumentReferencedByPositionIsSent([IncludeDataSources(true, TestProvName.AllAccess, TestProvName.AllSapHana)] string context)
+		public void PlainArgumentReferencedByPositionIsSent([IncludeDataSources(true, TestProvName.AllNativeAccess, TestProvName.AllSapHana)] string context)
 		{
 			using var db = GetDataContext(context);
 
@@ -2084,8 +2091,9 @@ namespace Tests.Linq
 				.ShouldBe([1, 2]);
 		}
 
+		// positional binding only: on a provider that binds by name (LibRed) an argument no {n} references is not sent
 		[Test(Description = "https://github.com/linq2db/linq2db/pull/6008")]
-		public void PlainExprArgumentReferencedByPositionIsSent([IncludeDataSources(true, TestProvName.AllAccess, TestProvName.AllSapHana)] string context)
+		public void PlainExprArgumentReferencedByPositionIsSent([IncludeDataSources(true, TestProvName.AllNativeAccess, TestProvName.AllSapHana)] string context)
 		{
 			using var db = GetDataContext(context);
 

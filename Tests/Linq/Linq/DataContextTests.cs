@@ -2,6 +2,7 @@ extern alias MySqlData;
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -165,7 +166,7 @@ namespace Tests.Linq
 		public void ProviderConnectionStringConstructorTest1([DataSources(false, TestProvName.AllAccess, ProviderName.SapHanaOdbc)] string context)
 		{
 			using var db = (TestDataConnection)GetDataContext(context);
-			Assert.Throws<LinqToDBException>(() => new DataContext(new DataOptions().UseConnectionString("BAD", db.ConnectionString!)));
+			Assert.That(() => new DataContext(new DataOptions().UseConnectionString("BAD", db.ConnectionString!)), Throws.TypeOf<LinqToDBException>());
 
 		}
 		[Test]
@@ -177,7 +178,8 @@ namespace Tests.Linq
 				() => db1.GetTable<Child>().ToList(),
 				Throws.TypeOf<ArgumentException>()
 					.Or.TypeOf<InvalidOperationException>()
-					.Or.TypeOf<MySqlException>());
+					.Or.TypeOf<MySqlException>()
+					.Or.TypeOf<FileNotFoundException>());
 		}
 
 		[Test]

@@ -20,7 +20,6 @@ using LinqToDB.Remote;
 namespace Tests.xUpdate
 {
 	[TestFixture]
-	[Order(10000)]
 	public class DeleteTests : TestBase
 	{
 		[Test]

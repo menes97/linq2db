@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Text.Json;
+using System.Threading.Tasks;
 
 using LinqToDB;
 using LinqToDB.Async;
@@ -598,14 +599,11 @@ namespace Tests.Linq
 		public void Issue3158([DataSources(TestProvName.AllClickHouse)] string context)
 		{
 			using var db = GetDataContext(context, o => o.OmitUnsupportedCompareNulls(context));
-			Assert.DoesNotThrow(() =>
-			{
-				(from p in db.GetTable<PersonWithoutDynamicStore>()
-				 join d in db.Doctor on p.ID equals d.PersonID
-				 from pa in db.Patient.LeftJoin(pa => pa.Diagnosis == Sql.Property<string>(p, "FirstName"))
-				 select new { p.ID, pa.Diagnosis })
-				.ToList();
-			});
+			(from p in db.GetTable<PersonWithoutDynamicStore>()
+			 join d in db.Doctor on p.ID equals d.PersonID
+			 from pa in db.Patient.LeftJoin(pa => pa.Diagnosis == Sql.Property<string>(p, "FirstName"))
+			 select new { p.ID, pa.Diagnosis })
+			.ToList();
 		}
 
 		#region Issue 4483
@@ -749,7 +747,7 @@ namespace Tests.Linq
 		}
 
 		[Test]
-		public void Issue4602([DataSources] string context)
+		public async Task Issue4602([DataSources] string context)
 		{
 			var ms = new MappingSchema();
 			ms.AddMetadataReader(new CustomMetadataReader());
@@ -758,12 +756,9 @@ namespace Tests.Linq
 			using (db.CreateLocalTable<DynamicParent>())
 			using (db.CreateLocalTable<DynamicChild>())
 			{
-				Assert.DoesNotThrowAsync(async () =>
-				{
-					await db.GetTable<DynamicParent>()
-						.Where(it => it.Child!.ID == 123)
-						.ToArrayAsync();
-				});
+				await db.GetTable<DynamicParent>()
+					.Where(it => it.Child!.ID == 123)
+					.ToArrayAsync();
 			}
 		}
 
