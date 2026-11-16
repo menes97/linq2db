@@ -4,10 +4,9 @@ using System.Linq;
 using LinqToDB;
 using LinqToDB.DataProvider.Oracle;
 using LinqToDB.Mapping;
+using LinqToDB.Remote;
 
 using NUnit.Framework;
-
-using LinqToDB.Remote;
 
 namespace Tests.Extensions
 {

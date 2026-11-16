@@ -7,6 +7,7 @@ using LinqToDB;
 using LinqToDB.Data;
 using LinqToDB.Internal.SqlQuery;
 using LinqToDB.Mapping;
+using LinqToDB.Remote;
 using LinqToDB.SqlQuery;
 
 using Tests.Model;
@@ -14,8 +15,6 @@ using Tests.Model;
 using NUnit.Framework;
 
 using Shouldly;
-
-using LinqToDB.Remote;
 
 namespace Tests.Linq
 {

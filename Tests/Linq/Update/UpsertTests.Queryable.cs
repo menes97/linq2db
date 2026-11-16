@@ -3,12 +3,11 @@ using System.Threading.Tasks;
 
 using LinqToDB;
 using LinqToDB.Internal.Common;
+using LinqToDB.Remote;
 
 using NUnit.Framework;
 
 using Shouldly;
-
-using LinqToDB.Remote;
 
 namespace Tests.xUpdate
 {

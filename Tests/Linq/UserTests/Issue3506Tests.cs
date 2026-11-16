@@ -3,10 +3,9 @@ using System.Linq;
 using System.Linq.Dynamic.Core;
 
 using LinqToDB;
+using LinqToDB.Remote;
 
 using NUnit.Framework;
-
-using LinqToDB.Remote;
 
 namespace Tests.UserTests
 {

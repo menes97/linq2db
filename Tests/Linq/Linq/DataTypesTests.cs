@@ -6,12 +6,11 @@ using LinqToDB;
 using LinqToDB.Data;
 using LinqToDB.Interceptors;
 using LinqToDB.Mapping;
+using LinqToDB.Remote;
 
 using NUnit.Framework;
 
 using Tests.Model;
-
-using LinqToDB.Remote;
 
 namespace Tests.Linq
 {

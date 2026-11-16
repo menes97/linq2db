@@ -4,12 +4,11 @@ using System.Linq;
 using LinqToDB;
 using LinqToDB.DataProvider.MySql;
 using LinqToDB.Mapping;
+using LinqToDB.Remote;
 
 using NUnit.Framework;
 
 using Tests.Model;
-
-using LinqToDB.Remote;
 
 namespace Tests.Extensions
 {

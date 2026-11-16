@@ -2,10 +2,9 @@
 using System.Linq;
 
 using LinqToDB;
+using LinqToDB.Remote;
 
 using NUnit.Framework;
-
-using LinqToDB.Remote;
 
 namespace Tests.Extensions
 {

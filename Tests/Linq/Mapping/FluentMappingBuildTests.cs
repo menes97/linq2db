@@ -3,10 +3,9 @@ using System.Threading.Tasks;
 
 using LinqToDB;
 using LinqToDB.Data;
+using LinqToDB.Remote;
 
 using NUnit.Framework;
-
-using LinqToDB.Remote;
 
 namespace Tests.Mapping
 {

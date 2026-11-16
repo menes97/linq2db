@@ -6,6 +6,7 @@ using LinqToDB;
 using LinqToDB.Internal.Common;
 using LinqToDB.Internal.SqlQuery;
 using LinqToDB.Mapping;
+using LinqToDB.Remote;
 
 using NUnit.Framework;
 
@@ -14,8 +15,6 @@ using Shouldly;
 using Tests.Model;
 
 // ReSharper disable ReturnValueOfPureMethodIsNotUsed
-
-using LinqToDB.Remote;
 
 namespace Tests.Linq
 {

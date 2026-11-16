@@ -5,12 +5,11 @@ using System.Linq;
 
 using LinqToDB;
 using LinqToDB.Mapping;
+using LinqToDB.Remote;
 
 using NUnit.Framework;
 
 using Shouldly;
-
-using LinqToDB.Remote;
 
 namespace Tests.Linq
 {

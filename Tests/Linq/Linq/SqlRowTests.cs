@@ -4,6 +4,7 @@ using System.Linq;
 
 using LinqToDB;
 using LinqToDB.Mapping;
+using LinqToDB.Remote;
 
 using NUnit.Framework;
 
@@ -13,8 +14,6 @@ using static LinqToDB.Sql;
 
 using DT = System.DateTime;
 using DTO = System.DateTimeOffset;
-
-using LinqToDB.Remote;
 
 namespace Tests.Linq
 {

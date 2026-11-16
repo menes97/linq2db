@@ -3,12 +3,11 @@ using System.Linq;
 
 using LinqToDB;
 using LinqToDB.DataProvider.SqlServer;
+using LinqToDB.Remote;
 
 using NUnit.Framework;
 
 using Shouldly;
-
-using LinqToDB.Remote;
 
 namespace Tests.Extensions
 {

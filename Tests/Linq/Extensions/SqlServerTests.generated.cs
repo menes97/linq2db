@@ -6,10 +6,9 @@ using System.Linq.Expressions;
 
 using LinqToDB.Data;
 using LinqToDB.DataProvider.SqlServer;
+using LinqToDB.Remote;
 
 using NUnit.Framework;
-
-using LinqToDB.Remote;
 
 namespace Tests.Extensions
 {

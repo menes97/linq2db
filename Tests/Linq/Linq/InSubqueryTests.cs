@@ -6,14 +6,13 @@ using LinqToDB;
 using LinqToDB.Data;
 using LinqToDB.Internal.Linq;
 using LinqToDB.Mapping;
+using LinqToDB.Remote;
 
 using NUnit.Framework;
 
 using Shouldly;
 
 using Tests.Model;
-
-using LinqToDB.Remote;
 
 namespace Tests.Linq
 {

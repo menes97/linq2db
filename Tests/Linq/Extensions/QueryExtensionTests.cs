@@ -8,14 +8,13 @@ using LinqToDB.DataProvider.PostgreSQL;
 using LinqToDB.DataProvider.SqlCe;
 using LinqToDB.DataProvider.SQLite;
 using LinqToDB.DataProvider.SqlServer;
+using LinqToDB.Remote;
 
 using NUnit.Framework;
 
 using Tests.Linq;
 
 using Tests.Model;
-
-using LinqToDB.Remote;
 
 namespace Tests.Extensions
 {

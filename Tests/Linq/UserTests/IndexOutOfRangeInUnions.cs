@@ -2,10 +2,9 @@
 
 using LinqToDB;
 using LinqToDB.Mapping;
+using LinqToDB.Remote;
 
 using NUnit.Framework;
-
-using LinqToDB.Remote;
 
 namespace Tests.UserTests
 {

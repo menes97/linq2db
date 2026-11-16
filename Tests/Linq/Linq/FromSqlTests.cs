@@ -11,6 +11,7 @@ using LinqToDB.Interceptors;
 using LinqToDB.Internal.Linq;
 using LinqToDB.Internal.SqlQuery;
 using LinqToDB.Mapping;
+using LinqToDB.Remote;
 using LinqToDB.SqlQuery;
 using LinqToDB.Tools.Comparers;
 
@@ -19,8 +20,6 @@ using NUnit.Framework;
 using Shouldly;
 
 using Tests.Model;
-
-using LinqToDB.Remote;
 
 namespace Tests.Linq
 {

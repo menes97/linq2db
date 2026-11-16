@@ -8,6 +8,7 @@ using JetBrains.Annotations;
 using LinqToDB;
 using LinqToDB.Data;
 using LinqToDB.Mapping;
+using LinqToDB.Remote;
 using LinqToDB.Tools.Comparers;
 
 using NUnit.Framework;
@@ -17,7 +18,6 @@ using DefaultValueBuilder = System.Action<string, Tests.xUpdate.CreateTableTypes
 using ValueBuilder = System.Action<Tests.xUpdate.CreateTableTypesTests.CreateTableTypes>;
 
 // ReSharper disable once CheckNamespace
-using LinqToDB.Remote;
 
 namespace Tests.xUpdate
 {

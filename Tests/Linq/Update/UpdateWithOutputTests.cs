@@ -5,13 +5,12 @@ using System.Threading.Tasks;
 
 using LinqToDB;
 using LinqToDB.Mapping;
+using LinqToDB.Remote;
 using LinqToDB.Tools.Comparers;
 
 using NUnit.Framework;
 
 using Shouldly;
-
-using LinqToDB.Remote;
 
 namespace Tests.xUpdate
 {
