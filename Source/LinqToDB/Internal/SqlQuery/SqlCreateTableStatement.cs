@@ -2,8 +2,8 @@
 using System.Diagnostics;
 
 using LinqToDB.Internal.SqlQuery.Visitors;
-using LinqToDB.SqlQuery;
 using LinqToDB.Remote;
+using LinqToDB.SqlQuery;
 
 namespace LinqToDB.Internal.SqlQuery
 {

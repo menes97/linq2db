@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 
-using LinqToDB.SqlQuery;
 using LinqToDB.Remote;
+using LinqToDB.SqlQuery;
 
 namespace LinqToDB.Internal.SqlQuery
 {

@@ -12,8 +12,8 @@ using LinqToDB.Internal.SqlQuery;
 using LinqToDB.Internal.SqlQuery.Visitors;
 using LinqToDB.Linq.Translation;
 using LinqToDB.Mapping;
-using LinqToDB.SqlQuery;
 using LinqToDB.Remote;
+using LinqToDB.SqlQuery;
 
 namespace LinqToDB.Internal.SqlProvider
 {

@@ -7,8 +7,8 @@ using System.Threading;
 using LinqToDB.Data;
 using LinqToDB.Internal.SqlQuery.Visitors;
 using LinqToDB.Mapping;
-using LinqToDB.SqlQuery;
 using LinqToDB.Remote;
+using LinqToDB.SqlQuery;
 
 namespace LinqToDB.Internal.SqlQuery
 {

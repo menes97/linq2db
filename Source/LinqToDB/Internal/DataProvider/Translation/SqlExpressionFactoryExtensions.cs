@@ -4,8 +4,8 @@ using System.Collections.Generic;
 
 using LinqToDB.Internal.SqlQuery;
 using LinqToDB.Linq.Translation;
-using LinqToDB.SqlQuery;
 using LinqToDB.Remote;
+using LinqToDB.SqlQuery;
 
 namespace LinqToDB.Internal.DataProvider.Translation
 {

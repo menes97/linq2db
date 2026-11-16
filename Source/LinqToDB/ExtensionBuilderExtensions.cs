@@ -2,8 +2,8 @@
 using System.Diagnostics.CodeAnalysis;
 
 using LinqToDB.Internal.SqlQuery;
-using LinqToDB.SqlQuery;
 using LinqToDB.Remote;
+using LinqToDB.SqlQuery;
 
 namespace LinqToDB
 {

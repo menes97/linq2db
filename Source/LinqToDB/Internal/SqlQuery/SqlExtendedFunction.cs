@@ -5,8 +5,8 @@ using System.Linq;
 
 using LinqToDB.Common;
 using LinqToDB.Internal.SqlQuery.Visitors;
-using LinqToDB.SqlQuery;
 using LinqToDB.Remote;
+using LinqToDB.SqlQuery;
 
 namespace LinqToDB.Internal.SqlQuery
 {

@@ -3,8 +3,8 @@ using System.Collections.ObjectModel;
 using System.Linq.Expressions;
 
 using LinqToDB.Mapping;
-using LinqToDB.SqlQuery;
 using LinqToDB.Remote;
+using LinqToDB.SqlQuery;
 
 namespace LinqToDB.Internal.SqlQuery
 {
