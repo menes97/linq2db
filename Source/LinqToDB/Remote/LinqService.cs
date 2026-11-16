@@ -45,6 +45,8 @@ namespace LinqToDB.Remote
 		/// <remarks>
 		/// The policy limits what SQL a client can run. It is not authorization: a permitted query can read any mapped table,
 		/// so authenticate and authorize requests in the transport and use a database login with only the rights clients need.
+		/// To accept the client project's own constant SQL text, set <c>LinqToDBSqlTextCatalog</c> to <see langword="true"/> in that project
+		/// and register its assembly in <see cref="SqlTextAssemblies"/>; text built at run time must be added to <see cref="SqlText"/>.
 		/// </remarks>
 		public bool TrustedClient { get; set; }
 
