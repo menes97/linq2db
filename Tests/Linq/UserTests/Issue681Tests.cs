@@ -138,6 +138,7 @@ namespace Tests.UserTests
 		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName, Context = "MySql", Partial = true)]
 		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName, Context = "PostgreSQL", Partial = true)]
 		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName, Context = "ClickHouse", Partial = true)]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName, Context = "Oracle", Partial = true)]
 		public async Task TestCreate(
 			[DataSources] string context,
 			[Values] bool withServer,
@@ -174,6 +175,7 @@ namespace Tests.UserTests
 		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName, Context = "MySql", Partial = true)]
 		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName, Context = "PostgreSQL", Partial = true)]
 		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName, Context = "ClickHouse", Partial = true)]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName, Context = "Oracle", Partial = true)]
 		public async Task TestCreateAsync(
 			[DataSources] string context,
 			[Values] bool withServer,
@@ -208,6 +210,7 @@ namespace Tests.UserTests
 		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName, Context = "MySql", Partial = true)]
 		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName, Context = "PostgreSQL", Partial = true)]
 		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName, Context = "ClickHouse", Partial = true)]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName, Context = "Oracle", Partial = true)]
 		public async Task TestDrop(
 			[DataSources] string context,
 			[Values] bool withServer,

@@ -1166,6 +1166,7 @@ namespace Tests.Linq
 		[Test(Description = "https://github.com/linq2db/linq2db/issues/4666")]
 		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName, Context = "PostgreSQL")]
 		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName, Context = "SqlServer")]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName, Context = "Oracle")]
 		public void Issue4666Test([MergeDataContextSource] string context)
 		{
 			using var db = GetDataContext(context);

@@ -6,6 +6,8 @@ using LinqToDB.Mapping;
 
 using NUnit.Framework;
 
+using LinqToDB.Remote;
+
 namespace Tests.xUpdate
 {
 	[TestFixture]
@@ -167,6 +169,7 @@ namespace Tests.xUpdate
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName, Context = "Oracle")]
 		public void DropTable_IfExists_IdentifierWithApostrophe(
 			[IncludeDataSources(true, TestProvName.AllDB2, TestProvName.AllSapHana, TestProvName.AllOracle, TestProvName.AllFirebird)] string context)
 		{

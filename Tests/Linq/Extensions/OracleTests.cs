@@ -7,6 +7,8 @@ using LinqToDB.Mapping;
 
 using NUnit.Framework;
 
+using LinqToDB.Remote;
+
 namespace Tests.Extensions
 {
 	[TestFixture]
@@ -98,6 +100,7 @@ namespace Tests.Extensions
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.IdentifierNotMapped, Context = "Oracle")]
 		public void TableHintParallelTest([IncludeDataSources(true, TestProvName.AllOracle)] string context)
 		{
 			using var db = GetDataContext(context);
@@ -207,6 +210,7 @@ namespace Tests.Extensions
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.IdentifierNotMapped, Context = "Oracle")]
 		public void QueryHintWithQueryBlockTest([IncludeDataSources(true, TestProvName.AllOracle)] string context,
 			[Values(
 				OracleHints.Hint.NoUnnest
@@ -231,6 +235,7 @@ namespace Tests.Extensions
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.ExtensionArgument, Context = "Oracle")]
 		public void QueryHintFirstRowsTest3([IncludeDataSources(true, TestProvName.AllOracle)] string context)
 		{
 			using var db = GetDataContext(context);
@@ -461,6 +466,7 @@ namespace Tests.Extensions
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.ExtensionArgument, Context = "Oracle")]
 		public void DeleteTest([IncludeDataSources(true, TestProvName.AllOracle)] string context)
 		{
 			using var db = GetDataContext(context);
@@ -478,6 +484,7 @@ namespace Tests.Extensions
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.ExtensionArgument, Context = "Oracle")]
 		public void InsertTest([IncludeDataSources(true, TestProvName.AllOracle)] string context)
 		{
 			using var db = GetDataContext(context);
@@ -499,6 +506,7 @@ namespace Tests.Extensions
 
 		[Obsolete("Remove test after API removed")]
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.ExtensionArgument, Context = "Oracle")]
 		public void UpdateTestOld([IncludeDataSources(true, TestProvName.AllOracle)] string context)
 		{
 			using var db = GetDataContext(context);
@@ -519,6 +527,7 @@ namespace Tests.Extensions
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.ExtensionArgument, Context = "Oracle")]
 		public void UpdateTest([IncludeDataSources(true, TestProvName.AllOracle)] string context)
 		{
 			using var db = GetDataContext(context);
@@ -539,6 +548,7 @@ namespace Tests.Extensions
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.ExtensionArgument, Context = "Oracle")]
 		public void MergeTest([IncludeDataSources(true, TestProvName.AllOracle)] string context)
 		{
 			using var db = GetDataContext(context);
@@ -563,6 +573,7 @@ namespace Tests.Extensions
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.ExtensionArgument, Context = "Oracle")]
 		public void CteTest([IncludeDataSources(true, TestProvName.AllOracle)] string context)
 		{
 			using var db = GetDataContext(context);
@@ -650,6 +661,7 @@ namespace Tests.Extensions
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.ExtensionArgument, Context = "Oracle")]
 		public void QueryHintParallelTest2([IncludeDataSources(true, TestProvName.AllOracle)] string context)
 		{
 			using var db = GetDataContext(context);
@@ -774,6 +786,7 @@ namespace Tests.Extensions
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.ExtensionArgument, Context = "Oracle")]
 		public void QueryHintContainersTest([IncludeDataSources(true, TestProvName.AllOracle)] string context)
 		{
 			using var db = GetDataContext(context);
@@ -793,6 +806,7 @@ namespace Tests.Extensions
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.IdentifierNotMapped, Context = "Oracle")]
 		public void QueryHintOptParamTest([IncludeDataSources(true, TestProvName.AllOracle)] string context)
 		{
 			using var db = GetDataContext(context);
@@ -812,6 +826,7 @@ namespace Tests.Extensions
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.ExtensionArgument, Context = "Oracle")]
 		public void OracleUnionTest([IncludeDataSources(true, TestProvName.AllOracle)] string context)
 		{
 			using var db = GetDataContext(context);

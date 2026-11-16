@@ -57,6 +57,7 @@ namespace Tests.Extensions
 
 		[Test]
 		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.ExtensionArgument, Context = "MySql")]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.ExtensionArgument, Context = "Oracle")]
 		public void DatabaseSpecificTest([DataSources] string context)
 		{
 			using var db = GetDataContext(context);
@@ -127,6 +128,7 @@ namespace Tests.Extensions
 
 		[Test]
 		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.ExtensionArgument, Context = "MySql")]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.ExtensionArgument, Context = "Oracle")]
 		public void UnionTest([DataSources(TestProvName.AllPostgreSQL)] string context)
 		{
 			using var db = GetDataContext(context);

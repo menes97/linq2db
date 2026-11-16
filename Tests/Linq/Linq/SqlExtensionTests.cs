@@ -549,6 +549,7 @@ namespace Tests.Linq
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.Expression, Context = "Oracle")]
 		public void DatePartMillisecond([DataSources(TestProvName.AllInformix, TestProvName.AllMySql, TestProvName.AllAccess, TestProvName.AllSapHana)] string context)
 		{
 			using var db = GetDataContext(context);

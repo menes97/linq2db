@@ -599,6 +599,7 @@ namespace Tests.Linq
 		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.Expression, Context = "SQLite")]
 		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.Expression, Context = "PostgreSQL")]
 		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.Expression, Context = "SqlServer")]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.Expression, Context = "Oracle")]
 		public void TestSqlCollate1(
 			[DataSources(
 				ProviderName.SqlCe,
@@ -621,6 +622,7 @@ namespace Tests.Linq
 		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.Expression, Context = "SQLite")]
 		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.Expression, Context = "PostgreSQL")]
 		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.Expression, Context = "SqlServer")]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.Expression, Context = "Oracle")]
 		public void TestSqlCollate2(
 			[DataSources(
 				ProviderName.SqlCe,

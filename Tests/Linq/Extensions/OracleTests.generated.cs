@@ -9,6 +9,8 @@ using LinqToDB.DataProvider.Oracle;
 
 using NUnit.Framework;
 
+using LinqToDB.Remote;
+
 namespace Tests.Extensions
 {
 	partial class OracleTests
@@ -33,6 +35,7 @@ namespace Tests.Extensions
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.ExtensionArgument, Context = "Oracle")]
 		public void QueryHintFirstRowsTest2([IncludeDataSources(true, TestProvName.AllOracle)] string context)
 		{
 			using var db = GetDataContext(context);
@@ -978,6 +981,7 @@ namespace Tests.Extensions
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.IdentifierNotMapped, Context = "Oracle")]
 		public void QueryHintPQConcurrentUnionTest3([IncludeDataSources(true, TestProvName.AllOracle)] string context)
 		{
 			using var db = GetDataContext(context);
@@ -1017,6 +1021,7 @@ namespace Tests.Extensions
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.IdentifierNotMapped, Context = "Oracle")]
 		public void QueryHintNoPQConcurrentUnionTest3([IncludeDataSources(true, TestProvName.AllOracle)] string context)
 		{
 			using var db = GetDataContext(context);
@@ -1221,6 +1226,7 @@ namespace Tests.Extensions
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.IdentifierNotMapped, Context = "Oracle")]
 		public void QueryHintUseConcatTest3([IncludeDataSources(true, TestProvName.AllOracle)] string context)
 		{
 			using var db = GetDataContext(context);
@@ -1260,6 +1266,7 @@ namespace Tests.Extensions
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.IdentifierNotMapped, Context = "Oracle")]
 		public void QueryHintNoExpandTest3([IncludeDataSources(true, TestProvName.AllOracle)] string context)
 		{
 			using var db = GetDataContext(context);
@@ -1299,6 +1306,7 @@ namespace Tests.Extensions
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.IdentifierNotMapped, Context = "Oracle")]
 		public void QueryHintRewriteTest3([IncludeDataSources(true, TestProvName.AllOracle)] string context)
 		{
 			using var db = GetDataContext(context);
@@ -1338,6 +1346,7 @@ namespace Tests.Extensions
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.IdentifierNotMapped, Context = "Oracle")]
 		public void QueryHintNoRewriteTest3([IncludeDataSources(true, TestProvName.AllOracle)] string context)
 		{
 			using var db = GetDataContext(context);
@@ -1377,6 +1386,7 @@ namespace Tests.Extensions
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.IdentifierNotMapped, Context = "Oracle")]
 		public void QueryHintMergeTest3([IncludeDataSources(true, TestProvName.AllOracle)] string context)
 		{
 			using var db = GetDataContext(context);
@@ -1451,6 +1461,7 @@ namespace Tests.Extensions
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.IdentifierNotMapped, Context = "Oracle")]
 		public void QueryHintNoMergeTest3([IncludeDataSources(true, TestProvName.AllOracle)] string context)
 		{
 			using var db = GetDataContext(context);
@@ -1525,6 +1536,7 @@ namespace Tests.Extensions
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.IdentifierNotMapped, Context = "Oracle")]
 		public void QueryHintStarTransformationTest3([IncludeDataSources(true, TestProvName.AllOracle)] string context)
 		{
 			using var db = GetDataContext(context);
@@ -1564,6 +1576,7 @@ namespace Tests.Extensions
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.IdentifierNotMapped, Context = "Oracle")]
 		public void QueryHintNoStarTransformationTest3([IncludeDataSources(true, TestProvName.AllOracle)] string context)
 		{
 			using var db = GetDataContext(context);
@@ -1673,6 +1686,7 @@ namespace Tests.Extensions
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.IdentifierNotMapped, Context = "Oracle")]
 		public void QueryHintUnnestTest3([IncludeDataSources(true, TestProvName.AllOracle)] string context)
 		{
 			using var db = GetDataContext(context);
@@ -1712,6 +1726,7 @@ namespace Tests.Extensions
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.IdentifierNotMapped, Context = "Oracle")]
 		public void QueryHintNoUnnestTest3([IncludeDataSources(true, TestProvName.AllOracle)] string context)
 		{
 			using var db = GetDataContext(context);
@@ -1970,6 +1985,7 @@ namespace Tests.Extensions
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.IdentifierNotMapped, Context = "Oracle")]
 		public void QueryHintPushPredicateTest3([IncludeDataSources(true, TestProvName.AllOracle)] string context)
 		{
 			using var db = GetDataContext(context);
@@ -2025,6 +2041,7 @@ namespace Tests.Extensions
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.IdentifierNotMapped, Context = "Oracle")]
 		public void QueryHintPushSubQueriesTest3([IncludeDataSources(true, TestProvName.AllOracle)] string context)
 		{
 			using var db = GetDataContext(context);
@@ -2045,6 +2062,7 @@ namespace Tests.Extensions
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.IdentifierNotMapped, Context = "Oracle")]
 		public void QueryHintNoPushSubQueriesTest3([IncludeDataSources(true, TestProvName.AllOracle)] string context)
 		{
 			using var db = GetDataContext(context);

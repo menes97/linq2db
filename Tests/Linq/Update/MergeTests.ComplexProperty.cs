@@ -172,6 +172,7 @@ namespace Tests.xUpdate
 		// known limitation: PostgreSQL MERGE takes the source's VALUES field names from the members, and an explicit interface member's dotted name is outside the identifier shape
 		[RejectedWhenUntrusted(RemoteRejectionReason.IdentifierNotMapped, Context = "PostgreSQL")]
 		[RejectedWhenUntrusted(RemoteRejectionReason.IdentifierNotMapped, Context = "SqlServer")]
+		[RejectedWhenUntrusted(RemoteRejectionReason.IdentifierNotMapped, Context = "Oracle")]
 		public void ExplicitInterfaceProperty_UpdateWhenMatched([MergeDataContextSource] string context)
 		{
 			var ms = new MappingSchema();

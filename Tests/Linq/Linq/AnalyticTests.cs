@@ -408,6 +408,7 @@ namespace Tests.Linq
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.Expression, Context = "Oracle")]
 		public void TestCumeDistOracle([IncludeDataSources(true, TestProvName.AllOracle)]
 			string context)
 		{
@@ -434,6 +435,7 @@ namespace Tests.Linq
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.Expression, Context = "Oracle")]
 		public void TestDenseRankOracle([IncludeDataSources(true, TestProvName.AllOracle)] string context)
 		{
 			using var db = GetDataContext(context);
@@ -574,6 +576,7 @@ namespace Tests.Linq
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.Expression, Context = "Oracle")]
 		public void TestListAggOracle([IncludeDataSources(true, TestProvName.AllOracle)] string context)
 		{
 			using var db = GetDataContext(context);
@@ -800,6 +803,7 @@ namespace Tests.Linq
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.Expression, Context = "Oracle")]
 		public void TestPercentileContOracle([IncludeDataSources(true, TestProvName.AllOracle)] string context)
 		{
 			using var db = GetDataContext(context);
@@ -828,6 +832,7 @@ namespace Tests.Linq
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.Expression, Context = "Oracle")]
 		public void TestPercentileDiscOracle([IncludeDataSources(true, TestProvName.AllOracle)] string context)
 		{
 			using var db = GetDataContext(context);
@@ -856,6 +861,7 @@ namespace Tests.Linq
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.Expression, Context = "Oracle")]
 		public void TestPercentRankOracle([IncludeDataSources(true, TestProvName.AllOracle)]
 			string context)
 		{
@@ -913,6 +919,7 @@ namespace Tests.Linq
 		}
 
 		[Test]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.Expression, Context = "Oracle")]
 		public void TestRankOracle([IncludeDataSources(true, TestProvName.AllOracle)]
 			string context)
 		{
