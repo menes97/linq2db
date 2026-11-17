@@ -16,7 +16,8 @@ namespace Tests
 	/// Marks a test whose remote cases are rejected by design when remote test hosts run untrusted
 	/// (the default; <c>LINQ2DB_TESTS_TRUSTED_REMOTE=1</c> turns it off): it sends text or types the library cannot vouch for.
 	/// In that mode a remote case passes only if the host recorded a rejection with the expected
-	/// <see cref="Reason"/> and <see cref="Kind"/>, and fails if the query was accepted, so a stale mark is reported.
+	/// <see cref="Reason"/> and <see cref="Kind"/> and every recorded rejection is one of the test's marks, and fails if the
+	/// query was accepted, so a stale mark is reported.
 	/// Outside that mode, and for direct cases, the attribute does nothing.
 	/// </summary>
 	[AttributeUsage(AttributeTargets.Method, AllowMultiple = true)]
@@ -96,7 +97,12 @@ namespace Tests
 					var rejections = TestLinqService.GetRejections(provider);
 					var expected   = $"{_attribute.Reason}{(_attribute.Kind is { } kind ? $" [{kind}]" : null)}";
 
-					if (rejections.Any(_attribute.Matches))
+					// every rejection must be one the test's marks expect, so an unrelated rejection is not hidden behind them
+					var marks = context.CurrentTest.Method?.GetCustomAttributes<RejectedWhenUntrustedAttribute>(true)
+						.Where(m => m.GovernedProvider(context.CurrentTest) != null)
+						.ToArray() ?? [_attribute];
+
+					if (rejections.Any(_attribute.Matches) && rejections.All(r => marks.Any(m => m.Matches(r))))
 					{
 						// A fresh result: the failed one keeps the rejection as an assertion result (a read-only
 						// collection), which NUnit re-reports as the outcome when [Repeat] completes the test.
