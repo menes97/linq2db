@@ -194,14 +194,22 @@ namespace LinqToDB.Internal.DataProvider.PostgreSQL
 			stringBuilder.Append(CultureInfo.InvariantCulture, $"chr({value})");
 		}
 
+		// a backslash is an escape in '...' when standard_conforming_strings is off; E'...' with doubled backslashes reads the
+		// same in both modes, and text without one is written as before
 		static void ConvertStringToSql(StringBuilder stringBuilder, string value)
 		{
-			DataTools.ConvertStringToSql(stringBuilder, "||", null, AppendConversionAction, value, null);
+			if (value.Contains('\\', StringComparison.Ordinal))
+				DataTools.ConvertStringToSql(stringBuilder, "||", "E", AppendConversionAction, value.Replace("\\", "\\\\", StringComparison.Ordinal), null);
+			else
+				DataTools.ConvertStringToSql(stringBuilder, "||", null, AppendConversionAction, value, null);
 		}
 
 		static void ConvertCharToSql(StringBuilder stringBuilder, char value)
 		{
-			DataTools.ConvertCharToSql(stringBuilder, "'", AppendConversionAction, value);
+			if (value == '\\')
+				stringBuilder.Append("E'\\\\'");
+			else
+				DataTools.ConvertCharToSql(stringBuilder, "'", AppendConversionAction, value);
 		}
 
 		internal static MappingSchema Instance { get; } = new PostgreSQLMappingSchema();

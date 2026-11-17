@@ -79,7 +79,8 @@ namespace Tests.AST
 			sql.ShouldContain("arraySort((t) -> (if(isNull(t.1), 0, 1), t.1, if(isNull(t.2), 1, 0), negate(t.2)), groupArray((g_1.Value, g_1.Id, toString(g_1.Name))))");
 		}
 
-		// YdbMemberTranslator: the aggregated tuple and the ListSort key tuple
+#if !NETFRAMEWORK
+		// YdbMemberTranslator: the aggregated tuple and the ListSort key tuple (no YDB driver on .NET Framework)
 		[Test]
 		public void AggregateOrderByAsYdbTuples()
 		{
@@ -89,6 +90,7 @@ namespace Tests.AST
 
 			sql.ShouldContain("ListSort(AGGREGATE_LIST((g_1.`Value`, g_1.Id, g_1.Name)), ($t) -> { return (if($t.0 IS NULL, 0, 1), $t.0, if($t.1 IS NULL, 1, 0), (-$t.1)) })");
 		}
+#endif
 
 		// BasicSqlOptimizer: paging without OFFSET becomes ROW_NUMBER() OVER (ORDER BY {0})
 		[Test]
@@ -172,6 +174,7 @@ namespace Tests.AST
 			"PostgreSQL" => new DataConnection(new DataOptions().UsePostgreSQL("Server=offline", PostgreSQLVersion.v15)),
 			"MySql"      => new DataConnection(new DataOptions().UseMySql("Server=offline", MySqlVersion.MySql80, MySqlProvider.MySqlConnector)),
 			"SQLite"     => new DataConnection(new DataOptions().UseSQLite("Data Source=offline")),
+			"ClickHouse" => new DataConnection(new DataOptions().UseClickHouse("Host=offline", ClickHouseProvider.ClickHouseDriver)),
 			"DuckDB"     => new DataConnection(new DataOptions().UseDuckDB("Data Source=offline")),
 			"Ydb"        => new DataConnection(new DataOptions().UseYdb("Endpoint=grpc://offline:2136;Database=/local")),
 			_            => throw new ArgumentOutOfRangeException(nameof(provider)),
@@ -199,6 +202,142 @@ namespace Tests.AST
 			sql.ShouldContain("- -5");
 		}
 
+		// a template's own minus sign before a value that renders with a leading minus (FromSql($"a-{x}"), Sql.Expr)
+		[Test]
+		public void TemplateMinusBeforeNegativeValueIsSeparated([Values("SqlServer", "PostgreSQL", "SQLite", "ClickHouse")] string provider)
+		{
+			using var db = OfflineConnection(provider);
+
+			var sql = RenderSelect(
+				db,
+				new SqlExpression(new DbDataType(typeof(int)), "LIMIT_A-{0}", Precedence.Primary, new SqlValue(-5)),
+				new SqlExpression(new DbDataType(typeof(int)), "LIMIT_B-{0}", Precedence.Primary, new SqlValue(5)));
+
+			sql.ShouldNotContain("--");
+			sql.ShouldContain("LIMIT_A- -5");
+			sql.ShouldContain("LIMIT_B-5");
+		}
+
+		// Sql.Collate writes the name unquoted on most providers, so it must be a single token
+		[Test]
+		public void CollateRefusesNameThatIsNotOneToken([Values("NOCASE-1", "-NOCASE", "NOCASE@p", "NOCASE\n", "NOCASE /*", "")] string collation)
+		{
+			using var db = OfflineConnection("SQLite");
+
+			Assert.That(() => db.GetTable<ListRow>().Where(r => r.Name.Collate(collation) == "x").ToSqlQuery(), Throws.TypeOf<InvalidOperationException>());
+		}
+
+		[Test]
+		public void CollateAcceptsOneTokenName([Values("NOCASE", "nocase.noaccent", "Latin1_General_CI_AS")] string collation)
+		{
+			using var db = OfflineConnection("SQLite");
+
+			SqlOf(db.GetTable<ListRow>().Select(r => r.Name.Collate(collation))).ShouldContain($"COLLATE {collation}");
+		}
+
+		// PostgreSQL quotes the name; its braces must not act as format items
+		[Test]
+		public void PostgreSQLCollateNameBracesAreLiteral()
+		{
+			using var db = OfflineConnection("PostgreSQL");
+
+			SqlOf(db.GetTable<ListRow>().Select(r => r.Name.Collate("MARK{0}{{"))).ShouldContain("COLLATE \"MARK{0}{{\"");
+		}
+
+		// SqlFn.Collate (SQL Server) validates the name as Sql.Collate does
+		[Test]
+		public void SqlServerFnCollateRefusesNameThatIsNotOneToken()
+		{
+			using var db = OfflineConnection("SqlServer");
+
+			Assert.That(() => db.GetTable<ListRow>().Select(r => SqlFn.Collate(r.Name, "Latin1_General_CI_AS--")).ToSqlQuery(), Throws.TypeOf<InvalidOperationException>());
+		}
+
+		// a backslash is an escape in a PostgreSQL '...' literal when standard_conforming_strings is off
+		[Test]
+		public void PostgreSQLBackslashLiteralReadsTheSameInBothStringModes()
+		{
+			using var db = OfflineConnection("PostgreSQL");
+
+			var sql = RenderSelect(
+				db,
+				new SqlValue(typeof(string), "MARK\\' X"),
+				new SqlValue(typeof(char),   '\\'),
+				new SqlValue(typeof(string), "plain"),
+				new SqlValue(typeof(string), "a'b"));
+
+			sql.ShouldContain("E'MARK\\\\'' X'");
+			sql.ShouldContain("E'\\\\'");
+			sql.ShouldContain("'plain'");
+			sql.ShouldContain("'a''b'");
+		}
+
+		// SAP HANA writes a HanaDecimal's own text, which is accepted only as a number (the converter needs the driver, the check does not)
+		[TestCase("0",                     true)]
+		[TestCase("10.5",                  true)]
+		[TestCase(".5",                    true)]
+		[TestCase("+1.",                   true)]
+		[TestCase("-9.999999999999999E348", true)]
+		[TestCase("1e-5",                  true)]
+		[TestCase("MARK",                  false)]
+		[TestCase("1) OR (1",              false)]
+		[TestCase("1--2",                  false)]
+		[TestCase("1'",                    false)]
+		[TestCase(".",                     false)]
+		[TestCase("1e",                    false)]
+		[TestCase("",                      false)]
+		public void HanaDecimalTextIsANumber(string text, bool isNumber)
+		{
+			var check = typeof(LinqToDB.Internal.DataProvider.SapHana.SapHanaProviderAdapter).GetMethod("IsNumericLiteral", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!;
+
+			((bool)check.Invoke(null, [text])!).ShouldBe(isNumber);
+		}
+
+		// SqlString and SqlChars are written as the provider writes a string: ClickHouse, MySQL and YDB escape the backslash
+		[Test]
+		public void SqlStringIsWrittenAsTheProviderWritesAString([Values("ClickHouse", "MySql", "PostgreSQL", "SQLite")] string provider)
+		{
+			using var db = OfflineConnection(provider);
+
+			const string text = "MARK\\' X";
+
+			var asString = RenderSelect(db, new SqlValue(typeof(string), text));
+
+			RenderSelect(db, new SqlValue(typeof(System.Data.SqlTypes.SqlString), new System.Data.SqlTypes.SqlString(text))).ShouldBe(asString);
+			RenderSelect(db, new SqlValue(typeof(System.Data.SqlTypes.SqlChars),  new System.Data.SqlTypes.SqlChars(text))).ShouldBe(asString);
+		}
+
+#if !NETFRAMEWORK
+		[Test]
+		public void YdbSqlStringIsWrittenAsTheProviderWritesAString()
+		{
+			using var db = OfflineConnection("Ydb");
+
+			const string text = "MARK\\' X";
+
+			RenderSelect(db, new SqlValue(typeof(System.Data.SqlTypes.SqlString), new System.Data.SqlTypes.SqlString(text))).ShouldBe(RenderSelect(db, new SqlValue(typeof(string), text)));
+		}
+#endif
+
+		// Oracle and Sybase keep the command text ASCII: an 8-bit connection charset maps U+FF07 / U+2019 to an apostrophe
+		[Test]
+		public void NonAsciiLiteralIsWrittenAsAscii([Values("Oracle", "Sybase")] string provider)
+		{
+			using var db = provider == "Oracle"
+				? new DataConnection(new DataOptions().UseOracle("Data Source=offline", LinqToDB.DataProvider.Oracle.OracleVersion.v12, LinqToDB.DataProvider.Oracle.OracleProvider.Managed))
+				: new DataConnection(new DataOptions().UseAse("Data Source=offline", LinqToDB.DataProvider.Sybase.SybaseProvider.DataAction));
+
+			var sql = RenderSelect(
+				db,
+				new SqlValue(typeof(string), "MARK ÄΩ＇’ \\ ' \U0001F600"),
+				new SqlValue(new DbDataType(typeof(string), DataType.NVarChar), "MARK＇"),
+				new SqlValue(typeof(char), '＇'),
+				new SqlValue(typeof(string), "plain 'ascii'"));
+
+			sql.ShouldAllBe(c => c < 0x80);
+			sql.ShouldContain("'plain ''ascii'''");
+		}
+
 		// the control: an operand without a leading minus keeps the minus sign beside it
 		[Test]
 		public void MinusBeforeOperandStaysAttached()
@@ -215,7 +354,8 @@ namespace Tests.AST
 			sql.ShouldNotContain("- ");
 		}
 
-		// DuckDB writes a BitArray string as a BITSTRING literal
+#if !NETFRAMEWORK
+		// DuckDB writes a BitArray string as a BITSTRING literal (no DuckDB or YDB driver on .NET Framework)
 		[Test]
 		public void DuckDBBitStringKeepsTheValueInsideTheLiteral()
 		{
@@ -236,6 +376,7 @@ namespace Tests.AST
 			RenderSelect(db, new SqlValue(new DbDataType(typeof(string), DataType.DecFloat), "1.5")).ShouldContain("DyNumber('1.5')");
 			RenderSelect(db, new SqlValue(new DbDataType(typeof(string), DataType.DecFloat), "1'5")).ShouldContain("DyNumber('1\\'5')");
 		}
+#endif
 
 		sealed class CalculationViews : DataConnection
 		{

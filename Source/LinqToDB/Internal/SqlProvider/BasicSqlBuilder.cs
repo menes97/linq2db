@@ -4211,7 +4211,23 @@ namespace LinqToDB.Internal.SqlProvider
 					values[i] = WithStringBuilderBuildExpression(precedence, value);
 				}
 
+				SeparateMinusFromValues(format, values);
+
 				StringBuilder.AppendFormat(CultureInfo.InvariantCulture, format, values);
+			}
+		}
+
+		// a template's "-" right before a value that renders with a leading "-" (a-{0} with -5) would open a line comment
+		static void SeparateMinusFromValues(string format, object[] values)
+		{
+			if (!Array.Exists(values, static v => v is string { Length: > 0 } s && s[0] == '-')
+				|| Common.FormattableStringHelper.ParseFormatItems(format) is not { } items)
+				return;
+
+			foreach (var item in items)
+			{
+				if (item.Start > 0 && format[item.Start - 1] == '-' && item.Index < values.Length && values[item.Index] is string { Length: > 0 } value && value[0] == '-')
+					values[item.Index] = " " + value;
 			}
 		}
 
@@ -4823,6 +4839,8 @@ namespace LinqToDB.Internal.SqlProvider
 
 							values[i] = WithStringBuilderBuildExpression(Precedence.Primary, value);
 						}
+
+						SeparateMinusFromValues(tbl.Expression!, values);
 
 						sb.Value.Length = 0;
 						sb.Value.AppendFormat(CultureInfo.InvariantCulture, tbl.Expression!, values);

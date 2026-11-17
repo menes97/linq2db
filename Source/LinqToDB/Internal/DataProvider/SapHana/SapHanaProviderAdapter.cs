@@ -22,6 +22,53 @@ namespace LinqToDB.Internal.DataProvider.SapHana
 	// TODO: add ReadVector support
 	public sealed class SapHanaProviderAdapter : IDynamicProviderAdapter
 	{
+		// [+-] digits [. digits] [e [+-] digits], with digits on at least one side of the point
+		internal static bool IsNumericLiteral(string text)
+		{
+			var i = 0;
+
+			if (i < text.Length && text[i] is '+' or '-')
+				i++;
+
+			var start = i;
+
+			while (i < text.Length && text[i] is >= '0' and <= '9')
+				i++;
+
+			var digits = i - start;
+
+			if (i < text.Length && text[i] == '.')
+			{
+				start = ++i;
+
+				while (i < text.Length && text[i] is >= '0' and <= '9')
+					i++;
+
+				digits += i - start;
+			}
+
+			if (digits == 0)
+				return false;
+
+			if (i < text.Length && text[i] is 'e' or 'E')
+			{
+				i++;
+
+				if (i < text.Length && text[i] is '+' or '-')
+					i++;
+
+				var exponent = i;
+
+				while (i < text.Length && text[i] is >= '0' and <= '9')
+					i++;
+
+				if (i == exponent)
+					return false;
+			}
+
+			return i == text.Length;
+		}
+
 		private static readonly Lock _unmanagedSyncRoot = new ();
 		private static readonly Lock _odbcSyncRoot      = new ();
 
@@ -217,7 +264,14 @@ namespace LinqToDB.Internal.DataProvider.SapHana
 						{
 							// because sap developers never heard about cultures, we must ensure that decimal.ToString will not result in invalid literal
 							using var r = new InvariantCultureRegion(null);
-							sb.Append(decimalConverter(v));
+
+							// HanaDecimal keeps the text it was created from, so it is written only when that text is a number
+							var literal = decimalConverter(v);
+
+							if (!IsNumericLiteral(literal))
+								throw new LinqToDBException($"HanaDecimal value '{literal}' is not a numeric literal.");
+
+							sb.Append(literal);
 						});
 					}
 

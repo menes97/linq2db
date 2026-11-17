@@ -35,7 +35,8 @@ namespace LinqToDB.Mapping
 				if (BaseConverters[i].CanConvert(type))
 					return true;
 
-			return false;
+			// TryConvertImpl writes them through the string converter
+			return (type == typeof(SqlString) || type == typeof(SqlChars)) && CanConvert(typeof(string));
 		}
 
 		internal void SetDefaults()
@@ -67,8 +68,6 @@ namespace LinqToDB.Mapping
 			SetConverter(typeof(SqlDecimal), (sb,_,_,v) => sb.Append(((SqlDecimal)v).ToString()));
 			SetConverter(typeof(SqlMoney),   (sb,_,_,v) => sb.Append(((SqlMoney)  v).ToString()));
 			SetConverter(typeof(SqlDateTime),(sb,_,_,v) => BuildDateTime(sb, (DateTime)(SqlDateTime)v));
-			SetConverter(typeof(SqlString),  (sb,_,_,v) => BuildString  (sb, ((SqlString)v).Value));
-			SetConverter(typeof(SqlChars),   (sb,_,_,v) => BuildString  (sb, ((SqlChars)v).ToSqlString().ToString()));
 			SetConverter(typeof(SqlGuid),    (sb,_,_,v) => sb.Append('\'').Append(((SqlGuid)v).Value.ToString()).Append('\''));
 
 #if SUPPORTS_DATEONLY
@@ -234,6 +233,16 @@ namespace LinqToDB.Mapping
 				foreach (var valueConverter in BaseConverters)
 					if (valueConverter.TryConvertImpl(stringBuilder, dataType, options, value, false))
 						return true;
+
+			// written as the provider writes a string, so its escaping applies (a backslash on ClickHouse, MySQL and YDB)
+			if (tryBase)
+			{
+				switch (value)
+				{
+					case SqlString sqlString: return TryConvertImpl(stringBuilder, dataType, options, sqlString.Value, true);
+					case SqlChars  sqlChars : return TryConvertImpl(stringBuilder, dataType, options, sqlChars.ToSqlString().Value, true);
+				}
+			}
 
 			return false;
 		}

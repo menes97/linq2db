@@ -3275,6 +3275,11 @@ namespace LinqToDB.DataProvider.SqlServer
 			public void Build(Sql.ISqlExtensionBuilder builder)
 			{
 				var collationName = builder.GetValue<string>("collation_name");
+
+				// written unquoted, as Sql.Collate writes it
+				if (!Sql.NamedCollationBuilder.ValidateCollation(collationName))
+					throw new InvalidOperationException($"Invalid collation: {collationName}");
+
 				#pragma warning disable LINQ2DB0007 // user-supplied text: rejected for untrusted clients unless the host adds it
 				builder.AddFragment("collation_name", collationName);
 				#pragma warning restore LINQ2DB0007

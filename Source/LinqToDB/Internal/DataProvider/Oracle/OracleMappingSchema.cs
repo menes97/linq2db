@@ -137,7 +137,10 @@ namespace LinqToDB.Internal.DataProvider.Oracle
 				case DataType.NChar   : prefix = "N"; break;
 			}
 
-			DataTools.ConvertStringToSql(stringBuilder, "||", prefix, AppendConversionAction, value, null);
+			if (IsAscii(value))
+				DataTools.ConvertStringToSql(stringBuilder, "||", prefix, AppendConversionAction, value, null);
+			else
+				BuildUnicodeString(stringBuilder, value, national: prefix != null || type.Type.DataType == DataType.NText);
 
 			switch (type.Type.DataType)
 			{
@@ -148,7 +151,68 @@ namespace LinqToDB.Internal.DataProvider.Oracle
 
 		static void ConvertCharToSql(StringBuilder stringBuilder, char value)
 		{
-			DataTools.ConvertCharToSql(stringBuilder, "'", AppendConversionAction, value);
+			if (value < 0x80)
+				DataTools.ConvertCharToSql(stringBuilder, "'", AppendConversionAction, value);
+			else
+				BuildUnicodeString(stringBuilder, value.ToString(), national: false);
+		}
+
+		static bool IsAscii(string value)
+		{
+			foreach (var c in value)
+				if (c >= 0x80)
+					return false;
+
+			return true;
+		}
+
+		// On an 8-bit database charset the driver maps a character it cannot encode to a look-alike, and U+FF07 or U+2019
+		// can become the apostrophe that ends the literal. Text with a character above ASCII is written through UNISTR, whose
+		// argument is ASCII only, and cast back to the CHAR(n) / NCHAR(n) a text literal has, so blank-padded comparison
+		// semantics stay those of a literal. UNISTR takes at most 4000 bytes, so longer text is concatenated from parts.
+		static void BuildUnicodeString(StringBuilder stringBuilder, string value, bool national)
+		{
+			const int MaxCastLength = 500; // CHAR(n CHAR) / NCHAR(n) stay under 2000 bytes for any charset
+			const int PartLength    = 700; // up to 5 ASCII characters per character, under 4000 per UNISTR argument
+
+			// CHAR(n) counts characters: a surrogate pair is one, or the cast would pad a trailing space
+			var length = value.Length;
+
+			for (var i = 1; i < value.Length; i++)
+				if (char.IsLowSurrogate(value[i]) && char.IsHighSurrogate(value[i - 1]))
+					length--;
+
+			var cast = length <= MaxCastLength;
+
+			if (cast)
+				stringBuilder.Append("CAST(");
+			else if (!national)
+				stringBuilder.Append("TO_CHAR(");
+
+			for (var start = 0; start < value.Length; start += PartLength)
+			{
+				if (start > 0)
+					stringBuilder.Append(" || ");
+
+				stringBuilder.Append("UNISTR('");
+
+				for (var i = start; i < Math.Min(start + PartLength, value.Length); i++)
+				{
+					var c = value[i];
+
+					if (c is '\\' or '\'' or < (char)0x20 or >= (char)0x80)
+						stringBuilder.Append('\\').Append(((int)c).ToString("X4", CultureInfo.InvariantCulture));
+					else
+						stringBuilder.Append(c);
+				}
+
+				stringBuilder.Append("')");
+			}
+
+			if (cast)
+				stringBuilder.Append(CultureInfo.InvariantCulture, $" AS {(national ? "NCHAR" : "CHAR")}({length}{(national ? "" : " CHAR")}))");
+			else if (!national)
+				stringBuilder.Append(')');
 		}
 
 		public override LambdaExpression? TryGetConvertExpression(Type from, Type to)

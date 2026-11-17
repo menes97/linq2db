@@ -26,7 +26,9 @@ namespace LinqToDB
 
 		internal sealed partial class NamedCollationBuilder : IExtensionCallBuilder
 		{
-			private const string CollationValidationPattern = /* lang=regex */ @"^[a-zA-Z0-9_\.\-@]+$";
+			// written unquoted, so one token only: a '-' or '@' would continue the expression (NOCASE-1, a parameter), and $
+			// would also match before a trailing line feed
+			private const string CollationValidationPattern = /* lang=regex */ @"^[a-zA-Z0-9_\.]+\z";
 #if SUPPORTS_REGEX_GENERATORS
             [GeneratedRegex(CollationValidationPattern, RegexOptions.Compiled | RegexOptions.ExplicitCapture)]
             private static partial Regex CollationValidationRegex();
@@ -54,7 +56,7 @@ namespace LinqToDB
 			/// </summary>
 			/// <param name="collation">Collation name to check.</param>
 			/// <returns>False if invalid characters found, else true.</returns>
-			private static bool ValidateCollation(string collation)
+			internal static bool ValidateCollation(string collation)
 			{
 				return !string.IsNullOrWhiteSpace(collation) && CollationValidationRegex().IsMatch(collation);
 			}
@@ -65,7 +67,11 @@ namespace LinqToDB
 			public void Build(ISqlExtensionBuilder builder)
 			{
 				var expr      = builder.GetExpression("expr")!;
-				var collation = builder.GetValue<string>("collation").Replace("\"", "\"\"", StringComparison.Ordinal);
+				// quoted as an identifier, and its braces doubled: the text becomes a composite format
+				var collation = builder.GetValue<string>("collation")
+					.Replace("\"", "\"\"", StringComparison.Ordinal)
+					.Replace("{",  "{{",   StringComparison.Ordinal)
+					.Replace("}",  "}}",   StringComparison.Ordinal);
 
 				#pragma warning disable LINQ2DB0007 // user-supplied text: rejected for untrusted clients unless the host adds it
 				builder.ResultExpression = new SqlExpression(builder.Mapping.GetDbDataType(typeof(string)), $"{{0}} COLLATE \"{collation}\"",
