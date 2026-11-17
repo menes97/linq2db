@@ -755,6 +755,19 @@ namespace Tests.AST
 			RoundTrip(db, statement, Untrusted(db));
 		}
 
+		// a driver struct is a value type only when its type arguments are values too
+		[Test]
+		public void DriverGenericValueTypeChecksItsTypeArguments()
+		{
+			using var db = new DataConnection(new DataOptions().UsePostgreSQL("Server=offline", LinqToDB.DataProvider.PostgreSQL.PostgreSQLVersion.v15));
+
+			RoundTrip(db, SelectOf(new SqlValue(typeof(NpgsqlTypes.NpgsqlRange<int>?), null)), Untrusted(db, _thisAssembly));
+
+			var exception = RejectedUnlessTrusted(db, SelectOf(new SqlValue(typeof(NpgsqlTypes.NpgsqlRange<LocalEntity>?), null)), Untrusted(db, _thisAssembly));
+
+			exception.Rejections[0].Reason.ShouldBe(RemoteRejectionReason.TypeNotAllowed);
+		}
+
 		[Test]
 		public void EnumValueFromMappingAssemblyIsAccepted()
 		{

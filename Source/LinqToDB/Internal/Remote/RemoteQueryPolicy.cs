@@ -419,7 +419,8 @@ namespace LinqToDB.Internal.Remote
 
 			var unwrapped = Nullable.GetUnderlyingType(type) ?? type;
 
-			return unwrapped.IsValueType && unwrapped.Assembly == _driverAssembly;
+			// a generic driver struct (NpgsqlRange<T>) converts its type arguments too
+			return unwrapped.IsValueType && unwrapped.Assembly == _driverAssembly && unwrapped.GetGenericArguments().All(IsValueType);
 		}
 
 		void Reject(RemoteRejectionReason reason, object entry, RemoteTypeRole role, string remedy)
