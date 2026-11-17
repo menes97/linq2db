@@ -4363,8 +4363,7 @@ namespace LinqToDB.Internal.SqlProvider
 			{
 				if (value.Value is int i && i == -1)
 				{
-					StringBuilder.Append('-');
-					BuildExpression(GetPrecedence(expr), expr.Expr2);
+					BuildMinusOperand(GetPrecedence(expr), expr.Expr2);
 					return;
 				}
 			}
@@ -4465,8 +4464,27 @@ namespace LinqToDB.Internal.SqlProvider
 				_                                 => throw new LinqToDBException($"Unsupported unary operation {op}"),
 			};
 
+			if (opText == '-')
+			{
+				BuildMinusOperand(GetPrecedence(expr), expr.Expr);
+				return;
+			}
+
 			StringBuilder.Append(opText);
 			BuildExpression(GetPrecedence(expr), expr.Expr);
+		}
+
+		// "-" directly before an operand that renders with a leading "-" would open a line comment
+		void BuildMinusOperand(int precedence, ISqlExpression operand)
+		{
+			StringBuilder.Append('-');
+
+			var start = StringBuilder.Length;
+
+			BuildExpression(precedence, operand);
+
+			if (StringBuilder.Length > start && StringBuilder[start] == '-')
+				StringBuilder.Insert(start, ' ');
 		}
 
 		#endregion

@@ -640,14 +640,12 @@ namespace LinqToDB.Internal.DataProvider.Ydb
 				dt.Type.Scale ?? DEFAULT_DECIMAL_SCALE);
 		}
 
+		// the text is written as a string literal: it is not known to be a number
 		private static void BuildDecimalLiteral(StringBuilder sb, string value, SqlDataType dt)
 		{
-			sb.AppendFormat(
-				CultureInfo.InvariantCulture,
-				DECIMAL_FORMAT,
-				value,
-				dt.Type.Precision ?? DEFAULT_DECIMAL_PRECISION,
-				dt.Type.Scale ?? DEFAULT_DECIMAL_SCALE);
+			sb.Append("Decimal(");
+			BuildStringLiteral(sb, value);
+			sb.Append(CultureInfo.InvariantCulture, $", {dt.Type.Precision ?? DEFAULT_DECIMAL_PRECISION}, {dt.Type.Scale ?? DEFAULT_DECIMAL_SCALE})");
 		}
 
 		private static void BuildDyNumberLiteral(StringBuilder sb, decimal value)
@@ -657,7 +655,9 @@ namespace LinqToDB.Internal.DataProvider.Ydb
 
 		private static void BuildDyNumberLiteral(StringBuilder sb, string value)
 		{
-			sb.AppendFormat(CultureInfo.InvariantCulture, DY_NUMBER_FORMAT, value);
+			sb.Append("DyNumber(");
+			BuildStringLiteral(sb, value);
+			sb.Append(')');
 		}
 
 		private static void BuildDyNumberLiteral(StringBuilder sb, double value)

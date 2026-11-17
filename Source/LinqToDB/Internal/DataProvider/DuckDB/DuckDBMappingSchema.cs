@@ -272,10 +272,10 @@ namespace LinqToDB.Internal.DataProvider.DuckDB
 		{
 			if (type.Type.DataType == DataType.BitArray)
 			{
-				// no escaping, as it must contain only 0/1 or fail with sql error
+				// a valid value is only 0/1, but any other must still stay inside the literal and fail as a value
 				stringBuilder
 					.Append('\'')
-					.Append(value)
+					.Append(value.Replace("'", "''", StringComparison.Ordinal))
 					.Append("'::BITSTRING");
 				return;
 			}
