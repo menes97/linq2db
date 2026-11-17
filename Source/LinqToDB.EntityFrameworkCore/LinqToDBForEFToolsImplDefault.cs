@@ -391,8 +391,8 @@ namespace LinqToDB.EntityFrameworkCore
 				.Distinct()
 				.ToArray();
 
-			var sqlConverter = mappingSchema.ValueToSqlConverter;
-			
+			var mappedTypes = new HashSet<Type>();
+
 			foreach (var modelType in types)
 			{
 				if (modelType.IsEnum)
@@ -412,9 +412,11 @@ namespace LinqToDB.EntityFrameworkCore
 				if (modelType.IsArray)
 					continue;
 
-				MapEFCoreType(modelType);
-				if (modelType.IsValueType && !typeof(Nullable<>).IsSameOrParentOf(modelType))
-					MapEFCoreType(typeof(Nullable<>).MakeGenericType(modelType));
+				var baseType = nullableUnderlyingType ?? modelType;
+				if (!mappedTypes.Add(baseType))
+					continue;
+
+				MapEFCoreType(baseType);
 			}
 
 			void MapEnumType(Type type)
@@ -445,13 +447,23 @@ namespace LinqToDB.EntityFrameworkCore
 				var info = infos[0];
 				var providerType = info.ProviderClrType;
 				var dataType = mappingSchema.GetDataType(providerType);
+				var converter = info.Create();
+
+				// T? gets its own conversions: EF Core's ConvertToProvider returns null for null without calling the
+				// converter, while a lifted T conversion would pass default(T) to a converter that may reject it
+				MapConvertedType(modelType, providerType, dataType, converter);
+				if (modelType.IsValueType)
+					MapConvertedType(typeof(Nullable<>).MakeGenericType(modelType), providerType, dataType, converter);
+			}
+
+			void MapConvertedType(Type modelType, Type providerType, SqlDataType dataType, ValueConverter converter)
+			{
 				var fromParam = Expression.Parameter(modelType, "t");
 				var toParam = Expression.Parameter(providerType, "t");
-				var converter = info.Create();
 
 				var valueExpression =
 					Expression.Invoke(Expression.Constant(converter.ConvertToProvider), WithConvertToObject(fromParam));
-				var convertLambda = WithToDataParameter(valueExpression, dataType, fromParam);
+				var convertLambda = WithToDataParameter(valueExpression, dataType, providerType, fromParam);
 
 				mappingSchema.SetConvertExpression(modelType, typeof(DataParameter), convertLambda, false);
 				mappingSchema.SetConvertExpression(modelType, providerType,
@@ -462,24 +474,50 @@ namespace LinqToDB.EntityFrameworkCore
 							Expression.Invoke(Expression.Constant(converter.ConvertFromProvider), WithConvertToObject(toParam)),
 							modelType), toParam));
 
-				mappingSchema.SetValueToSqlConverter(modelType, (sb, dt, v)
-					=> sqlConverter.Convert(sb, mappingSchema, dt.Type, dataOptions, converter.ConvertToProvider(v)));
+				// no value-to-SQL converter: this schema has no provider, so its literal writer would ignore the dialect's
+				// escaping (MySQL backslashes); with a data type, a constant goes through the DataParameter conversion above
+				// and the connection's schema writes the provider value
+				mappingSchema.SetDataType(modelType, new SqlDataType(dataType.Type.WithSystemType(modelType)));
 			}
 		}
 
-		private static LambdaExpression WithToDataParameter(Expression valueExpression, SqlDataType dataType, ParameterExpression fromParam) 
-			=> Expression.Lambda
+		static readonly ConstructorInfo _typedDataParameterConstructor = LinqToDB.Expressions.MemberHelper.ConstructorOf(() => new DataParameter("", null, default(DbDataType)));
+
+		private static LambdaExpression WithToDataParameter(Expression valueExpression, SqlDataType dataType, Type providerType, ParameterExpression fromParam)
+		{
+			var value = Expression.Variable(typeof(object), "v");
+
+			return Expression.Lambda
 			(
-				Expression.New
+				Expression.Block
 				(
-					ReflectionMethods.DataParameterConstructor,
-					Expression.Constant("Conv", typeof(string)),
-					valueExpression,
-					Expression.Constant(dataType.Type.DataType, typeof(DataType)),
-					Expression.Constant(dataType.Type.DbType, typeof(string))
-				), 
+					new[] { value },
+					Expression.Assign(value, valueExpression),
+					Expression.Condition
+					(
+						Expression.Equal(value, Expression.Constant(null)),
+						// a null value would type the parameter as object, and a NULL constant typed so is read back by
+						// nothing that knows the model type
+						Expression.New
+						(
+							_typedDataParameterConstructor,
+							Expression.Constant("Conv", typeof(string)),
+							value,
+							Expression.Constant(new DbDataType(providerType, dataType.Type.DataType, dataType.Type.DbType))
+						),
+						Expression.New
+						(
+							ReflectionMethods.DataParameterConstructor,
+							Expression.Constant("Conv", typeof(string)),
+							value,
+							Expression.Constant(dataType.Type.DataType, typeof(DataType)),
+							Expression.Constant(dataType.Type.DbType, typeof(string))
+						)
+					)
+				),
 				fromParam
 			);
+		}
 
 		private static Expression WithConvertToObject(Expression valueExpression) 
 			=> valueExpression.Type != typeof(object)
