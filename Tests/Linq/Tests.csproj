@@ -80,6 +80,8 @@
 
 	<ItemGroup>
 		<ProjectReference Include="..\..\Source\LinqToDB.Analyzers\LinqToDB.Analyzers.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+		<!-- RemoteQueryValidatorTests' marker texts must stay outside this assembly's catalog: those tests expect them rejected -->
+		<LinqToDBSqlText Include="SqlText.deny.txt" />
 	</ItemGroup>
 
 	<Import Project="..\..\Source\LinqToDB.Analyzers.CodeFixes\build\linq2db.Analyzers.targets" />

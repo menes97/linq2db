@@ -169,6 +169,7 @@ namespace Tests.xUpdate
 
 		[Test]
 		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName, Context = "Oracle")]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName, Context = "SapHana")]
 		public void DropTable_IfExists_IdentifierWithApostrophe(
 			[IncludeDataSources(true, TestProvName.AllDB2, TestProvName.AllSapHana, TestProvName.AllOracle, TestProvName.AllFirebird)] string context)
 		{

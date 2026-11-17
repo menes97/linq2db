@@ -172,6 +172,8 @@ namespace Tests.xUpdate
 		[RejectedWhenUntrusted(RemoteRejectionReason.IdentifierNotMapped, Context = "PostgreSQL")]
 		[RejectedWhenUntrusted(RemoteRejectionReason.IdentifierNotMapped, Context = "SqlServer")]
 		[RejectedWhenUntrusted(RemoteRejectionReason.IdentifierNotMapped, Context = "Oracle")]
+		[RejectedWhenUntrusted(RemoteRejectionReason.IdentifierNotMapped, Context = "DuckDB")]
+		[RejectedWhenUntrusted(RemoteRejectionReason.IdentifierNotMapped, Context = "SapHana")]
 		public void ExplicitInterfaceProperty_UpdateWhenMatched([MergeDataContextSource] string context)
 		{
 			var ms = new MappingSchema();

@@ -1049,6 +1049,8 @@ namespace Tests.Linq
 		[Test]
 		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.RawSqlTable, Context = "PostgreSQL")]
 		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.RawSqlTable, Context = "MySql")]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.RawSqlTable, Context = "SqlServer")]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.RawSqlTable, Context = "DuckDB")]
 		public void TestBasicScalarQueryWithoutExplicitAlias([DataSources(
 			TestProvName.AllAccess, 
 			TestProvName.AllMySql57,
@@ -2066,6 +2068,7 @@ namespace Tests.Linq
 
 		// positional binding only: on a provider that binds by name (LibRed) an argument no {n} references is not sent
 		[Test(Description = "https://github.com/linq2db/linq2db/pull/6008")]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.RawSqlTable, Context = "SapHana")]
 		public void PlainArgumentReferencedByPositionIsSent([IncludeDataSources(true, TestProvName.AllNativeAccess, TestProvName.AllSapHana)] string context)
 		{
 			using var db = GetDataContext(context);
@@ -2087,6 +2090,7 @@ namespace Tests.Linq
 
 		// positional binding only: on a provider that binds by name (LibRed) an argument no {n} references is not sent
 		[Test(Description = "https://github.com/linq2db/linq2db/pull/6008")]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.Expression)]
 		public void PlainExprArgumentReferencedByPositionIsSent([IncludeDataSources(true, TestProvName.AllNativeAccess, TestProvName.AllSapHana)] string context)
 		{
 			using var db = GetDataContext(context);

@@ -8,6 +8,7 @@ using LinqToDB.Data;
 using LinqToDB.DataProvider.SqlServer;
 using LinqToDB.Internal.DataProvider.SqlServer;
 using LinqToDB.Mapping;
+using LinqToDB.Remote;
 
 using Microsoft.SqlServer.Types;
 
@@ -32,6 +33,8 @@ namespace Tests.DataProvider
 		}
 
 		[Test]
+		// method texts the SqlServer attribute reader builds from Microsoft.SqlServer.Types at run time are not in the catalog
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.Expression)]
 		public void TestHierarchyId([IncludeDataSources(true, TestProvName.AllSqlServer2008Plus)] string context)
 		{
 #if !NETFRAMEWORK

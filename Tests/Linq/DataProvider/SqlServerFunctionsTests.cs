@@ -5,6 +5,7 @@ using System.Linq;
 using LinqToDB;
 using LinqToDB.Data;
 using LinqToDB.DataProvider.SqlServer;
+using LinqToDB.Remote;
 using LinqToDB.Tools.DataProvider.SqlServer.Schemas;
 
 using NUnit.Framework;
@@ -247,6 +248,8 @@ namespace Tests.DataProvider
 		}
 
 		[Test]
+		// the data type is written as SqlType text, which any client can set through SqlType's public constructor
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.Fragment)]
 		public void ConvertVectorTest([IncludeDataSources(true, TestProvName.AllSqlServer2025Plus)] string context)
 		{
 			using var db = GetDataContext(context);

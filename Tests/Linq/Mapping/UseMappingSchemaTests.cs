@@ -57,6 +57,7 @@ namespace Tests.Mapping
 
 		[Test]
 		[RejectedWhenUntrusted(RemoteRejectionReason.IdentifierNotMapped)]
+		[RejectedWhenUntrusted(RemoteRejectionReason.TextNotInCatalog, SqlTextKind.TableName)]
 		public void Test2([DataSources] string context)
 		{
 			using var db  = GetDataContext(context);

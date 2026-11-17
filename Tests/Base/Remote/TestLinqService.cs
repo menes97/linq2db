@@ -41,6 +41,9 @@ namespace Tests.Remote
 					foreach (var assembly in _testAssemblies)
 						MappingAssemblies.Add(assembly);
 
+				// DataContextTests.TestNullConfiguration_* send no configuration name
+				AllowedConfigurations.Add(null);
+
 				foreach (var provider in TestConfiguration.UserProviders)
 				{
 					AllowedConfigurations.Add(provider);

@@ -1,0 +1,5 @@
+# Texts RemoteQueryValidatorTests sends to prove they are rejected; the generator would otherwise catalogue them from
+# the tests' own source. Format: SqlTextCatalog.Export lines.
+-	StatementHeader	NOT_IN_CATALOG {0}
+-	StatementFooter	NOT_IN_CATALOG
+-	DbType	MARKER TYPE(1 UNIT)
