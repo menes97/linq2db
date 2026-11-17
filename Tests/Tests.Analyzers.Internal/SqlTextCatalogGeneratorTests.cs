@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -120,6 +121,15 @@ namespace Tests.Analyzers.Internal
 		/// <summary>Generates the catalog for <paramref name="body"/> and returns its entries as <c>kind partition text</c>.</summary>
 		static async Task<string[]> Generate(string body)
 		{
+			var source = await GenerateSource(body);
+
+			return _entry.Matches(source)
+				.Select(static m => $"{m.Groups["kind"].Value} {(m.Groups["partition"].Success ? m.Groups["partition"].Value : "-")} {m.Groups["text"].Value}")
+				.ToArray();
+		}
+
+		static async Task<string> GenerateSource(string body)
+		{
 			var references  = await ReferenceAssemblies.Net.Net80.ResolveAsync(LanguageNames.CSharp, CancellationToken.None);
 			var compilation = CSharpCompilation.Create(
 				"linq2db",
@@ -131,11 +141,8 @@ namespace Tests.Analyzers.Internal
 			compilation.GetDiagnostics().Where(static d => d.Severity == DiagnosticSeverity.Error).ShouldBeEmpty();
 
 			var result = CSharpGeneratorDriver.Create(new SqlTextCatalogGenerator()).RunGenerators(compilation).GetRunResult();
-			var source = result.GeneratedTrees.Single().ToString();
 
-			return _entry.Matches(source)
-				.Select(static m => $"{m.Groups["kind"].Value} {(m.Groups["partition"].Success ? m.Groups["partition"].Value : "-")} {m.Groups["text"].Value}")
-				.ToArray();
+			return result.GeneratedTrees.Single().ToString();
 		}
 
 		static async Task ShouldGenerate(string body, params string[] expected)
@@ -251,6 +258,19 @@ namespace Tests.Analyzers.Internal
 			"Expression - {0} MATCH {1}",
 			"RawSqlTable - SELECT * FROM {0}",
 			"Expression - {{literal}} {0}");
+
+		// an escaped brace is not a named token, so the text is not expanded as a template
+		[Test]
+		public async Task EscapedBracesAreNotATemplate()
+		{
+			var source = await GenerateSource("""
+						[Sql.Expression("JSON_OBJECT('{{name}}', {0})")]
+						public static int Json(int value) => value;
+				""");
+
+			source.ShouldContain("\"JSON_OBJECT('{{name}}', {0})\"");
+			source.Split('\n').Single(static l => l.Contains("JSON_OBJECT", StringComparison.Ordinal)).TrimEnd().ShouldEndWith("false),");
+		}
 
 		[Test]
 		public Task InterpolationWithFormatIsNotCatalogued() => ShouldGenerate("""

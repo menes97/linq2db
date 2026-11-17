@@ -411,6 +411,19 @@ namespace Tests.Linq
 		}
 
 		[Test]
+		public void LibraryFromSqlScalarTextIsCatalogued()
+		{
+			// PostgreSQLExtensions.Unnest / GenerateSeries / GenerateSubscripts send their text through FromSqlScalar
+			var allowed = Allowed(new PostgreSQLService().DumpSqlText());
+
+			allowed.ShouldContain((SqlTextKind.RawSqlTable, "UNNEST({})"));
+			allowed.ShouldContain((SqlTextKind.RawSqlTable, "GENERATE_SERIES({}, {}, {})"));
+			allowed.ShouldContain((SqlTextKind.RawSqlTable, "GENERATE_SUBSCRIPTS({}, {})"));
+
+			Allowed(new SQLiteService().DumpSqlText()).ShouldNotContain((SqlTextKind.RawSqlTable, "UNNEST({})"));
+		}
+
+		[Test]
 		public void EveryCatalogPartitionIsAProviderFamily()
 		{
 			var library  = typeof(DataOptions).Assembly;

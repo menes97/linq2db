@@ -228,7 +228,7 @@ namespace CodeGenerators
 			return result.ToImmutable();
 		}
 
-		// Sql.Expr and FromSql take user text, so they carry no [SqlText]. The library's own calls pass an interpolated string,
+		// Sql.Expr, FromSql and FromSqlScalar take user text, so they carry no [SqlText]. The library's own calls pass an interpolated string,
 		// which reaches the server as its composite format: that format is the catalog entry.
 		static void AddInterpolatedSql(ImmutableArray<Item>.Builder result, IOperation operation, ISymbol? containing)
 		{
@@ -237,9 +237,9 @@ namespace CodeGenerators
 
 			var kind = method switch
 			{
-				{ Name: "Expr",    ContainingType: { Name: "Sql",            ContainingNamespace.Name: "LinqToDB" } } => ExpressionKind,
-				{ Name: "FromSql", ContainingType: { Name: "DataExtensions", ContainingNamespace.Name: "LinqToDB" } } => RawSqlTableKind,
-				_                                                                                                       => -1,
+				{ Name: "Expr",                       ContainingType: { Name: "Sql",            ContainingNamespace.Name: "LinqToDB" } } => ExpressionKind,
+				{ Name: "FromSql" or "FromSqlScalar", ContainingType: { Name: "DataExtensions", ContainingNamespace.Name: "LinqToDB" } } => RawSqlTableKind,
+				_                                                                                                                          => -1,
 			};
 
 			if (kind < 0)
@@ -332,8 +332,13 @@ namespace CodeGenerators
 		static bool HasNamedToken(string text)
 		{
 			for (var i = 0; i + 1 < text.Length; i++)
-				if (text[i] == '{' && (char.IsLetter(text[i + 1]) || text[i + 1] == '_'))
+			{
+				// "{{" is an escaped brace, not a token
+				if (text[i] == '{' && text[i + 1] == '{')
+					i++;
+				else if (text[i] == '{' && (char.IsLetter(text[i + 1]) || text[i + 1] == '_'))
 					return true;
+			}
 
 			return false;
 		}

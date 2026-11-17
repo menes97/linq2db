@@ -1756,6 +1756,11 @@ Operator	SQLite	&
 Operator	Ydb	*
 Operator	Ydb	+
 Operator	Ydb	||
+RawSqlTable	PostgreSQL	GENERATE_SERIES({0}, {1}, {2})
+RawSqlTable	PostgreSQL	GENERATE_SERIES({0}, {1})
+RawSqlTable	PostgreSQL	GENERATE_SUBSCRIPTS({0}, {1}, {2})
+RawSqlTable	PostgreSQL	GENERATE_SUBSCRIPTS({0}, {1})
+RawSqlTable	PostgreSQL	UNNEST({0})
 RawSqlTable	PostgreSQL	UNNEST({0}) WITH ORDINALITY {1}(value, idx)
 RawSqlTable	SQLite	{0}({1})
 RawSqlTable	SqlServer	CONTAINSTABLE({0}, ({1}), {2}, {3})
