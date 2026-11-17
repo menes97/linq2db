@@ -198,6 +198,10 @@ namespace LinqToDB.Internal.Remote
 				case SqlRawSqlTable e:
 					policy.CheckText(SqlTextKind.RawSqlTable, e.SQL, e.Parameters.Length, "SqlRawSqlTable");
 					CheckIdentifier(policy, e.Alias, "SqlRawSqlTable.Alias", mappedNames);
+
+					// a leading placeholder names what the text calls or reads (SQLiteExtensions.MatchTable: "{0}({1})")
+					if (e.SQL.TrimStart().StartsWith("{0}", StringComparison.Ordinal) && e.Parameters is [not SqlTable, ..])
+						policy.RejectNode("SqlRawSqlTable.Parameters[0]");
 					break;
 
 				case SqlCteTable e:

@@ -966,6 +966,29 @@ namespace Tests.AST
 			Rejected(db, new SqlSelectStatement(query)).Rejections.ShouldContain(static r => r.Kind == SqlTextKind.RawSqlTable && r.Text == InertText);
 		}
 
+		// SQLiteExtensions.MatchTable: "{0}({1})" names the table in its leading placeholder, so only a table goes there
+		[Test]
+		public void RawSqlTableLeadingPlaceholderTakesOnlyATable([Values] bool table)
+		{
+			using var db = CreateConnection();
+
+			ISqlExpression first = table ? new SqlTable(db.MappingSchema.GetEntityDescriptor(typeof(LocalEntity))) : new SqlValue("inert");
+
+			var raw   = new SqlRawSqlTable(db.MappingSchema.GetEntityDescriptor(typeof(LocalEntity)), "{0}({1})", false, [first, new SqlValue("match")]);
+			var query = new SelectQuery();
+
+			query.From.Tables.Add(new SqlTableSource(raw, "r"));
+			query.Select.Add(One);
+
+			var statement = new SqlSelectStatement(query);
+			var policy    = Untrusted(db, _thisAssembly);
+
+			if (table)
+				RoundTrip(db, statement, policy);
+			else
+				RejectedUnlessTrusted(db, statement, policy).Rejections.ShouldContain(static r => r.Reason == RemoteRejectionReason.NodeNotAllowed);
+		}
+
 		[Test]
 		public void CreateTableTextOutsideCatalogIsRejected([Values("Header", "Footer")] string position)
 		{
