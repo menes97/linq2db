@@ -496,7 +496,8 @@ namespace LinqToDB.Remote
 				// ugh...
 				// still if it fails here due to empty columns - it is a bug in columns generation
 
-				var fieldType = RemoteQueryPolicy.GetResultFieldType(db.MappingSchema, selectExpressions[i])!;
+				// a column without a type (a fragment) is read as the raw provider value
+				var fieldType = RemoteQueryPolicy.GetResultFieldType(db.MappingSchema, selectExpressions[i]) ?? typeof(object);
 
 				// the type is checked here, where the reader is built for it: the server optimizer may have replaced the
 				// column's expression since the request was validated

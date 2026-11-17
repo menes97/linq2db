@@ -1770,6 +1770,15 @@ namespace Tests.AST
 			public override DataConnection CreateDataContext(string? configuration) => CreateConnection(Schema);
 		}
 
+		// a fragment has no SystemType: the column is read as the raw provider value
+		[Test]
+		public async Task ColumnWithoutTypeIsReadAsProviderValue()
+		{
+			var service = new SchemaService(null) { TrustedClient = true };
+
+			await service.ExecuteReaderAsync(null, Serialize(SelectOf(new SqlFragment("1"))));
+		}
+
 		static string Serialize(SqlStatement statement)
 		{
 			using var db = CreateConnection();
