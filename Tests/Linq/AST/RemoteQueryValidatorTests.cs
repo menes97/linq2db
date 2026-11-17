@@ -81,6 +81,11 @@ namespace Tests.AST
 			public int Id { get; set; }
 		}
 
+		sealed class SequenceRow
+		{
+			[Column, SequenceName("SEQ_ROW")] public int Id { get; set; }
+		}
+
 		// no [Table]: the hierarchy is stored in the root's table, named after the root
 		[InheritanceMapping(Code = 1, Type = typeof(DerivedRow))]
 		[InheritanceMapping(Code = 2, Type = typeof(OtherRow))]
@@ -803,6 +808,29 @@ namespace Tests.AST
 			var exception = Shouldly.Should.Throw<RemoteRequestRejectedException>(() => RoundTrip(db, statement, Untrusted(db, _thisAssembly)));
 
 			exception.Rejections[0].Reason.ShouldBe(RemoteRejectionReason.TypeNotAllowed);
+		}
+
+		// sequence names are not validated, so an untrusted client's are not kept
+		[Test]
+		public void SequenceAttributesAreDroppedWhenUntrusted([Values] bool trusted)
+		{
+			using var db = CreateConnection();
+
+			var query = new SelectQuery();
+			var table = new SqlTable(db.MappingSchema.GetEntityDescriptor(typeof(SequenceRow)));
+
+			table.SequenceAttributes.ShouldNotBeEmpty();
+
+			query.From.Tables.Add(new SqlTableSource(table, "t"));
+			query.Select.Add(new SqlValue(1));
+
+			var result = RoundTrip(db, new SqlSelectStatement(query), trusted ? null : Untrusted(db, _thisAssembly));
+			var source = (SqlTable)result.Statement.SelectQuery!.From.Tables[0].Source;
+
+			if (trusted)
+				source.SequenceAttributes.ShouldNotBeEmpty();
+			else
+				source.SequenceAttributes.ShouldBeNull();
 		}
 
 		[Test]

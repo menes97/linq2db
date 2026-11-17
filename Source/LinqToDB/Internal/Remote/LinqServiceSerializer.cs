@@ -2455,6 +2455,10 @@ string.Create(CultureInfo.InvariantCulture, $"TypeIndex or TypeArrayIndex ({Type
 
 								for (var i = 0; i < count.Value; i++)
 									sequenceAttributes[i] = new SequenceNameAttribute(ReadString()!, ReadString()!);
+
+								// sequence names are not validated, so an untrusted client's are not kept
+								if (Policy != null)
+									sequenceAttributes = null;
 							}
 
 							var all        = Read<SqlField>()!;
