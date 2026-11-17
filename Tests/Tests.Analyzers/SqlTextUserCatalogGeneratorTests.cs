@@ -846,6 +846,130 @@ namespace Tests.Analyzers
 					ignoreOrder: true);
 		}
 
+		// a field declaration and a record's property-targeted parameter attribute have no declared symbol of their own
+		[Test]
+		public async Task DbType_OnFieldsAndRecordProperties()
+		{
+			var result = await GeneratorVerifier.RunAsync(Usings + """
+				[Table]
+				class Row
+				{
+					[Column(DbType = "FIELD_DBTYPE")] public string A, B;
+				}
+
+				[Table]
+				record RecordRow([property: Column(DbType = "RECORD_DBTYPE")] string C);
+				""");
+
+			result
+				.Texts(SqlTextKind.DbType)
+				.ShouldBe(["FIELD_DBTYPE", "RECORD_DBTYPE"], ignoreOrder: true);
+		}
+
+		// a derived attribute is read through its own parameter only when it passes the parameter to the base unchanged
+		[Test]
+		public async Task DerivedAttribute_ForwardedText()
+		{
+			var result = await GeneratorVerifier.RunAsync(Usings + """
+				sealed class PassAttribute : Sql.ExpressionAttribute
+				{
+					public PassAttribute(string name) : base(name) { }
+				}
+
+				sealed class BuildAttribute : Sql.ExpressionAttribute
+				{
+					public BuildAttribute(string name) : base("FN_" + name + "({0})") { }
+				}
+
+				sealed class PrimaryAttribute(string name) : Sql.ExpressionAttribute(name);
+
+				static class Functions
+				{
+					[Pass("PASS_EXPR({0})")]  public static int Pass(int x)    => x;
+					[Build("BUILT")]           public static int Build(int x)   => x;
+					[Primary("PRIMARY({0})")] public static int Primary(int x) => x;
+				}
+				""");
+
+			result
+				.Texts(SqlTextKind.Expression)
+				.ShouldBe(["PASS_EXPR({0})", "PRIMARY({0})"], ignoreOrder: true);
+			result
+				.Diagnostics
+				.Where(static d => d.Id == "L2DB1005")
+				.ShouldHaveSingleItem()
+				.GetMessage()
+				.ShouldContain("BuildAttribute");
+		}
+
+		// the forwarded [SqlText] parameter is catalogued at its callers under its own kind, so another kind's position
+		// cannot take it silently
+		[Test]
+		public async Task ForwardedSqlTextParameterOfAnotherKind_ReportsL2DB1005()
+		{
+			var result = await GeneratorVerifier.RunAsync(Usings + """
+				using LinqToDB.Remote;
+
+				sealed class Builder : Sql.IExtensionCallBuilder
+				{
+					static void Set(Sql.ISqlExtensionBuilder builder, [SqlText(SqlTextKind.Function)] string name) => builder.Expression = name;
+
+					public void Build(Sql.ISqlExtensionBuilder builder) => Set(builder, "SOME_FUNCTION");
+				}
+				""");
+
+			result
+				.Diagnostics
+				.ShouldContain(static d => d.Id == "L2DB1005");
+		}
+
+		// an escaped brace is not a named token, so the text is not expanded as a template
+		[Test]
+		public async Task EscapedBraces_AreNotATemplate()
+		{
+			var result = await GeneratorVerifier.RunAsync(Usings + """
+				static class Functions
+				{
+					[Sql.Expression("JSON_OBJECT('{{name}}', {0})")] public static int Json(int x) => x;
+				}
+				""");
+
+			result
+				.Items
+				.Single(static i => i.Text == "JSON_OBJECT('{{name}}', {0})")
+				.IsTemplate
+				.ShouldBeFalse();
+		}
+
+		// lines end where SqlTextCatalog.Load ends them: at CR and LF, not at U+2028
+		[Test]
+		public async Task AllowFile_LineSeparatorIsText()
+		{
+			var result = await GeneratorVerifier.RunAsync("class C { }", files:
+			[
+				new(GeneratorVerifier.ProjectDir + "/allow.txt", "+\tQueryHint\tA\u2028B\r\n+\tQueryHint\tC"),
+			]);
+
+			result
+				.Texts(SqlTextKind.QueryHint)
+				.ShouldBe(["A\u2028B", "C"], ignoreOrder: true);
+		}
+
+		// a malformed denial in an ignored file is lost as surely as a well-formed one
+		[Test]
+		public async Task MalformedDenyLine_InIgnoredFile_ReportsL2DB1010()
+		{
+			var result = await GeneratorVerifier.RunAsync("class C { }", files:
+			[
+				new("/proj2/deny.txt", "-\tQueryHint"),
+			]);
+
+			result
+				.Diagnostics
+				.Select(static d => d.Id)
+				.ShouldContain("L2DB1010");
+		}
+
 		#endregion
 
 		#region Emitted code (TO-B5)

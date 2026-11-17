@@ -74,7 +74,8 @@ namespace LinqToDB.Analyzers
 		{
 			var values = new List<string>();
 
-			if (!CodeGenerators.SqlTextFlow.TryResolve(value, Model, values))
+			// a forwarded [SqlText] parameter of another kind is catalogued under that kind, so it does not resolve here
+			if (!CodeGenerators.SqlTextFlow.TryResolve(value, Model, values, expectedKind: Kinds.ToValue(kind)))
 			{
 				ReportNotConstant(value, location);
 				return;
@@ -92,7 +93,12 @@ namespace LinqToDB.Analyzers
 
 		public void ReportNotConstant(IOperation value, Location location)
 		{
-			_report(Diagnostic.Create(SqlTextUserCatalogGenerator.NotConstantRule, location, Describe(value)));
+			ReportNotConstant(Describe(value), location);
+		}
+
+		public void ReportNotConstant(string description, Location location)
+		{
+			_report(Diagnostic.Create(SqlTextUserCatalogGenerator.NotConstantRule, location, description));
 		}
 
 		public void Report(Diagnostic diagnostic) => _report(diagnostic);
@@ -121,8 +127,13 @@ namespace LinqToDB.Analyzers
 		static bool HasNamedToken(string text)
 		{
 			for (var i = 0; i + 1 < text.Length; i++)
-				if (text[i] == '{' && (char.IsLetter(text[i + 1]) || text[i + 1] == '_'))
+			{
+				// "{{" is an escaped brace, not a token
+				if (text[i] == '{' && text[i + 1] == '{')
+					i++;
+				else if (text[i] == '{' && (char.IsLetter(text[i + 1]) || text[i + 1] == '_'))
 					return true;
+			}
 
 			return false;
 		}

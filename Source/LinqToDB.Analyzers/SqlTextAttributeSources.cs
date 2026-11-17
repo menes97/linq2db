@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Operations;
 
 namespace LinqToDB.Analyzers
@@ -67,8 +69,8 @@ namespace LinqToDB.Analyzers
 
 			// a derived attribute forwards its text to the base constructor under a parameter of its own naming (SqlType's
 			// SqlExpression(string name)); a table expression's Name is a table name, so it is not read as the text
-			if (value == null && !isBase && kind is "Expression" or "Function")
-				foreach (var text in GetArguments(attribute, constructor, string.Equals(textMember, "Name", StringComparison.Ordinal) ? "expression" : "name", ""))
+			if (value == null && !isBase && kind is "Expression" or "Function" && GetForwardedParameter(textMember) is var forwarded && ForwardsUnchanged(constructor, forwarded))
+				foreach (var text in GetArguments(attribute, constructor, forwarded, ""))
 					value = text;
 
 			// the runtime falls back to the member name for the base attributes only (ExpressionAttribute.PrepareParameterValues,
@@ -94,6 +96,44 @@ namespace LinqToDB.Analyzers
 					}
 				}
 			}
+		}
+
+		/// <summary>
+		/// Whether <paramref name="attribute"/> is a derived <c>Sql.*Attribute</c> that receives its text under its own
+		/// parameter but builds the text it passes to the base from it, so the text cannot be read.
+		/// </summary>
+		public static bool HasUnreadableForwardedText(AttributeData attribute)
+		{
+			if (attribute.AttributeConstructor is not { } constructor || GetKind(attribute.AttributeClass, out var isBase, out var textMember) is not { } kind)
+				return false;
+
+			if (isBase || kind is not ("Expression" or "Function") || GetArguments(attribute, constructor, textMember, textMember).GetEnumerator().MoveNext())
+				return false;
+
+			var forwarded = GetForwardedParameter(textMember);
+
+			return GetArguments(attribute, constructor, forwarded, "").GetEnumerator().MoveNext() && !ForwardsUnchanged(constructor, forwarded);
+		}
+
+		static string GetForwardedParameter(string textMember) => string.Equals(textMember, "Name", StringComparison.Ordinal) ? "expression" : "name";
+
+		// The derived constructor passes the parameter to the base as is. Read from source when the attribute is declared in
+		// the compilation; from metadata, only linq2db's own attributes are known to.
+		static bool ForwardsUnchanged(IMethodSymbol constructor, string parameter)
+		{
+			foreach (var reference in constructor.DeclaringSyntaxReferences)
+			{
+				SeparatedSyntaxList<ArgumentSyntax>? arguments = reference.GetSyntax() switch
+				{
+					ConstructorDeclarationSyntax { Initializer: { } initializer } => initializer.ArgumentList.Arguments,
+					TypeDeclarationSyntax { BaseList: { } baseList }              => baseList.Types.OfType<PrimaryConstructorBaseTypeSyntax>().FirstOrDefault()?.ArgumentList.Arguments,
+					_                                                             => null,
+				};
+
+				return arguments?.Any(a => a.Expression is IdentifierNameSyntax { Identifier.ValueText: var name } && IsTextMember(name, parameter)) == true;
+			}
+
+			return string.Equals(constructor.ContainingAssembly?.Name, "linq2db", StringComparison.Ordinal);
 		}
 
 		/// <summary>The texts <c>new Sql.*Attribute(...)</c> passes, as fluent mapping does, as operations still to resolve.</summary>

@@ -33,13 +33,13 @@ namespace LinqToDB.Analyzers
 				return;
 			}
 
-			foreach (var line in text.Lines)
+			foreach (var (span, number, content) in GetLines(text))
 			{
-				var location = Location.Create(file.Path, line.Span, text.Lines.GetLinePositionSpan(line.Span));
-				var prefix   = "Line " + (line.LineNumber + 1).ToString(CultureInfo.InvariantCulture) + " of '" + origin + "': ";
+				var location = Location.Create(file.Path, span, text.Lines.GetLinePositionSpan(span));
+				var prefix   = "Line " + number.ToString(CultureInfo.InvariantCulture) + " of '" + origin + "': ";
 
 				// the grammar is SqlTextCatalog.Load's, shared through SqlTextLineFormat; a blank or comment line has no error
-				if (!SqlTextLineFormat.TryParseEntry(line.ToString(), out var add, out var kind, out var value, out var error))
+				if (!SqlTextLineFormat.TryParseEntry(content, out var add, out var kind, out var value, out var error))
 				{
 					if (error != null)
 						collector.Report(Diagnostic.Create(SqlTextUserCatalogGenerator.MalformedLineRule, location, prefix + error));
@@ -66,15 +66,41 @@ namespace LinqToDB.Analyzers
 
 		static void ReportIgnoredDenials(AdditionalText file, SourceText text, SqlTextCollector collector)
 		{
-			foreach (var line in text.Lines)
+			foreach (var (span, number, content) in GetLines(text))
 			{
-				if (!SqlTextLineFormat.TryParseEntry(line.ToString(), out var add, out _, out _, out _) || add)
+				// a malformed line that starts as a denial counts as one: it is lost either way
+				if (SqlTextLineFormat.TryParseEntry(content, out var add, out _, out _, out _) ? add : !content.TrimStart().StartsWith("-", StringComparison.Ordinal))
 					continue;
 
-				var location = Location.Create(file.Path, line.Span, text.Lines.GetLinePositionSpan(line.Span));
+				var location = Location.Create(file.Path, span, text.Lines.GetLinePositionSpan(span));
 
 				collector.Report(Diagnostic.Create(SqlTextUserCatalogGenerator.DenialNotAppliedRule, location,
-					"Line " + (line.LineNumber + 1).ToString(CultureInfo.InvariantCulture) + " of '" + file.Path + "' removes an entry, but the file is ignored (L2DB1008), so the denial is not applied"));
+					"Line " + number.ToString(CultureInfo.InvariantCulture) + " of '" + file.Path + "' removes an entry, but the file is ignored (L2DB1008), so the denial is not applied"));
+			}
+		}
+
+		// lines end at CR, LF or CRLF only, as TextReader.ReadLine splits them for SqlTextCatalog.Load; SourceText.Lines also
+		// breaks at U+0085, U+2028 and U+2029, which would read a different text than the server loads
+		static IEnumerable<(TextSpan Span, int Number, string Content)> GetLines(SourceText text)
+		{
+			var content = text.ToString();
+			var start   = 0;
+			var number  = 1;
+
+			for (var i = 0; i <= content.Length; i++)
+			{
+				if (i < content.Length && content[i] != '\r' && content[i] != '\n')
+					continue;
+
+				if (i == content.Length && start == i)
+					yield break;
+
+				yield return (TextSpan.FromBounds(start, i), number++, content.Substring(start, i - start));
+
+				if (i < content.Length - 1 && content[i] == '\r' && content[i + 1] == '\n')
+					i++;
+
+				start = i + 1;
 			}
 		}
 

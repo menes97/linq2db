@@ -113,8 +113,18 @@ namespace LinqToDB.Analyzers
 			{
 				var ((options, compilation), texts) = x;
 
-				if (options.Enabled)
+				if (!options.Enabled)
+					return;
+
+				// a generator exception is only a CS8785 warning, and it would drop the whole catalog with its denials
+				try
+				{
 					Execute(spc, options, compilation, texts);
+				}
+				catch (Exception ex) when (ex is not OperationCanceledException)
+				{
+					spc.ReportDiagnostic(Diagnostic.Create(DenialNotAppliedRule, Location.None, $"The SQL text catalog generator failed, so no catalog is generated and its LinqToDBSqlText denials are not applied: {ex.GetType().Name}: {ex.Message}"));
+				}
 			});
 		}
 
@@ -281,19 +291,49 @@ namespace LinqToDB.Analyzers
 
 		static void CollectAttribute(AttributeSyntax attribute, SemanticModel model, SqlTextCollector collector, CancellationToken cancellationToken)
 		{
-			if (attribute.Parent?.Parent is not { } declaration || model.GetDeclaredSymbol(declaration, cancellationToken) is not { } owner)
+			if (attribute.Parent is not AttributeListSyntax { Parent: { } declaration } list)
 				return;
 
-			foreach (var data in owner.GetAttributes())
+			foreach (var owner in GetAttributeOwners(list, declaration, model, cancellationToken))
 			{
-				if (data.ApplicationSyntaxReference?.GetSyntax(cancellationToken) == attribute)
+				foreach (var data in owner.GetAttributes())
 				{
-					// a user catalog is never partitioned, so the attribute's configuration is not used
-					foreach (var (kind, text, _) in SqlTextAttributeSources.GetTexts(data, owner))
-						collector.Add(kind, text, owner, attribute.GetLocation());
-					break;
+					if (data.ApplicationSyntaxReference?.GetSyntax(cancellationToken) == attribute)
+					{
+						if (SqlTextAttributeSources.HasUnreadableForwardedText(data))
+							collector.ReportNotConstant("The text " + data.AttributeClass?.Name + " builds from its argument", attribute.GetLocation());
+
+						// a user catalog is never partitioned, so the attribute's configuration is not used
+						foreach (var (kind, text, _) in SqlTextAttributeSources.GetTexts(data, owner))
+							collector.Add(kind, text, owner, attribute.GetLocation());
+						break;
+					}
 				}
 			}
+		}
+
+		static IEnumerable<ISymbol> GetAttributeOwners(AttributeListSyntax list, SyntaxNode declaration, SemanticModel model, CancellationToken cancellationToken)
+		{
+			switch (declaration)
+			{
+				// a field declaration declares no symbol itself, its variables do
+				case BaseFieldDeclarationSyntax field:
+					foreach (var variable in field.Declaration.Variables)
+						if (model.GetDeclaredSymbol(variable, cancellationToken) is { } symbol)
+							yield return symbol;
+					yield break;
+
+				// record R([property: Column(...)] int P): the attribute belongs to the property the parameter declares
+				case ParameterSyntax parameter when list.Target?.Identifier.IsKind(SyntaxKind.PropertyKeyword) == true:
+					if (model.GetDeclaredSymbol(parameter, cancellationToken) is { ContainingSymbol.ContainingSymbol: INamedTypeSymbol type })
+						foreach (var member in type.GetMembers(parameter.Identifier.ValueText))
+							if (member is IPropertySymbol)
+								yield return member;
+					yield break;
+			}
+
+			if (model.GetDeclaredSymbol(declaration, cancellationToken) is { } owner)
+				yield return owner;
 		}
 
 		static string Emit(string? assemblyName, IEnumerable<SqlTextItemModel> items)

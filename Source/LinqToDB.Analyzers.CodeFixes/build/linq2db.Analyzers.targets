@@ -65,4 +65,11 @@
 		</ItemGroup>
 	</Target>
 
+	<!-- Without the generator the files are not read at all, and a lost '-' line widens what untrusted clients may send. -->
+	<Target Name="LinqToDBCheckSqlTextFiles"
+			Condition="'@(LinqToDBSqlText)' != '' and ('$(LinqToDBSqlTextCatalog)' != 'true' or '$(EnableLinqToDBAnalyzers)' == 'false')"
+			BeforeTargets="CoreCompile">
+		<Error Code="L2DB1010" Text="LinqToDBSqlText files are listed, but the SQL text catalog generator does not run (LinqToDBSqlTextCatalog is not 'true', or EnableLinqToDBAnalyzers is 'false'), so their allow and deny lines are not applied: @(LinqToDBSqlText)" />
+	</Target>
+
 </Project>

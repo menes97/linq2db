@@ -314,7 +314,7 @@ namespace LinqToDB.Analyzers
 						{
 							var values = new List<string>();
 
-							if (TryResolveFormat(argument.Value, collector.Model, values))
+							if (TryResolveFormat(argument.Value, collector.Model, values, collector.Kinds.ToValue(row.Kind)))
 								collector.AddValues(row.Kind, values, argument.Syntax.GetLocation());
 							else
 								collector.ReportNotConstant(argument.Value, argument.Syntax.GetLocation());
@@ -326,7 +326,8 @@ namespace LinqToDB.Analyzers
 						{
 							var values = new List<string>();
 
-							if (CodeGenerators.SqlTextFlow.TryResolve(argument.Value, collector.Model, values))
+							// the hint is catalogued wrapped, which a forwarded [SqlText] parameter's own entry never is
+							if (CodeGenerators.SqlTextFlow.TryResolve(argument.Value, collector.Model, values, expectedKind: int.MaxValue))
 								collector.AddValues(row.Kind, values.Select(static v => "{0} {1} WITH (" + v + ")"), argument.Syntax.GetLocation());
 							else
 								collector.ReportNotConstant(argument.Value, argument.Syntax.GetLocation());
@@ -528,7 +529,7 @@ namespace LinqToDB.Analyzers
 		/// Rebuilds the composite format the runtime sends for a <c>FormattableString</c> (<c>FormattableString.Format</c>) or a
 		/// <c>RawSqlString</c> (its text as written).
 		/// </summary>
-		static bool TryResolveFormat(IOperation value, SemanticModel model, List<string> values, bool formattable = false)
+		static bool TryResolveFormat(IOperation value, SemanticModel model, List<string> values, int expectedKind, bool formattable = false)
 		{
 			// Only a conversion to FormattableString keeps the composite format: bound as string (the RawSqlString overloads with
 			// arguments), the client sends the formatted text.
@@ -540,7 +541,7 @@ namespace LinqToDB.Analyzers
 			{
 				return TryGetInitializer(local, model, out var initializer)
 					&& !HasReassignment(local, model)
-					&& TryResolveFormat(initializer, model, values, formattable: true);
+					&& TryResolveFormat(initializer, model, values, expectedKind, formattable: true);
 			}
 
 			if (value is IInterpolatedStringOperation interpolated && (formattable || IsFormattableString(interpolated.Type)))
@@ -587,7 +588,7 @@ namespace LinqToDB.Analyzers
 				return true;
 			}
 
-			return value.Type?.SpecialType == SpecialType.System_String && CodeGenerators.SqlTextFlow.TryResolve(value, model, values);
+			return value.Type?.SpecialType == SpecialType.System_String && CodeGenerators.SqlTextFlow.TryResolve(value, model, values, expectedKind: expectedKind);
 		}
 
 		static bool IsFormattableString(ITypeSymbol? type)
