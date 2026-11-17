@@ -225,10 +225,11 @@ namespace LinqToDB.Internal.Remote
 					break;
 
 				// Compiler-generated and non-ASCII names ($VB$Local_id, <Parameter>P, $VB$It) carry no meaning on the wire, so they
-				// are replaced rather than rejected: a parameter is renamed the way the provider's normalizer would, and an alias is
-				// dropped for the builder to generate one.
+				// are corrected rather than rejected, as a direct query's are, so both render the same SQL: a library provider's
+				// parameter normalizer reshapes a name itself (another provider's is renamed here), and an alias is reduced the way
+				// IIdentifierService.CorrectAlias reduces it.
 				case SqlParameter e:
-					if (!IsIdentifier(e.Name, mappedNames))
+					if (!policy.NormalizesParameterNames && !IsIdentifier(e.Name, mappedNames))
 						e.Name = ToIdentifier(e.Name!);
 					break;
 
@@ -238,12 +239,12 @@ namespace LinqToDB.Internal.Remote
 
 				case SqlColumn e:
 					if (!string.Equals(e.RawAlias, "*", StringComparison.Ordinal) && !IsIdentifier(e.RawAlias, mappedNames))
-						e.RawAlias = null;
+						e.RawAlias = CorrectAlias(e.RawAlias);
 					break;
 
 				case SqlTableSource e:
 					if (e.RawAlias is not ("$" or "$F") && !IsIdentifier(e.RawAlias, mappedNames))
-						e.Alias = null;
+						e.Alias = CorrectAlias(e.RawAlias);
 					break;
 
 				case SqlDataType e:
@@ -275,9 +276,9 @@ namespace LinqToDB.Internal.Remote
 
 		static void CheckTable(RemoteQueryPolicy policy, SqlTable table, HashSet<string> mappedNames)
 		{
-			// an alias set by .As() carries no meaning on the wire: one outside the shape is dropped for the builder to generate one
+			// an alias set by .As() carries no meaning on the wire: one outside the shape is corrected as the builder corrects it
 			if (!IsIdentifier(table.Alias, mappedNames))
-				table.Alias = null;
+				table.Alias = CorrectAlias(table.Alias);
 
 			// the builder renders Expression only for SqlTableType.Expression; it renders the name for every type, also as the
 			// qualifier of an alias-less field of an expression table
@@ -377,6 +378,12 @@ namespace LinqToDB.Internal.Remote
 			}
 
 			return result.Length == 0 ? "p" : result.ToString();
+		}
+
+		// the reduction every library IIdentifierService applies to an alias before rendering it; nothing left means no alias
+		static string? CorrectAlias(string? alias)
+		{
+			return alias == null ? null : DataProvider.IdentifierServiceBase.CorrectAliasDefault(alias) is { Length: > 0 } corrected ? corrected : null;
 		}
 
 		static void CheckExtension(RemoteQueryPolicy policy, SqlQueryExtension extension, HashSet<string> mappedNames)

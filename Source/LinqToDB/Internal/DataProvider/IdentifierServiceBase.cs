@@ -6,7 +6,10 @@ namespace LinqToDB.Internal.DataProvider
 	{
 		public abstract bool   IsFit(IdentifierKind identifierKind, string identifier, [NotNullWhen(false)] out int? sizeDecrement);
 
-		public virtual string CorrectAlias(string alias)
+		public virtual string CorrectAlias(string alias) => CorrectAliasDefault(alias);
+
+		// also applied by RemoteQueryValidator to an untrusted client's aliases, so they render as a direct query's do
+		internal static string CorrectAliasDefault(string alias)
 		{
 			alias = alias.TrimStart('_');
 

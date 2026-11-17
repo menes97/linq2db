@@ -2201,6 +2201,15 @@ string.Create(CultureInfo.InvariantCulture, $"TypeIndex or TypeArrayIndex ({Type
 					foreach (var action in _actions)
 						action();
 
+					// any client: a CTE reference outside its WITH clause would read the table of that name
+					if (CteReferenceCheck.FindInvalidReference(_statement) is { } reference)
+					{
+						if (Policy == null)
+							throw new LinqToDBException($"Malformed remote request: CTE '{reference.Cte?.Name}' is referenced outside the scope of its WITH clause.");
+
+						Policy.RejectNode("SqlCteTable.Cte");
+					}
+
 					if (Policy != null)
 						RemoteQueryValidator.Validate(Policy, ObjectIndices.Values, _statement, queryHints);
 				}

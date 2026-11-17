@@ -154,6 +154,12 @@ namespace LinqToDB.Internal.Remote
 				OptionAssembly    : AppDomain.CurrentDomain.GetAssemblies().FirstOrDefault(static a => string.Equals(a.GetName().Name, FSharpCoreName, StringComparison.Ordinal)));
 		}
 
+		/// <summary>
+		/// Whether the provider's own parameter normalizer gives every parameter a name of ASCII letters, digits and underscores:
+		/// a library provider's UniqueParametersNormalizer does, and its NoopQueryParametersNormalizer providers render no names.
+		/// </summary>
+		internal bool NormalizesParameterNames => _providerType.Assembly == typeof(DataConnection).Assembly;
+
 		/// <summary>Gets the argument roles the provider or a mapping assembly declares for one of its own extension builders.</summary>
 		internal bool TryGetBuilderRoles(Type builderType, out (string Key, SqlExtensionArgumentRole Role)[] roles)
 		{

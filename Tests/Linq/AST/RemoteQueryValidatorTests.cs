@@ -4,6 +4,7 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
@@ -1007,6 +1008,84 @@ namespace Tests.AST
 			Rejected(db, new SqlSelectStatement(query)).Rejections.ShouldContain(static r => r.Kind == SqlTextKind.RawSqlTable && r.Text == InertText);
 		}
 
+		static SqlSelectStatement CteStatement(string shape)
+		{
+			CteClause Clause(string name, bool isRecursive = false)
+			{
+				var body = new SelectQuery();
+				body.Select.Add(One);
+				return new CteClause(body, typeof(LocalEntity), isRecursive, name);
+			}
+
+			static SelectQuery From(CteClause cte)
+			{
+				var query = new SelectQuery();
+				query.From.Tables.Add(new SqlTableSource(new SqlCteTable(cte, typeof(LocalEntity)), "c"));
+				query.Select.Add(One);
+				return query;
+			}
+
+			var first  = Clause("CTE_FIRST", isRecursive: shape is "RecursiveBranch" or "RecursiveAnchor");
+			var second = Clause("CTE_SECOND");
+			var with   = new SqlWithClause();
+
+			switch (shape)
+			{
+				case "Declared"        : with.Clauses.Add(first);                                                    break;
+				case "Undeclared"      :                                                                             break;
+				case "Backward"        : with.Clauses.Add(second); with.Clauses.Add(first); first.Body = From(second); break;
+				case "Forward"         : with.Clauses.Add(first);  with.Clauses.Add(second); first.Body = From(second); break;
+				case "SelfNonRecursive": with.Clauses.Add(first);  first.Body = From(first);                         break;
+				case "RecursiveAnchor" : with.Clauses.Add(first);  first.Body = From(first);                         break;
+				case "RecursiveBranch" : with.Clauses.Add(first);  first.Body!.SetOperators.Add(new SqlSetOperator(From(first), SetOperation.UnionAll)); break;
+			}
+
+			return new SqlSelectStatement(From(first)) { With = shape == "Undeclared" ? null : with };
+		}
+
+		// a CTE reference renders as the bare CTE name, so one outside the scope of its WITH clause would read a real table
+		[Test]
+		public void CteReferenceOutsideItsScopeIsRejected(
+			[Values("Undeclared", "Forward", "SelfNonRecursive", "RecursiveAnchor")] string shape,
+			[Values] bool trusted)
+		{
+			using var db = CreateConnection();
+
+			// the client serializer only writes a CTE its WITH clause declares, so an undeclared reference is the declared
+			// statement with the clause list of its WITH line emptied, as a hand-edited request would send it
+			var data = Serialize(CteStatement(shape == "Undeclared" ? "Declared" : shape));
+
+			if (shape == "Undeclared")
+				data = Regex.Replace(data, $@"(?m)^(\d+) {(int)QueryElementType.WithClause} 1 \d+(\r?)$", $"$1 {(int)QueryElementType.WithClause} 0$2");
+
+			var (_, deserialize, schema) = GetSerializer();
+
+			void Deserialize(RemoteQueryPolicy? policy)
+			{
+				try
+				{
+					deserialize.Invoke(null, [schema, db.MappingSchema, db.Options, data, policy]);
+				}
+				catch (TargetInvocationException ex)
+				{
+					ExceptionDispatchInfo.Capture(ex.InnerException!).Throw();
+				}
+			}
+
+			if (trusted)
+				Assert.That(() => Deserialize(null), Throws.TypeOf<LinqToDBException>().With.Message.Contains("CTE"));
+			else
+				Assert.That(() => Deserialize(Untrusted(db, _thisAssembly)), Throws.TypeOf<RemoteRequestRejectedException>());
+		}
+
+		[Test]
+		public void CteReferenceInScopeIsAccepted([Values("Declared", "Backward", "RecursiveBranch")] string shape, [Values] bool trusted)
+		{
+			using var db = CreateConnection();
+
+			RoundTrip(db, CteStatement(shape), trusted ? null : Untrusted(db, _thisAssembly));
+		}
+
 		// SQLiteExtensions.MatchTable: "{0}({1})" names the table in its leading placeholder, so only a table goes there
 		[Test]
 		public void RawSqlTableLeadingPlaceholderTakesOnlyATable([Values] bool table)
@@ -1217,23 +1296,35 @@ namespace Tests.AST
 			return new SqlSelectStatement(query);
 		}
 
-		// compiler-generated (VB closures, F# primary constructors) and non-ASCII parameter names are renamed, not rejected
+		// a provider outside the library, whose parameter normalizer is not known to reshape names
+		sealed class ThirdPartySQLiteProvider() : LinqToDB.Internal.DataProvider.SQLite.SQLiteDataProvider(ProviderName.SQLiteMS, SQLiteProvider.Microsoft);
+
+		// compiler-generated (VB closures, F# primary constructors) and non-ASCII parameter names are not rejected: a library
+		// provider's normalizer reshapes them as it does a direct query's, and another provider's are renamed here
 		[TestCase("$VB$Local_id",  "VBLocal_id")]
 		[TestCase("<Parameter>P",  "ParameterP")]
 		[TestCase("параметр",      "p")]
 		[TestCase("1 not a name",  "notaname")]
-		public void ParameterNameOutsideShapeIsRenamed(string name, string expected)
+		public void ParameterNameOutsideShape(string name, string renamed)
 		{
-			using var db = CreateConnection();
+			using var db         = CreateConnection();
+			using var thirdParty = new DataConnection(new DataOptions().UseConnectionString(new ThirdPartySQLiteProvider(), "Data Source=:memory:"));
 
-			var query = RoundTrip(db, WithIdentifier(db, "ParameterName", name), RemoteQueryPolicy.Create(db, [_thisAssembly], null));
+			static string? NameOf(LinqServiceQuery query) =>
+				((SqlSelectStatement)query.Statement).SelectQuery.Select.Columns[0].Expression.ShouldBeOfType<SqlParameter>().Name;
 
-			((SqlSelectStatement)query.Statement).SelectQuery.Select.Columns[0].Expression.ShouldBeOfType<SqlParameter>().Name.ShouldBe(expected);
+			NameOf(RoundTrip(db,         WithIdentifier(db, "ParameterName", name),         RemoteQueryPolicy.Create(db,         [_thisAssembly], null))).ShouldBe(name);
+			NameOf(RoundTrip(thirdParty, WithIdentifier(thirdParty, "ParameterName", name), RemoteQueryPolicy.Create(thirdParty, [_thisAssembly], null))).ShouldBe(renamed);
 		}
 
+		// an alias outside the shape is reduced as IIdentifierService.CorrectAlias reduces a direct query's
 		[Test]
-		public void AliasOutsideShapeIsDropped([Values("TableSourceAlias", "TableAlias", "ColumnAlias")] string position, [Values("$VB$It", "not a name", "тбл")] string name)
+		public void AliasOutsideShapeIsCorrected(
+			[Values("TableSourceAlias", "TableAlias", "ColumnAlias")] string position,
+			[Values("$VB$It|VBIt", "not a name|notaname", "v0.Id|v0Id", "тбл|")] string names)
 		{
+			var (name, corrected) = (names.Split('|')[0], names.Split('|')[1]);
+
 			using var db = CreateConnection();
 
 			var query  = RoundTrip(db, WithIdentifier(db, position, name), RemoteQueryPolicy.Create(db, [_thisAssembly], null));
@@ -1246,7 +1337,7 @@ namespace Tests.AST
 				_                  => select.Select.Columns[0].Alias,
 			};
 
-			alias.ShouldNotBe(name);
+			alias.ShouldBe(corrected.Length == 0 ? null : corrected);
 		}
 
 		[Test]
@@ -2048,6 +2139,10 @@ namespace Tests.AST
 				.ToList();
 
 			var recorded = _textMemberDispositions.Select(static d => d.Split(':')[0]).ToList();
+
+			// QueryElement.DebugText exists in a Debug build of the library only
+			if (typeof(QueryElement).GetProperty("DebugText") == null)
+				recorded.Remove("LinqToDB.Internal.SqlQuery.QueryElement.DebugText");
 
 			actual.Except(recorded).ShouldBeEmpty("text-bearing members without a disposition");
 			recorded.Except(actual).ShouldBeEmpty("dispositions for members that no longer exist");
