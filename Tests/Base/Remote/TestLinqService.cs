@@ -63,7 +63,7 @@ namespace Tests.Remote
 		/// Whether remote test hosts run with <see cref="LinqService.TrustedClient"/> off: the default, so the remote suite
 		/// exercises the untrusted-client policy. <c>LINQ2DB_TESTS_TRUSTED_REMOTE=1</c> runs them trusted.
 		/// </summary>
-		internal static bool IsUntrusted { get; } = Environment.GetEnvironmentVariable("LINQ2DB_TESTS_TRUSTED_REMOTE") != "1";
+		internal static bool IsUntrusted { get; } = Environment.GetEnvironmentVariable("LINQ2DB_TESTS_TRUSTED_REMOTE") == "0";
 
 		// Keyed by provider: a provider's remote tests run one at a time on its lane, but providers run concurrently.
 		static readonly ConcurrentDictionary<string, List<RemoteRejection>> _rejections = new(StringComparer.OrdinalIgnoreCase);
