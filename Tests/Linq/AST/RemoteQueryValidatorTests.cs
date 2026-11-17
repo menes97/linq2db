@@ -207,6 +207,38 @@ namespace Tests.AST
 			rejection.Kind.ShouldBe(SqlTextKind.Expression);
 		}
 
+		static DataConnection OfflineConnection(string provider) => provider switch
+		{
+			"MySql"      => new DataConnection(new DataOptions().UseMySql("Server=offline", MySqlVersion.MySql80, MySqlProvider.MySqlConnector)),
+			"Oracle"     => new DataConnection(new DataOptions().UseOracle("Data Source=offline", OracleVersion.v12, OracleProvider.Managed)),
+			"PostgreSQL" => new DataConnection(new DataOptions().UsePostgreSQL("Server=offline", LinqToDB.DataProvider.PostgreSQL.PostgreSQLVersion.v15)),
+			_            => CreateConnection(),
+		};
+
+		// a host text is checked against the quoting contexts of the provider that renders it
+		[TestCase("MySql",      "MARK({0}) # {1}",           true,  Description = "hash line comment")]
+		[TestCase("SQLite",     "MARK({0}) # {1}",           false, Description = "no hash comment in SQLite")]
+		[TestCase("Oracle",     "MARK(q'[a' {0} 'b]', {1})", true,  Description = "Oracle q-quoted literal")]
+		[TestCase("SQLite",     "MARK(q'[a' {0} 'b]', {1})", false, Description = "no q-quote in SQLite")]
+		[TestCase("PostgreSQL", "MARK(/* /* */ {0} */ {1})", true,  Description = "nested block comment")]
+		[TestCase("PostgreSQL", "MARK(/* x */ {0}, {1})",    false, Description = "closed block comment")]
+		public void HostTextQuotingFollowsTheProvider(string provider, string text, bool refused)
+		{
+			using var db = OfflineConnection(provider);
+
+			var catalog = new SqlTextCatalog();
+
+			catalog.Add(SqlTextKind.Expression, text);
+
+			var statement = SelectOf(new SqlExpression(new DbDataType(typeof(int)), text, One, One));
+			var policy    = RemoteQueryPolicy.Create(db, [], null, catalog);
+
+			if (refused)
+				RejectedUnlessTrusted(db, statement, policy).Rejections[0].Reason.ShouldBe(RemoteRejectionReason.TextNotInCatalog);
+			else
+				RoundTrip(db, statement, policy);
+		}
+
 		[Test]
 		public void FragmentTextOutsideCatalogIsRejected()
 		{

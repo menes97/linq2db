@@ -31,11 +31,17 @@ namespace LinqToDB.Analyzers
 			Backtick    = 16,
 			/// <summary><c>$tag$...$tag$</c>.</summary>
 			DollarQuote = 32,
+			/// <summary><c>/* ... */</c> nests: each <c>/*</c> inside a comment needs its own <c>*/</c>.</summary>
+			NestedComments = 64,
+			/// <summary><c># ...</c> to the end of the line.</summary>
+			HashComments = 128,
+			/// <summary>Oracle <c>q'[...]'</c>, <c>q'{...}'</c>, <c>q'(...)'</c>, <c>q'&lt;...&gt;'</c> and <c>q'c...c'</c>.</summary>
+			QQuote = 256,
 
 			/// <summary>Contexts that quote in every supported database. Used where the database is not known yet.</summary>
 			AlwaysOn    = Apostrophe | DoubleQuote | Comments,
 			/// <summary>Every context. Used for text shared by all databases and for databases outside the library.</summary>
-			All         = AlwaysOn | Brackets | Backtick | DollarQuote,
+			All         = AlwaysOn | Brackets | Backtick | DollarQuote | NestedComments | HashComments | QQuote,
 		}
 
 		/// <summary>Gets the contexts of a provider family, the <c>Internal.DataProvider.&lt;family&gt;</c> namespace segment.</summary>
@@ -44,13 +50,17 @@ namespace LinqToDB.Analyzers
 		{
 			return family switch
 			{
-				"SqlServer" or "SqlCe" or "Sybase"                    => Dialect.AlwaysOn | Dialect.Brackets,
-				"Access"    or "SQLite"                               => Dialect.AlwaysOn | Dialect.Brackets | Dialect.Backtick,
-				"MySql"     or "Ydb"                                  => Dialect.AlwaysOn | Dialect.Backtick,
-				"ClickHouse"                                          => Dialect.AlwaysOn | Dialect.Backtick | Dialect.DollarQuote,
-				"PostgreSQL" or "DuckDB"                              => Dialect.AlwaysOn | Dialect.DollarQuote,
-				"DB2" or "Firebird" or "Informix" or "Oracle" or "SapHana" => Dialect.AlwaysOn,
-				_                                                     => Dialect.All,
+				// nesting is assumed wherever it is not known to be absent: reading a comment as nested only widens it
+				"SqlServer" or "SqlCe" or "Sybase"            => Dialect.AlwaysOn | Dialect.NestedComments | Dialect.Brackets,
+				"Access"                                      => Dialect.AlwaysOn | Dialect.NestedComments | Dialect.Brackets | Dialect.Backtick,
+				"SQLite"                                      => Dialect.AlwaysOn | Dialect.Brackets | Dialect.Backtick,
+				"MySql"                                       => Dialect.AlwaysOn | Dialect.HashComments | Dialect.Backtick,
+				"Ydb"                                         => Dialect.AlwaysOn | Dialect.NestedComments | Dialect.Backtick,
+				"ClickHouse"                                  => Dialect.AlwaysOn | Dialect.NestedComments | Dialect.HashComments | Dialect.Backtick | Dialect.DollarQuote,
+				"PostgreSQL" or "DuckDB"                      => Dialect.AlwaysOn | Dialect.NestedComments | Dialect.DollarQuote,
+				"Oracle"                                      => Dialect.AlwaysOn | Dialect.QQuote,
+				"DB2" or "Firebird" or "Informix" or "SapHana" => Dialect.AlwaysOn | Dialect.NestedComments,
+				_                                             => Dialect.All,
 			};
 		}
 
@@ -88,9 +98,32 @@ namespace LinqToDB.Analyzers
 					if (ScanDelimited(text, ref i, ']', false, out index))
 						return true;
 				}
-				else if (c == '-' && dialect.HasFlag(Dialect.Comments) && i + 1 < text.Length && text[i + 1] == '-')
+				else if (c is 'q' or 'Q' or 'n' or 'N' && dialect.HasFlag(Dialect.QQuote) && TryReadQQuote(text, i, out var bodyStart, out var closer))
 				{
-					i += 2;
+					var close = text.IndexOf(closer + "'", bodyStart, StringComparison.Ordinal);
+					var end   = close < 0 ? text.Length : close;
+
+					for (var j = bodyStart; j < end; j = Next(text, j))
+					{
+						if (IsTokenStart(text, j))
+						{
+							index = j;
+							return true;
+						}
+					}
+
+					if (close < 0)
+					{
+						index = start;
+						return true;
+					}
+
+					i = close + 2;
+				}
+				else if ((c == '-' && dialect.HasFlag(Dialect.Comments) && i + 1 < text.Length && text[i + 1] == '-')
+					|| (c == '#' && dialect.HasFlag(Dialect.HashComments)))
+				{
+					i += c == '#' ? 1 : 2;
 
 					while (i < text.Length && text[i] != '\n' && text[i] != '\r')
 					{
@@ -114,6 +147,8 @@ namespace LinqToDB.Analyzers
 				{
 					i += 2;
 
+					var depth = 1;
+
 					while (true)
 					{
 						if (i + 1 >= text.Length)
@@ -125,7 +160,18 @@ namespace LinqToDB.Analyzers
 						if (text[i] == '*' && text[i + 1] == '/')
 						{
 							i += 2;
-							break;
+
+							if (--depth == 0)
+								break;
+
+							continue;
+						}
+
+						if (text[i] == '/' && text[i + 1] == '*' && dialect.HasFlag(Dialect.NestedComments))
+						{
+							i += 2;
+							depth++;
+							continue;
 						}
 
 						if (IsTokenStart(text, i))
@@ -243,6 +289,38 @@ namespace LinqToDB.Analyzers
 				return false;
 
 			length = j - i + 1;
+			return true;
+		}
+
+		// q'<d>...<d>' or nq'<d>...<d>', not continuing an identifier; a bracket delimiter closes with its pair
+		static bool TryReadQQuote(string text, int i, out int bodyStart, out char closer)
+		{
+			bodyStart = 0;
+			closer    = '\0';
+
+			if (i > 0 && IsIdentifierChar(text[i - 1]))
+				return false;
+
+			var q = text[i] is 'n' or 'N' ? i + 1 : i;
+
+			if (q + 2 >= text.Length || text[q] is not ('q' or 'Q') || text[q + 1] != '\'')
+				return false;
+
+			var open = text[q + 2];
+
+			if (char.IsWhiteSpace(open))
+				return false;
+
+			closer = open switch
+			{
+				'[' => ']',
+				'{' => '}',
+				'(' => ')',
+				'<' => '>',
+				_   => open,
+			};
+
+			bodyStart = q + 3;
 			return true;
 		}
 
