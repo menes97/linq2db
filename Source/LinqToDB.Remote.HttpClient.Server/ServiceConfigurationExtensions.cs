@@ -25,9 +25,12 @@ namespace LinqToDB.Remote.HttpClient.Server
 		public static IMvcBuilder AddLinqToDBController(this IMvcBuilder builder, string route = "api/linq2db")
 		{
 			return builder.Services
-				.AddControllers(options => options.Conventions.Add(new ControllerRouteConvention<LinqToDBController>(route)))
-				.ConfigureApplicationPartManager(apm => apm.FeatureProviders.Add(new SpecificControllerFeatureProvider<LinqToDBController>()));
+				.AddControllers(options => options.Conventions.Add(new ControllerRouteConvention<DefaultLinqToDBController>(route)))
+				.ConfigureApplicationPartManager(apm => apm.FeatureProviders.Add(new SpecificControllerFeatureProvider<DefaultLinqToDBController>()));
 		}
+
+		// the controller AddLinqToDBController() registers: not public, so MVC serves it only at the configured route
+		sealed class DefaultLinqToDBController : LinqToDBController;
 
 		/// <summary>
 		/// Adds an <see cref="LinqToDBController"/> to the list of <see cref="ApplicationPartManager.ApplicationParts"/> on the

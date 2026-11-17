@@ -5,8 +5,13 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace LinqToDB.Remote.HttpClient.Server
 {
+	/// <summary>
+	/// Remote query endpoint. Abstract, so MVC does not discover and serve it at the site root on its own: register it with
+	/// <see cref="ServiceConfigurationExtensions.AddLinqToDBController(Microsoft.Extensions.DependencyInjection.IMvcBuilder, string)"/>
+	/// or derive a controller of your own.
+	/// </summary>
 	[ApiController]
-	public class LinqToDBController : ControllerBase
+	public abstract class LinqToDBController : ControllerBase
 	{
 		[HttpPost("GetInfoAsync/{configuration?}")]
 		[ActionName("GetInfoAsync")]
